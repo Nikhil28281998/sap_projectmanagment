@@ -69,7 +69,7 @@ modules:
   # ─── React Frontend (Build Only) ───────────────────
   - name: sap-pm-webapp
     type: html5
-    path: app
+    path: frontend
     build-parameters:
       builder: custom
       commands:
