@@ -1,0 +1,11 @@
+ID;userEmail;type;message;trNumber;isRead
+d1000001-0001-4000-8000-000000000001;manager@test.com;FAILED_IMPORT;Transport DEVK900301 failed import in QAS (RC=8) - BOM explosion logic error;DEVK900301;false
+d1000001-0001-4000-8000-000000000002;manager@test.com;FAILED_IMPORT;Transport DEVK900201 failed import in QAS (RC=8) - config conflict;DEVK900201;false
+d1000001-0001-4000-8000-000000000003;manager@test.com;FAILED_IMPORT;Transport DEVK900132 failed import in QAS (RC=8) - retro calc dependency;DEVK900132;false
+d1000001-0001-4000-8000-000000000004;manager@test.com;STUCK_TR;Transport DEVK900111 stuck in QAS for 33 days (Tom Lee);DEVK900111;false
+d1000001-0001-4000-8000-000000000005;manager@test.com;STUCK_TR;Transport DEVK900110 stuck in QAS for 38 days (Tom Lee);DEVK900110;true
+d1000001-0001-4000-8000-000000000006;manager@test.com;GOLIVE_APPROACHING;PP Production Planning Rework go-live in 6 days (Apr 05) - UAT not signed off;PRJ-PP-2026-06;false
+d1000001-0001-4000-8000-000000000007;manager@test.com;GOLIVE_APPROACHING;FICO Cash Management go-live in 2 days (Apr 01) - 35% deployed;PRJ-FICO-2026-01;false
+d1000001-0001-4000-8000-000000000008;dev@test.com;STUCK_TR;Your transport DEVK900102 has been in DEV for 20 days;DEVK900102;false
+d1000001-0001-4000-8000-000000000009;dev@test.com;FAILED_IMPORT;Transport DEVK900106 failed import in QAS (RC=8);DEVK900106;false
+d1000001-0001-4000-8000-000000000010;manager@test.com;STUCK_TR;Transport DEVK900203 in QAS for 18 days with no work item assignment;DEVK900203;false
