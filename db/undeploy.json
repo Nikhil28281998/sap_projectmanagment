@@ -1,0 +1,8 @@
+[
+  "sap.pm.TransportWorkItems",
+  "sap.pm.Milestones",
+  "sap.pm.Notifications",
+  "sap.pm.SyncLog",
+  "sap.pm.ActivityLog",
+  "sap.pm.UserPreferences"
+]

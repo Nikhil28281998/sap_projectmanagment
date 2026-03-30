@@ -1,0 +1,42 @@
+{
+  "build": {
+    "target": ".",
+    "tasks": [
+      {
+        "for": "hana",
+        "src": "db",
+        "options": {
+          "model": ["db", "srv"]
+        }
+      },
+      {
+        "for": "node-cf",
+        "src": "srv",
+        "options": {
+          "model": ["db", "srv", "app"]
+        }
+      }
+    ]
+  },
+  "hana": {
+    "deploy-format": "hdbtable"
+  },
+  "odata": {
+    "version": "v4"
+  },
+  "log": {
+    "levels": {
+      "db": "info",
+      "cds": "info",
+      "serve": "info"
+    }
+  },
+  "features": {
+    "fiori_preview": true
+  },
+  "[development]": {
+    "features": {
+      "mocked_bindings": true
+    }
+  }
+}

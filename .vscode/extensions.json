@@ -1,0 +1,13 @@
+{
+  "recommendations": [
+    "sapse.vscode-cds",
+    "sapse.sap-ux-fiori-tools-extension-pack",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "editorconfig.editorconfig",
+    "humao.rest-client",
+    "ms-vscode.vscode-typescript-next",
+    "bradlc.vscode-tailwindcss"
+  ],
+  "unwantedRecommendations": []
+}

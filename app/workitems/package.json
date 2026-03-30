@@ -1,0 +1,7 @@
+{
+  "name": "sap.pm.workitems",
+  "version": "1.0.0",
+  "description": "Fiori Elements — Work Item Management",
+  "private": true,
+  "sapux": true
+}

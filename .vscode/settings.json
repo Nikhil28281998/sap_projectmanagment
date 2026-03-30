@@ -1,0 +1,51 @@
+{
+  // ─── Editor ───
+  "editor.formatOnSave": true,
+  "editor.tabSize": 2,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+
+  // ─── CDS ───
+  "[cds]": {
+    "editor.defaultFormatter": "sapse.vscode-cds"
+  },
+  "cds.workspaceFolders": ["sap-project-mgmt"],
+
+  // ─── TypeScript / React ───
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "typescript.preferences.importModuleSpecifier": "relative",
+
+  // ─── JavaScript (CAP service) ───
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  // ─── JSON ───
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  // ─── Files ───
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/gen": true,
+    "**/.git": true,
+    "**/db.sqlite": true,
+    "**/mta_archives": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/gen": true,
+    "**/dist": true,
+    "**/coverage": true
+  }
+}
