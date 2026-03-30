@@ -1,3 +1,4 @@
+configKey;configValue;description
 TR_START_DATE;2026-01-01;Default start date for transport lookups
 REFRESH_INTERVAL_MINUTES;60;How often to refresh RFC data
 ENABLE_AI;false;Enable Claude API for report polish

@@ -1,0 +1,132 @@
+{
+    "_version": "1.59.0",
+    "sap.app": {
+        "id": "sap.pm.workitems",
+        "type": "application",
+        "i18n": "i18n/i18n.properties",
+        "applicationVersion": {
+            "version": "1.0.0"
+        },
+        "title": "Work Items Management",
+        "description": "Manage SAP Project Work Items, Milestones & Transports",
+        "dataSources": {
+            "mainService": {
+                "uri": "/api/v1/transport/",
+                "type": "OData",
+                "settings": {
+                    "annotations": [],
+                    "odataVersion": "4.0"
+                }
+            }
+        },
+        "crossNavigation": {
+            "inbounds": {
+                "WorkItems-manage": {
+                    "semanticObject": "WorkItems",
+                    "action": "manage",
+                    "title": "Work Items Management",
+                    "signature": {
+                        "parameters": {},
+                        "additionalParameters": "allowed"
+                    }
+                }
+            }
+        }
+    },
+    "sap.ui": {
+        "technology": "UI5",
+        "icons": {
+            "icon": "sap-icon://project-definition-triangle-2"
+        },
+        "deviceTypes": {
+            "desktop": true,
+            "tablet": true,
+            "phone": true
+        }
+    },
+    "sap.ui5": {
+        "flexEnabled": true,
+        "dependencies": {
+            "minUI5Version": "1.120.0",
+            "libs": {
+                "sap.m": {},
+                "sap.ui.core": {},
+                "sap.ushell": {},
+                "sap.fe.templates": {}
+            }
+        },
+        "contentDensities": {
+            "compact": true,
+            "cozy": true
+        },
+        "models": {
+            "i18n": {
+                "type": "sap.ui.model.resource.ResourceModel",
+                "settings": {
+                    "bundleName": "sap.pm.workitems.i18n.i18n"
+                }
+            },
+            "": {
+                "dataSource": "mainService",
+                "preload": true,
+                "settings": {
+                    "synchronizationMode": "None",
+                    "operationMode": "Server",
+                    "autoExpandSelect": true,
+                    "earlyRequests": true
+                }
+            }
+        },
+        "routing": {
+            "config": {},
+            "routes": [
+                {
+                    "pattern": ":?query:",
+                    "name": "WorkItemsList",
+                    "target": "WorkItemsList"
+                },
+                {
+                    "pattern": "WorkItems({key}):?query:",
+                    "name": "WorkItemsObjectPage",
+                    "target": "WorkItemsObjectPage"
+                }
+            ],
+            "targets": {
+                "WorkItemsList": {
+                    "type": "Component",
+                    "id": "WorkItemsList",
+                    "name": "sap.fe.templates.ListReport",
+                    "options": {
+                        "settings": {
+                            "contextPath": "/WorkItems",
+                            "variantManagement": "Page",
+                            "navigation": {
+                                "WorkItems": {
+                                    "detail": {
+                                        "route": "WorkItemsObjectPage"
+                                    }
+                                }
+                            },
+                            "initialLoad": "Enabled"
+                        }
+                    }
+                },
+                "WorkItemsObjectPage": {
+                    "type": "Component",
+                    "id": "WorkItemsObjectPage",
+                    "name": "sap.fe.templates.ObjectPage",
+                    "options": {
+                        "settings": {
+                            "editableHeaderContent": false,
+                            "contextPath": "/WorkItems"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "sap.fiori": {
+        "registrationIds": [],
+        "archeType": "transactional"
+    }
+}

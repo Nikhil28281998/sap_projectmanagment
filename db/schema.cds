@@ -118,9 +118,9 @@ entity ActivityLog : cuid {
   createdAt   : Timestamp @title: 'Timestamp';
 }
 
-// ─── App Configuration (admin-managed settings) ───
+// ─── Application Configuration (key-value settings) ───
 entity AppConfig {
-  key configKey   : String(50);
-  configValue     : String(500);
-  description     : String(200);
+  key configKey  : String(100) @title: 'Config Key';
+  configValue    : String(500) @title: 'Config Value';
+  description    : String(200) @title: 'Description';
 }
