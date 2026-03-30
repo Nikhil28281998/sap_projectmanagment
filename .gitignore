@@ -3,6 +3,8 @@ dist/
 mta_archives/
 gen/
 db.sqlite
+db.sqlite-shm
+db.sqlite-wal
 *.mtar
 .env
 .env.local
