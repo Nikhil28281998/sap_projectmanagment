@@ -13,7 +13,7 @@
         "for": "node-cf",
         "src": "srv",
         "options": {
-          "model": ["db", "srv", "app"]
+          "model": ["db", "srv"]
         }
       }
     ]
@@ -32,7 +32,7 @@
     }
   },
   "features": {
-    "fiori_preview": true
+    "fiori_preview": false
   },
   "[development]": {
     "features": {

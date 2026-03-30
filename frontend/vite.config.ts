@@ -15,6 +15,14 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:4004',
         changeOrigin: true,
+        // Forward Basic auth header for CAP mocked auth
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            // Auto-inject mocked auth for development
+            const auth = Buffer.from('manager@test.com:pass').toString('base64');
+            proxyReq.setHeader('Authorization', `Basic ${auth}`);
+          });
+        },
       },
     },
   },

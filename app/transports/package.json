@@ -1,7 +1,0 @@
-{
-  "name": "sap.pm.transports",
-  "version": "1.0.0",
-  "description": "Fiori Elements — Transport Request Monitor",
-  "private": true,
-  "sapux": true
-}
