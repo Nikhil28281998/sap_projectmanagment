@@ -1,0 +1,77 @@
+{
+  "name": "sap-project-mgmt",
+  "version": "1.0.0",
+  "description": "SAP Project Management App — Transport Command Center",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@sap/cds": "^8",
+    "express": "^4",
+    "@sap/xssec": "^4",
+    "passport": "^0.7"
+  },
+  "devDependencies": {
+    "@sap/cds-dk": "^8",
+    "@cap-js/hana": "^1",
+    "@cap-js/sqlite": "^1",
+    "jest": "^29",
+    "supertest": "^6"
+  },
+  "scripts": {
+    "start": "cds-serve",
+    "dev": "cds watch",
+    "build": "cds build --production",
+    "test": "jest --forceExit --detectOpenHandles",
+    "test:unit": "jest test/unit",
+    "test:integration": "jest test/integration"
+  },
+  "cds": {
+    "requires": {
+      "db": {
+        "kind": "sql"
+      },
+      "[production]": {
+        "db": {
+          "kind": "hana-cloud"
+        },
+        "auth": {
+          "kind": "xsuaa"
+        }
+      },
+      "[development]": {
+        "db": {
+          "kind": "sqlite",
+          "credentials": {
+            "url": "db.sqlite"
+          }
+        },
+        "auth": {
+          "kind": "mocked",
+          "users": {
+            "manager@test.com": {
+              "password": "pass",
+              "roles": ["Manager", "Executive", "Developer"]
+            },
+            "dev@test.com": {
+              "password": "pass",
+              "roles": ["Developer"]
+            },
+            "exec@test.com": {
+              "password": "pass",
+              "roles": ["Executive"]
+            }
+          }
+        }
+      }
+    },
+    "hana": {
+      "deploy-format": "hdbtable"
+    }
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testPathIgnorePatterns": ["/node_modules/", "/app/", "/gen/"],
+    "coveragePathIgnorePatterns": ["/node_modules/", "/test/"],
+    "modulePathIgnorePatterns": ["/gen/"]
+  }
+}

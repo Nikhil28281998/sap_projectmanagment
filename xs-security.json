@@ -1,0 +1,68 @@
+{
+  "xsappname": "sap-project-mgmt",
+  "tenant-mode": "dedicated",
+  "scopes": [
+    {
+      "name": "$XSAPPNAME.Executive",
+      "description": "Executive read-only access — dashboards and reports"
+    },
+    {
+      "name": "$XSAPPNAME.Manager",
+      "description": "Full access — categorization, configuration, all tools"
+    },
+    {
+      "name": "$XSAPPNAME.Developer",
+      "description": "Developer access — own TRs, pipeline, search"
+    }
+  ],
+  "role-templates": [
+    {
+      "name": "Executive",
+      "description": "Leadership dashboard access",
+      "scope-references": ["$XSAPPNAME.Executive"]
+    },
+    {
+      "name": "Manager",
+      "description": "Full application access",
+      "scope-references": [
+        "$XSAPPNAME.Manager",
+        "$XSAPPNAME.Executive",
+        "$XSAPPNAME.Developer"
+      ]
+    },
+    {
+      "name": "Developer",
+      "description": "Developer self-service access",
+      "scope-references": ["$XSAPPNAME.Developer"]
+    }
+  ],
+  "role-collections": [
+    {
+      "name": "SAP-PM-Executive",
+      "description": "Maps to Okta group: IT-Leadership",
+      "role-template-references": [
+        { "role-template-name": "Executive", "app-id": "$XSAPPNAME" }
+      ]
+    },
+    {
+      "name": "SAP-PM-Manager",
+      "description": "Maps to Okta group: IT-AppManagers",
+      "role-template-references": [
+        { "role-template-name": "Manager", "app-id": "$XSAPPNAME" }
+      ]
+    },
+    {
+      "name": "SAP-PM-Developer",
+      "description": "Maps to Okta group: IT-SAPDevelopers",
+      "role-template-references": [
+        { "role-template-name": "Developer", "app-id": "$XSAPPNAME" }
+      ]
+    }
+  ],
+  "oauth2-configuration": {
+    "redirect-uris": [
+      "https://*.cfapps.*.hana.ondemand.com/**"
+    ],
+    "token-validity": 43200
+  }
+}

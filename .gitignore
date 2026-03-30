@@ -1,0 +1,11 @@
+node_modules/
+dist/
+mta_archives/
+gen/
+db.sqlite
+*.mtar
+.env
+.env.local
+*.log
+coverage/
+approuter/webapp/
