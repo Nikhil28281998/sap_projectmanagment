@@ -58,6 +58,7 @@ entity WorkItems : cuid, managed {
   deploymentPct    : Decimal(5,2) @title: 'Deployment %';
   // Meta
   notes            : LargeString @title: 'Notes';
+  sharepointUrl    : String(500) @title: 'SharePoint Tracker URL'; // Link to Excel tracker per project
   sharepointSync   : Boolean default false @title: 'SharePoint Synced';
   lastSynced       : Timestamp @title: 'Last Sync';
   // Navigation

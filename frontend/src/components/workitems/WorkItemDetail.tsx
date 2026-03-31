@@ -6,7 +6,7 @@ import {
 } from 'antd';
 import {
   ArrowLeftOutlined, CheckCircleOutlined, ClockCircleOutlined,
-  ExclamationCircleOutlined, EditOutlined, SyncOutlined
+  ExclamationCircleOutlined, EditOutlined, SyncOutlined, LinkOutlined, FileExcelOutlined
 } from '@ant-design/icons';
 import { useWorkItem, useTransports } from '../../hooks/useData';
 import { calculateRAG, daysFromNow, WORK_TYPE_MAP, WORK_TYPE_COLORS } from '../../utils/tr-parser';
@@ -21,6 +21,8 @@ const WorkItemDetail: React.FC = () => {
   const { data: allTransports = [] } = useTransports();
   const [veevaModalOpen, setVeevaModalOpen] = useState(false);
   const [veevaCC, setVeevaCC] = useState('');
+  const [spModalOpen, setSpModalOpen] = useState(false);
+  const [spUrl, setSpUrl] = useState('');
 
   if (wiLoading) {
     return (
@@ -61,6 +63,20 @@ const WorkItemDetail: React.FC = () => {
       setVeevaModalOpen(false);
     } catch {
       message.error('Failed to update Veeva CC');
+    }
+  };
+
+  const handleUpdateSharePointUrl = async () => {
+    if (spUrl && !spUrl.match(/^https?:\/\/.+/)) {
+      message.error('Please enter a valid URL starting with https://');
+      return;
+    }
+    try {
+      await workItemApi.update(workItem.ID, { sharepointUrl: spUrl || null });
+      message.success(spUrl ? 'SharePoint link saved' : 'SharePoint link removed');
+      setSpModalOpen(false);
+    } catch {
+      message.error('Failed to update SharePoint link');
     }
   };
 
@@ -149,6 +165,45 @@ const WorkItemDetail: React.FC = () => {
           />
         </Col>
       </Row>
+
+      {/* SharePoint Tracker Link */}
+      <Card
+        size="small"
+        style={{
+          marginBottom: 16,
+          background: workItem.sharepointUrl ? '#f6ffed' : '#fffbe6',
+          borderColor: workItem.sharepointUrl ? '#b7eb8f' : '#ffe58f',
+        }}
+      >
+        <Space>
+          <FileExcelOutlined style={{ fontSize: 18, color: '#217346' }} />
+          {workItem.sharepointUrl ? (
+            <>
+              <Text strong>SharePoint Tracker:</Text>
+              <a href={workItem.sharepointUrl} target="_blank" rel="noopener noreferrer">
+                <Space size={4}>
+                  <LinkOutlined />
+                  Open Excel Tracker
+                </Space>
+              </a>
+              <Text type="secondary">(read-only access)</Text>
+            </>
+          ) : (
+            <Text type="secondary">No SharePoint tracker linked to this project</Text>
+          )}
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => {
+              setSpUrl(workItem.sharepointUrl || '');
+              setSpModalOpen(true);
+            }}
+          >
+            {workItem.sharepointUrl ? 'Edit' : 'Link Tracker'}
+          </Button>
+        </Space>
+      </Card>
 
       <Row gutter={[16, 16]}>
         {/* Left: Details */}
@@ -270,6 +325,33 @@ const WorkItemDetail: React.FC = () => {
         />
         <Text type="secondary" style={{ marginTop: 8, display: 'block' }}>
           Must match pattern: IT-CC-XXXX (4 digits)
+        </Text>
+      </Modal>
+
+      {/* SharePoint Tracker URL Modal */}
+      <Modal
+        title="Link SharePoint Excel Tracker"
+        open={spModalOpen}
+        onOk={handleUpdateSharePointUrl}
+        onCancel={() => setSpModalOpen(false)}
+        okText="Save Link"
+      >
+        <div style={{ marginBottom: 12 }}>
+          <Text type="secondary">
+            Paste the SharePoint URL to the Excel tracker for this project.
+            Users will have read-only display access to view the tracker.
+          </Text>
+        </div>
+        <Input
+          placeholder="https://company.sharepoint.com/:x:/s/SAPProjects/tracker.xlsx"
+          value={spUrl}
+          onChange={(e) => setSpUrl(e.target.value)}
+          maxLength={500}
+          prefix={<LinkOutlined />}
+          allowClear
+        />
+        <Text type="secondary" style={{ marginTop: 8, display: 'block', fontSize: 12 }}>
+          Tip: In SharePoint, open the file &rarr; Share &rarr; Copy link (View only)
         </Text>
       </Modal>
     </div>

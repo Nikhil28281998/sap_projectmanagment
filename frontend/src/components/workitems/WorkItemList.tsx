@@ -4,7 +4,7 @@ import {
   Card, Table, Tag, Space, Input, Select, Button, Typography, Tooltip, Progress
 } from 'antd';
 import {
-  SearchOutlined, ReloadOutlined, EyeOutlined
+  SearchOutlined, ReloadOutlined, EyeOutlined, FileExcelOutlined
 } from '@ant-design/icons';
 import { useWorkItems } from '../../hooks/useData';
 import { calculateRAG, daysFromNow, WORK_TYPE_MAP, WORK_TYPE_COLORS } from '../../utils/tr-parser';
@@ -155,6 +155,24 @@ const WorkItemList: React.FC = () => {
       dataIndex: 'snowTicket',
       key: 'snowTicket',
       render: (ticket: string) => ticket || '—',
+    },
+    {
+      title: 'SP',
+      key: 'sharepoint',
+      width: 50,
+      render: (_: any, record: any) => (
+        record.sharepointUrl ? (
+          <Tooltip title="Open SharePoint Tracker">
+            <a href={record.sharepointUrl} target="_blank" rel="noopener noreferrer" title="Open SharePoint Tracker">
+              <FileExcelOutlined style={{ color: '#217346', fontSize: 16 }} />
+            </a>
+          </Tooltip>
+        ) : (
+          <Tooltip title="No tracker linked">
+            <FileExcelOutlined style={{ color: '#d9d9d9', fontSize: 16 }} />
+          </Tooltip>
+        )
+      ),
     },
     {
       title: '',
