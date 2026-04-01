@@ -47,23 +47,22 @@ describe('parseTRDescription', () => {
 
 describe('calculateRAG', () => {
   const baseItem = {
-    functionalStatus: 'Active',
-    failedImports: 0,
-    stuckTransports: 0,
-    totalTransports: 10,
-    transportsProd: 5,
+    status: 'Active' as string | undefined,
+    deploymentPct: 50,
+    overallRAG: undefined as string | undefined,
+    goLiveDate: null as string | null,
   };
 
-  test('returns RED for items with failed imports', () => {
-    expect(calculateRAG({ ...baseItem, failedImports: 2 })).toBe('RED');
+  test('returns RED when overallRAG is RED', () => {
+    expect(calculateRAG({ ...baseItem, overallRAG: 'RED' })).toBe('RED');
   });
 
-  test('returns AMBER for stuck transports', () => {
-    expect(calculateRAG({ ...baseItem, stuckTransports: 1 })).toBe('AMBER');
+  test('returns AMBER when overallRAG is AMBER', () => {
+    expect(calculateRAG({ ...baseItem, overallRAG: 'AMBER' })).toBe('AMBER');
   });
 
   test('returns GREEN for healthy items', () => {
-    expect(calculateRAG({ ...baseItem, transportsProd: 8 })).toBe('GREEN');
+    expect(calculateRAG({ ...baseItem, deploymentPct: 80 })).toBe('GREEN');
   });
 
   test('returns RED when go-live is <=7 days and progress <80%', () => {
@@ -72,7 +71,7 @@ describe('calculateRAG', () => {
     const item = {
       ...baseItem,
       goLiveDate: inSevenDays.toISOString(),
-      transportsProd: 3, // 30% of 10
+      deploymentPct: 30,
     };
     expect(calculateRAG(item)).toBe('RED');
   });
@@ -83,13 +82,13 @@ describe('calculateRAG', () => {
     const item = {
       ...baseItem,
       goLiveDate: inTwoWeeks.toISOString(),
-      transportsProd: 4, // 40% of 10
+      deploymentPct: 40,
     };
     expect(calculateRAG(item)).toBe('AMBER');
   });
 
   test('returns GREEN for completed items', () => {
-    expect(calculateRAG({ ...baseItem, functionalStatus: 'Completed' })).toBe('GREEN');
+    expect(calculateRAG({ ...baseItem, status: 'Done' })).toBe('GREEN');
   });
 });
 

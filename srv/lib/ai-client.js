@@ -1,9 +1,10 @@
 /**
- * Unified AI Client — Supports Claude (Anthropic) AND ChatGPT (OpenAI)
+ * Unified AI Client — Supports Claude, ChatGPT, Gemini, and OpenRouter
  * 
  * Users connect their account in Settings → AI Integration:
- *   - Choose provider: Claude or ChatGPT
- *   - Enter API key from console.anthropic.com or platform.openai.com
+ *   - Choose provider: Claude, ChatGPT, Gemini, or OpenRouter
+ *   - Enter API key from the provider's console
+ *   - OpenRouter: FREE models via openrouter.ai — no credit card needed
  *   - Enterprise orgs: admin provisions keys billed to the org
  * 
  * The AI Agent uses whichever provider is configured to:
@@ -29,10 +30,17 @@ const PROVIDERS = {
   },
   gemini: {
     name: 'Gemini (Google)',
-    defaultModel: 'gemini-2.0-flash',
+    defaultModel: 'gemini-1.5-flash',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models',
     keyPrefix: 'AIza',
     configKey: 'GEMINI_API_KEY',
+  },
+  openrouter: {
+    name: 'OpenRouter (Free)',
+    defaultModel: 'openrouter/free',
+    baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
+    keyPrefix: 'sk-or-',
+    configKey: 'OPENROUTER_API_KEY',
   }
 };
 
@@ -78,6 +86,8 @@ class AIClient {
         apiKey = process.env.OPENAI_API_KEY;
       } else if (provider === 'gemini') {
         apiKey = process.env.GEMINI_API_KEY;
+      } else if (provider === 'openrouter') {
+        apiKey = process.env.OPENROUTER_API_KEY;
       } else {
         apiKey = process.env.CLAUDE_API_KEY;
       }
@@ -101,6 +111,9 @@ class AIClient {
     }
     if (this.provider === 'gemini') {
       return this._callGemini(systemPrompt, userMessage, maxTokens);
+    }
+    if (this.provider === 'openrouter') {
+      return this._callOpenRouter(systemPrompt, userMessage, maxTokens);
     }
     return this._callClaude(systemPrompt, userMessage, maxTokens);
   }
@@ -134,23 +147,89 @@ class AIClient {
   // ── Gemini (Google) — FREE tier: 15 RPM, 1M tokens/day ──
   async _callGemini(systemPrompt, userMessage, maxTokens) {
     const url = `${this.providerConfig.baseUrl}/${this.model}:generateContent?key=${this.apiKey}`;
-    const response = await fetch(url, {
+    const body = JSON.stringify({
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ parts: [{ text: userMessage }] }],
+      generationConfig: { maxOutputTokens: maxTokens }
+    });
+
+    // Retry once on 429 (rate limit) after a short wait
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body
+      });
+
+      if (response.status === 429 && attempt === 0) {
+        console.warn('Gemini rate limit hit, retrying in 5s...');
+        await new Promise(r => setTimeout(r, 5000));
+        continue;
+      }
+
+      if (!response.ok) {
+        const err = await response.text();
+        // Extract the user-friendly message from Google's error
+        try {
+          const errObj = JSON.parse(err);
+          const msg = errObj?.error?.message || err;
+          throw new Error(`Gemini API ${response.status}: ${msg.substring(0, 200)}`);
+        } catch (parseErr) {
+          if (parseErr.message.startsWith('Gemini API')) throw parseErr;
+          throw new Error(`Gemini API ${response.status}: ${err.substring(0, 200)}`);
+        }
+      }
+
+      const data = await response.json();
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    }
+    throw new Error('Gemini API: rate limited after retry. Try again in a minute.');
+  }
+
+  // ── OpenRouter (FREE models) — OpenAI-compatible API ──
+  async _callOpenRouter(systemPrompt, userMessage, maxTokens) {
+    // Free models may route to reasoning models that need more tokens
+    const effectiveMaxTokens = Math.max(maxTokens, 4000);
+    const response = await fetch(this.providerConfig.baseUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`,
+        'HTTP-Referer': 'https://sap-project-mgmt.local',
+        'X-Title': 'SAP Project Management'
+      },
       body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ parts: [{ text: userMessage }] }],
-        generationConfig: { maxOutputTokens: maxTokens }
+        model: this.model,
+        max_tokens: effectiveMaxTokens,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage }
+        ]
       })
     });
 
     if (!response.ok) {
       const err = await response.text();
-      throw new Error(`Gemini API ${response.status}: ${err}`);
+      try {
+        const errObj = JSON.parse(err);
+        const msg = errObj?.error?.message || err;
+        throw new Error(`OpenRouter API ${response.status}: ${msg.substring(0, 200)}`);
+      } catch (parseErr) {
+        if (parseErr.message.startsWith('OpenRouter API')) throw parseErr;
+        throw new Error(`OpenRouter API ${response.status}: ${err.substring(0, 200)}`);
+      }
     }
 
     const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const choice = data.choices?.[0];
+    // Some free models are reasoning models where content is null
+    // but the actual response is in the reasoning field
+    const content = choice?.message?.content;
+    if (content) return content;
+    // Fallback: extract from reasoning if content is null
+    const reasoning = choice?.message?.reasoning;
+    if (reasoning) return reasoning;
+    return '';
   }
 
   // ── ChatGPT (OpenAI) ──

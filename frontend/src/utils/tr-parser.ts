@@ -7,21 +7,21 @@ const TR_REGEX = /^(PRJ|ENH|BRK|UPG|SUP|HYP)-(INC|CHG)(\d{7})\s*\|\s*(.+)$/;
 const SNOW_REGEX = /(INC|CHG|RITM)(\d{7,})/;
 
 export const WORK_TYPE_MAP: Record<string, string> = {
-  project: 'Project',
-  enhancement: 'Enhancement',
-  'break-fix': 'Break/Fix',
-  general: 'General',
-  basis: 'Basis',
-  security: 'Security',
+  Project: 'Project',
+  Enhancement: 'Enhancement',
+  'Break-fix': 'Break/Fix',
+  Support: 'Support',
+  Hypercare: 'Hypercare',
+  Upgrade: 'Upgrade',
 };
 
 export const WORK_TYPE_COLORS: Record<string, string> = {
-  project: '#1890ff',
-  enhancement: '#52c41a',
-  'break-fix': '#ff4d4f',
-  general: '#722ed1',
-  basis: '#fa8c16',
-  security: '#13c2c2',
+  Project: '#1890ff',
+  Enhancement: '#52c41a',
+  'Break-fix': '#ff4d4f',
+  Support: '#722ed1',
+  Hypercare: '#fa8c16',
+  Upgrade: '#13c2c2',
 };
 
 /** Keyword rules for suggesting a work type from TR description */
@@ -84,26 +84,29 @@ function suggestWorkType(text: string): string | null {
 
 /**
  * Work item shape accepted by calculateRAG
+ * Maps to actual CDS entity field names
  */
 interface RAGInput {
-  functionalStatus?: string;
-  failedImports?: number;
-  stuckTransports?: number;
-  totalTransports?: number;
-  transportsProd?: number;
+  overallRAG?: string;
+  status?: string;
+  deploymentPct?: number;
   goLiveDate?: string | null;
 }
 
 /**
- * Calculate RAG status for a work item based on transport data
+ * Calculate RAG status for a work item.
+ * Uses the overallRAG field from the entity if available,
+ * otherwise derives from deployment % and go-live proximity.
  */
 export function calculateRAG(item: RAGInput): 'GREEN' | 'AMBER' | 'RED' {
-  if (item.functionalStatus === 'Completed') return 'GREEN';
-  if ((item.failedImports ?? 0) > 0) return 'RED';
+  // Use the stored RAG if it exists
+  if (item.overallRAG === 'RED' || item.overallRAG === 'AMBER' || item.overallRAG === 'GREEN') {
+    return item.overallRAG;
+  }
 
-  const total = item.totalTransports ?? 0;
-  const prod = item.transportsProd ?? 0;
-  const pct = total > 0 ? (prod / total) * 100 : 100;
+  if (item.status === 'Done' || item.status === 'Completed') return 'GREEN';
+
+  const pct = item.deploymentPct ?? 0;
 
   if (item.goLiveDate) {
     const daysToGoLive = Math.ceil(
@@ -114,7 +117,6 @@ export function calculateRAG(item: RAGInput): 'GREEN' | 'AMBER' | 'RED' {
     if (daysToGoLive <= 14 && pct < 60) return 'AMBER';
   }
 
-  if ((item.stuckTransports ?? 0) > 0) return 'AMBER';
   return 'GREEN';
 }
 

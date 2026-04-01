@@ -140,13 +140,8 @@ const HomeDashboard: React.FC = () => {
               const projectTRs = transports.filter((t: any) => t.workItem_ID === project.ID);
               const prdCount = projectTRs.filter((t: any) => t.currentSystem === 'PRD').length;
               const totalCount = projectTRs.length || project.estimatedTRCount || 1;
-              const deployPct = Math.round((prdCount / totalCount) * 100);
-              const projectStuck = projectTRs.filter((t: any) => {
-                if (t.currentSystem === 'PRD') return false;
-                return (Date.now() - new Date(t.createdDate).getTime()) / 86400000 > 5;
-              });
-              const projectFailed = projectTRs.filter((t: any) => t.importRC >= 8);
-              const rag = calculateRAG({ goLiveDate: project.goLiveDate, totalTransports: totalCount, transportsProd: prdCount, stuckTransports: projectStuck.length, failedImports: projectFailed.length });
+              const deployPct = project.deploymentPct || Math.round((prdCount / totalCount) * 100);
+              const rag = project.overallRAG || calculateRAG({ goLiveDate: project.goLiveDate, deploymentPct: deployPct, status: project.status, overallRAG: project.overallRAG });
 
               return (
                 <List.Item

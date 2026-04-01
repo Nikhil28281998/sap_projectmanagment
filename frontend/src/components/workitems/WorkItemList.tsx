@@ -13,19 +13,19 @@ const { Title } = Typography;
 
 const WORK_TYPE_OPTIONS = [
   { value: '', label: 'All Types' },
-  { value: 'project', label: 'Projects' },
-  { value: 'enhancement', label: 'Enhancements' },
-  { value: 'break-fix', label: 'Break/Fix' },
-  { value: 'general', label: 'General' },
-  { value: 'basis', label: 'Basis' },
-  { value: 'security', label: 'Security' },
+  { value: 'Project', label: 'Projects' },
+  { value: 'Enhancement', label: 'Enhancements' },
+  { value: 'Break-fix', label: 'Break/Fix' },
+  { value: 'Support', label: 'Support' },
+  { value: 'Hypercare', label: 'Hypercare' },
+  { value: 'Upgrade', label: 'Upgrade' },
 ];
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All Statuses' },
   { value: 'Active', label: 'Active' },
   { value: 'On Hold', label: 'On Hold' },
-  { value: 'Completed', label: 'Completed' },
+  { value: 'Done', label: 'Done' },
   { value: 'Cancelled', label: 'Cancelled' },
 ];
 
@@ -41,12 +41,12 @@ const WorkItemList: React.FC = () => {
 
   const filteredItems = useMemo(() => {
     return workItems.filter((item: any) => {
-      const matchesType = !typeFilter || item.workType === typeFilter;
-      const matchesStatus = !statusFilter || item.functionalStatus === statusFilter;
+      const matchesType = !typeFilter || item.workItemType === typeFilter;
+      const matchesStatus = !statusFilter || item.status === statusFilter;
       const matchesSearch =
         !searchTerm ||
-        item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.functionalOwner?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.workItemName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.businessOwner?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.snowTicket?.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesType && matchesStatus && matchesSearch;
     });
@@ -55,9 +55,9 @@ const WorkItemList: React.FC = () => {
   const columns = [
     {
       title: 'Name',
-      dataIndex: 'name',
+      dataIndex: 'workItemName',
       key: 'name',
-      sorter: (a: any, b: any) => (a.name || '').localeCompare(b.name || ''),
+      sorter: (a: any, b: any) => (a.workItemName || '').localeCompare(b.workItemName || ''),
       render: (text: string, record: any) => (
         <Button type="link" onClick={() => navigate(`/workitem/${record.ID}`)}>
           {text}
@@ -66,8 +66,8 @@ const WorkItemList: React.FC = () => {
     },
     {
       title: 'Type',
-      dataIndex: 'workType',
-      key: 'workType',
+      dataIndex: 'workItemType',
+      key: 'workItemType',
       render: (wt: string) => (
         <Tag color={WORK_TYPE_COLORS[wt] || 'default'}>
           {WORK_TYPE_MAP[wt] || wt}
@@ -77,14 +77,14 @@ const WorkItemList: React.FC = () => {
         text: o.label,
         value: o.value,
       })),
-      onFilter: (value: any, record: any) => record.workType === value,
+      onFilter: (value: any, record: any) => record.workItemType === value,
     },
     {
       title: 'RAG',
       key: 'rag',
       width: 80,
       render: (_: any, record: any) => {
-        const rag = calculateRAG(record);
+        const rag = record.overallRAG || calculateRAG(record);
         const colors: Record<string, string> = { RED: '#ff4d4f', AMBER: '#faad14', GREEN: '#52c41a' };
         return (
           <Tooltip title={`RAG: ${rag}`}>
@@ -103,13 +103,13 @@ const WorkItemList: React.FC = () => {
     },
     {
       title: 'Status',
-      dataIndex: 'functionalStatus',
-      key: 'functionalStatus',
+      dataIndex: 'status',
+      key: 'status',
       render: (status: string) => {
         const colorMap: Record<string, string> = {
           Active: 'processing',
           'On Hold': 'warning',
-          Completed: 'success',
+          Done: 'success',
           Cancelled: 'default',
         };
         return <Tag color={colorMap[status] || 'default'}>{status}</Tag>;
@@ -120,17 +120,15 @@ const WorkItemList: React.FC = () => {
       key: 'progress',
       width: 150,
       render: (_: any, record: any) => {
-        const total = (record.totalTransports as number) || 0;
-        const prod = (record.transportsProd as number) || 0;
-        const pct = total > 0 ? Math.round((prod / total) * 100) : 0;
-        return <Progress percent={pct} size="small" />;
+        const pct = record.deploymentPct || 0;
+        return <Progress percent={Math.round(pct)} size="small" />;
       },
     },
     {
       title: 'Owner',
-      dataIndex: 'functionalOwner',
+      dataIndex: 'businessOwner',
       key: 'owner',
-      sorter: (a: any, b: any) => (a.functionalOwner || '').localeCompare(b.functionalOwner || ''),
+      sorter: (a: any, b: any) => (a.businessOwner || '').localeCompare(b.businessOwner || ''),
     },
     {
       title: 'Go-Live',

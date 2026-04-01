@@ -43,7 +43,7 @@ const WorkItemDetail: React.FC = () => {
     );
   }
 
-  const rag = calculateRAG(workItem);
+  const rag = workItem.overallRAG || calculateRAG(workItem);
   const ragColors: Record<string, string> = { RED: '#ff4d4f', AMBER: '#faad14', GREEN: '#52c41a' };
 
   // Filter transports linked to this work item
@@ -51,9 +51,9 @@ const WorkItemDetail: React.FC = () => {
     (t: any) => t.workItem_ID === workItem.ID
   );
 
-  const totalTR = workItem.totalTransports || 0;
-  const prodTR = workItem.transportsProd || 0;
-  const progressPct = totalTR > 0 ? Math.round((prodTR / totalTR) * 100) : 0;
+  const totalTR = linkedTransports.length || workItem.estimatedTRCount || 0;
+  const prodTR = linkedTransports.filter((t: any) => t.currentSystem === 'PRD').length;
+  const progressPct = workItem.deploymentPct || (totalTR > 0 ? Math.round((prodTR / totalTR) * 100) : 0);
 
   const handleUpdateVeevaCC = async () => {
     if (!veevaCC.match(/^IT-CC-\d{4}$/)) {
@@ -160,21 +160,21 @@ const WorkItemDetail: React.FC = () => {
                 display: 'inline-block',
               }}
             />
-            <Title level={3} style={{ margin: 0 }}>{workItem.name}</Title>
-            <Tag color={WORK_TYPE_COLORS[workItem.workType] || 'default'}>
-              {WORK_TYPE_MAP[workItem.workType] || workItem.workType}
+            <Title level={3} style={{ margin: 0 }}>{workItem.workItemName}</Title>
+            <Tag color={WORK_TYPE_COLORS[workItem.workItemType] || 'default'}>
+              {WORK_TYPE_MAP[workItem.workItemType] || workItem.workItemType}
             </Tag>
-            <Tag color={workItem.functionalStatus === 'Active' ? 'processing' : 'default'}>
-              {workItem.functionalStatus}
+            <Tag color={workItem.status === 'Active' ? 'processing' : 'default'}>
+              {workItem.status}
             </Tag>
           </Space>
         </Col>
         <Col>
           <Progress
             type="circle"
-            percent={progressPct}
+            percent={Math.round(progressPct)}
             size={60}
-            format={() => `${prodTR}/${totalTR}`}
+            format={() => `${Math.round(progressPct)}%`}
           />
         </Col>
       </Row>
@@ -229,10 +229,10 @@ const WorkItemDetail: React.FC = () => {
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Module">
-                <Tag>{workItem.module}</Tag>
+                <Tag>{workItem.sapModule}</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="Functional Owner">{workItem.functionalOwner || '—'}</Descriptions.Item>
-              <Descriptions.Item label="Technical Lead">{workItem.technicalLead || '—'}</Descriptions.Item>
+              <Descriptions.Item label="Business Owner">{workItem.businessOwner || '—'}</Descriptions.Item>
+              <Descriptions.Item label="Lead Developer">{workItem.leadDeveloper || '—'}</Descriptions.Item>
               <Descriptions.Item label="SNOW Ticket">{workItem.snowTicket || '—'}</Descriptions.Item>
               <Descriptions.Item label="Veeva CC">
                 <Space>
@@ -249,7 +249,7 @@ const WorkItemDetail: React.FC = () => {
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="Start Date">
-                {workItem.startDate ? new Date(workItem.startDate).toLocaleDateString() : '—'}
+                {workItem.kickoffDate ? new Date(workItem.kickoffDate).toLocaleDateString() : '—'}
               </Descriptions.Item>
               <Descriptions.Item label="Go-Live Date">
                 {workItem.goLiveDate ? (
@@ -263,13 +263,13 @@ const WorkItemDetail: React.FC = () => {
               </Descriptions.Item>
               <Descriptions.Item label="Total Transports">{totalTR}</Descriptions.Item>
               <Descriptions.Item label="In Production">{prodTR}</Descriptions.Item>
-              <Descriptions.Item label="Failed Imports">{workItem.failedImports || 0}</Descriptions.Item>
-              <Descriptions.Item label="Stuck TRs">{workItem.stuckTransports || 0}</Descriptions.Item>
+              <Descriptions.Item label="Deployment %">{workItem.deploymentPct || 0}%</Descriptions.Item>
+              <Descriptions.Item label="Phase">{workItem.currentPhase || '—'}</Descriptions.Item>
             </Descriptions>
-            {workItem.scopeSummary && (
+            {workItem.notes && (
               <>
                 <Divider />
-                <Paragraph>{workItem.scopeSummary}</Paragraph>
+                <Paragraph>{workItem.notes}</Paragraph>
               </>
             )}
           </Card>
@@ -412,15 +412,15 @@ const WorkItemDetail: React.FC = () => {
             ) : (
               <Timeline
                 items={milestones.map((m: any) => ({
-                  color: m.completed ? 'green' : m.targetDate && daysFromNow(new Date(m.targetDate)) <= 0 ? 'red' : 'blue',
-                  dot: m.completed ? <CheckCircleOutlined /> : m.targetDate && daysFromNow(new Date(m.targetDate)) <= 0 ? <ExclamationCircleOutlined /> : <ClockCircleOutlined />,
+                  color: m.status === 'Complete' ? 'green' : m.milestoneDate && daysFromNow(new Date(m.milestoneDate)) <= 0 ? 'red' : 'blue',
+                  dot: m.status === 'Complete' ? <CheckCircleOutlined /> : m.milestoneDate && daysFromNow(new Date(m.milestoneDate)) <= 0 ? <ExclamationCircleOutlined /> : <ClockCircleOutlined />,
                   children: (
                     <div>
-                      <Text strong>{m.name}</Text>
+                      <Text strong>{m.milestoneName}</Text>
                       <br />
                       <Text type="secondary" style={{ fontSize: 12 }}>
-                        {m.targetDate ? new Date(m.targetDate).toLocaleDateString() : 'No date'}
-                        {m.completed && m.completedDate && ` — Done ${new Date(m.completedDate).toLocaleDateString()}`}
+                        {m.milestoneDate ? new Date(m.milestoneDate).toLocaleDateString() : 'No date'}
+                        {m.status === 'Complete' && m.completedDate && ` — Done ${new Date(m.completedDate).toLocaleDateString()}`}
                       </Text>
                       {m.evidence && (
                         <>

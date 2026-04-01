@@ -20,7 +20,7 @@ const SettingsPage: React.FC = () => {
   const [configs, setConfigs] = useState<any[]>([]);
   const [aiTestResult, setAiTestResult] = useState<{ success: boolean; message: string; provider?: string } | null>(null);
   const [aiTesting, setAiTesting] = useState(false);
-  const [aiProvider, setAiProvider] = useState<'claude' | 'chatgpt' | 'gemini'>('gemini');
+  const [aiProvider, setAiProvider] = useState<'claude' | 'chatgpt' | 'gemini' | 'openrouter'>('openrouter');
   const [aiApiKey, setAiApiKey] = useState('');
   const [aiSaving, setAiSaving] = useState(false);
   const [aiConnected, setAiConnected] = useState(false);
@@ -188,7 +188,8 @@ const SettingsPage: React.FC = () => {
                   <strong> Smart Email Reports</strong> (AI-polished weekly emails), and <strong>Test Risk Analysis</strong>.
                 </p>
                 <p style={{ margin: '4px 0', fontSize: 12, color: '#389e0d' }}>
-                  <strong>Gemini is FREE</strong> — 15 requests/min, 1 million tokens/day. No credit card required.
+                  <strong>OpenRouter FREE</strong> — Access to free AI models (GPT, Claude, Llama). No credit card required.
+                  <strong> Gemini</strong> is also free — 15 requests/min.
                 </p>
                 <p style={{ margin: '4px 0', fontSize: 12 }}>
                   Enterprise users: your IT admin provisions API keys billed to the org — no personal cost.
@@ -221,8 +222,14 @@ const SettingsPage: React.FC = () => {
               </Radio.Button>
               <Radio.Button value="gemini" style={{ height: 60, display: 'inline-flex', alignItems: 'center', padding: '0 24px' }}>
                 <Space direction="vertical" size={0} align="center">
-                  <span style={{ fontSize: 16, fontWeight: 600 }}>Gemini ✨</span>
+                  <span style={{ fontSize: 16, fontWeight: 600 }}>Gemini</span>
                   <span style={{ fontSize: 11, color: 'inherit', opacity: 0.8 }}>Google • FREE</span>
+                </Space>
+              </Radio.Button>
+              <Radio.Button value="openrouter" style={{ height: 60, display: 'inline-flex', alignItems: 'center', padding: '0 24px' }}>
+                <Space direction="vertical" size={0} align="center">
+                  <span style={{ fontSize: 16, fontWeight: 600 }}>OpenRouter ✨</span>
+                  <span style={{ fontSize: 11, color: 'inherit', opacity: 0.8 }}>Multi-model • FREE</span>
                 </Space>
               </Radio.Button>
             </Radio.Group>
@@ -236,13 +243,14 @@ const SettingsPage: React.FC = () => {
                 ? <>Get your key from <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">console.anthropic.com</a> → API Keys → Create Key</>
                 : aiProvider === 'chatgpt'
                 ? <>Get your key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">platform.openai.com</a> → API Keys → Create new secret key</>
-                : <>Get your key from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com/apikey</a> → Create API Key (FREE, takes 10 seconds)</>
+                : aiProvider === 'openrouter'
+                ? <>Get your key from <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">openrouter.ai/keys</a> → Create Key (FREE models available, no credit card)</>                : <>Get your key from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com/apikey</a> → Create API Key (FREE, takes 10 seconds)</>
               }
             </Text>
             <Input.Password
               value={aiApiKey}
               onChange={e => setAiApiKey(e.target.value)}
-              placeholder={aiProvider === 'claude' ? 'sk-ant-api03-...' : aiProvider === 'chatgpt' ? 'sk-proj-...' : 'AIzaSy...'}
+              placeholder={aiProvider === 'claude' ? 'sk-ant-api03-...' : aiProvider === 'chatgpt' ? 'sk-proj-...' : aiProvider === 'openrouter' ? 'sk-or-v1-...' : 'AIzaSy...'}
               style={{ width: 420 }}
               addonBefore={<LinkOutlined />}
             />
@@ -273,7 +281,8 @@ const SettingsPage: React.FC = () => {
                     setAiTestResult(testResult);
                     setAiConnected(testResult.success);
                     if (testResult.success) {
-                      message.success(`${aiProvider === 'claude' ? 'Claude' : aiProvider === 'chatgpt' ? 'ChatGPT' : 'Gemini'} connected successfully!`);
+                      const providerName = aiProvider === 'claude' ? 'Claude' : aiProvider === 'chatgpt' ? 'ChatGPT' : aiProvider === 'openrouter' ? 'OpenRouter' : 'Gemini';
+                      message.success(`${providerName} connected successfully!`);
                     }
                   } catch (err: any) {
                     setAiTestResult({ success: false, message: err.message || 'Connection failed' });
