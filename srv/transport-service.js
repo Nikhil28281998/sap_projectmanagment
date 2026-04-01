@@ -3,6 +3,7 @@ const { parseTRDescription } = require('./lib/tr-parser');
 const { RFCClient } = require('./lib/rfc-client');
 const { SharePointClient } = require('./lib/sharepoint-client');
 const { ReportGenerator } = require('./lib/report-generator');
+const { parseTestStatuses, testRAGImpact, getMethodologyList } = require('./lib/test-status-parser');
 
 class TransportService extends cds.ApplicationService {
 
@@ -31,6 +32,9 @@ class TransportService extends cds.ApplicationService {
     this.on('refreshTransportData', this._onRefreshTransportData.bind(this));
     this.on('refreshSharePointData', this._onRefreshSharePointData.bind(this));
     this.on('generateWeeklyReport', this._onGenerateWeeklyReport.bind(this));
+    this.on('updateTestStatus', this._onUpdateTestStatus.bind(this));
+    this.on('testAIConnection', this._onTestAIConnection.bind(this));
+    this.on('getMethodologies', this._onGetMethodologies.bind(this));
     this.on('health', this._onHealth.bind(this));
     this.on('dashboardSummary', this._onDashboardSummary.bind(this));
     this.on('pipelineSummary', this._onPipelineSummary.bind(this));
@@ -368,7 +372,7 @@ class TransportService extends cds.ApplicationService {
 
       if (useAI) {
         const { ClaudeClient } = require('./lib/claude-client');
-        const claude = new ClaudeClient();
+        const claude = await ClaudeClient.create(this.db, this._e);
         report = await claude.polishReport(report);
       }
 
@@ -388,6 +392,93 @@ class TransportService extends cds.ApplicationService {
       console.error('Report generation failed:', err.message);
       return { success: false, report: null, message: `Report failed: ${err.message}` };
     }
+  }
+
+  // ─── Update Test Status ───
+  async _onUpdateTestStatus(req) {
+    const { workItemId, testTotal, testPassed, testFailed, testBlocked, testTBD, testSkipped } = req.data;
+    const { WorkItems } = this._e;
+
+    const workItem = await SELECT.one.from(WorkItems).where({ ID: workItemId });
+    if (!workItem) {
+      return req.reject(404, `Work item ${workItemId} not found`);
+    }
+
+    // Calculate completion % and UAT status
+    const total = testTotal || 0;
+    const executed = (testPassed || 0) + (testFailed || 0);
+    const completionPct = total > 0 ? Math.round((executed / total) * 10000) / 100 : 0;
+
+    // Determine UAT status
+    let uatStatus = 'Not Started';
+    if (total === 0) {
+      uatStatus = 'Not Started';
+    } else if ((testFailed || 0) > 0) {
+      uatStatus = 'Failed';
+    } else if ((testBlocked || 0) > 0 && (testTBD || 0) === 0) {
+      uatStatus = 'Blocked';
+    } else if ((testTBD || 0) === 0 && (testBlocked || 0) === 0 && (testPassed || 0) > 0) {
+      uatStatus = 'Passed';
+    } else if ((testPassed || 0) > 0) {
+      uatStatus = 'In Progress';
+    }
+
+    // Calculate RAG impact from tests
+    const daysToGoLive = workItem.goLiveDate
+      ? Math.ceil((new Date(workItem.goLiveDate) - new Date()) / 86400000)
+      : 999;
+    const ragImpact = testRAGImpact(
+      { total, passed: testPassed || 0, failed: testFailed || 0, blocked: testBlocked || 0, tbd: testTBD || 0 },
+      daysToGoLive
+    );
+
+    // Update work item
+    const updateData = {
+      testTotal: total,
+      testPassed: testPassed || 0,
+      testFailed: testFailed || 0,
+      testBlocked: testBlocked || 0,
+      testTBD: testTBD || 0,
+      testSkipped: testSkipped || 0,
+      testCompletionPct: completionPct,
+      uatStatus
+    };
+
+    // Auto-update RAG if test results indicate risk
+    if (ragImpact && ragImpact !== 'GREEN') {
+      // Only escalate RAG, never downgrade from manual override
+      const ragPriority = { GREEN: 1, AMBER: 2, RED: 3 };
+      if ((ragPriority[ragImpact] || 0) > (ragPriority[workItem.overallRAG] || 0)) {
+        updateData.overallRAG = ragImpact;
+      }
+    }
+
+    await UPDATE(WorkItems).set(updateData).where({ ID: workItemId });
+
+    return {
+      success: true,
+      message: `Test status updated: ${completionPct}% complete, UAT: ${uatStatus}`,
+      testCompletionPct: completionPct,
+      uatStatus,
+      ragImpact: ragImpact || 'GREEN'
+    };
+  }
+
+  // ─── Test AI Connection ───
+  async _onTestAIConnection(req) {
+    try {
+      const { ClaudeClient } = require('./lib/claude-client');
+      const claude = await ClaudeClient.create(this.db, this._e);
+      const result = await claude.testConnection();
+      return { success: true, message: result.message };
+    } catch (err) {
+      return { success: false, message: `AI connection failed: ${err.message}` };
+    }
+  }
+
+  // ─── Get Methodology Templates ───
+  async _onGetMethodologies(req) {
+    return getMethodologyList();
   }
 
   // ─── Health Check ───

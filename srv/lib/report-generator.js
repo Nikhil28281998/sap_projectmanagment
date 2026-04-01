@@ -1,6 +1,7 @@
 /**
  * Report Generator — Gathers data and formats weekly leadership report
  * Works without AI — AI polish is optional
+ * Includes test status summary per project
  */
 
 class ReportGenerator {
@@ -25,7 +26,7 @@ class ReportGenerator {
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     // Active projects
-    const activeProjects = workItems.filter(wi => wi.status === 'Active' && wi.workItemType === 'Project');
+    const activeProjects = workItems.filter(wi => wi.status === 'Active');
 
     // Transports by system
     const trsBySys = {
@@ -63,6 +64,9 @@ class ReportGenerator {
     // Unassigned
     const unassigned = transports.filter(t => !t.workType);
 
+    // Projects with test tracking
+    const withTests = activeProjects.filter(p => (p.testTotal || 0) > 0);
+
     return {
       date: now.toISOString().split('T')[0],
       totalTransports: transports.length,
@@ -73,38 +77,61 @@ class ReportGenerator {
       upcoming,
       overdue,
       completed,
-      unassigned
+      unassigned,
+      withTests
     };
   }
 
   /**
-   * Format report data into readable text
+   * Format report data into professional email-ready text
    */
   formatReport(data) {
     const lines = [];
-    lines.push(`# Weekly SAP Project Status Report`);
-    lines.push(`**Week of ${data.date}**\n`);
+    lines.push(`Subject: Weekly SAP Project Status — ${data.date}\n`);
+    lines.push(`Hi Team,\n`);
+    lines.push(`Please find this week's SAP project status update below.\n`);
 
-    // Summary
-    lines.push(`## Summary`);
-    lines.push(`- **Active Projects:** ${data.activeProjects.length}`);
-    lines.push(`- **Total Transports:** ${data.totalTransports} (DEV: ${data.trsBySys.DEV.length} | QAS: ${data.trsBySys.QAS.length} | PRD: ${data.trsBySys.PRD.length})`);
-    lines.push(`- **Stuck Transports (>5 days):** ${data.stuck.length}`);
-    lines.push(`- **Failed Imports:** ${data.failed.length}`);
-    lines.push(`- **Unassigned TRs:** ${data.unassigned.length}`);
-    lines.push(`- **Completed This Week:** ${data.completed.length}\n`);
+    // Executive Summary
+    lines.push(`## Executive Summary`);
+    lines.push(`- **${data.activeProjects.length}** active work items across all modules`);
+    lines.push(`- **${data.totalTransports}** transports tracked (DEV: ${data.trsBySys.DEV.length} | QAS: ${data.trsBySys.QAS.length} | PRD: ${data.trsBySys.PRD.length})`);
+    if (data.stuck.length > 0) lines.push(`- **${data.stuck.length}** transports stuck >5 days ⚠`);
+    if (data.failed.length > 0) lines.push(`- **${data.failed.length}** failed imports requiring attention ❌`);
+    if (data.unassigned.length > 0) lines.push(`- **${data.unassigned.length}** unassigned transports`);
+    lines.push('');
 
-    // Active Projects Detail
+    // Active Projects with RAG + Test Status
     if (data.activeProjects.length > 0) {
-      lines.push(`## Active Projects`);
+      lines.push(`## Project Status`);
+      lines.push('| Project | RAG | Phase | Deployment | Tests | UAT |');
+      lines.push('|---------|-----|-------|------------|-------|-----|');
       for (const p of data.activeProjects) {
-        const daysToGoLive = p.goLiveDate ?
-          Math.ceil((new Date(p.goLiveDate) - new Date()) / 86400000) : 'N/A';
         const rag = p.overallRAG || 'N/A';
-        lines.push(`- **${p.workItemName}** [${rag}]`);
-        lines.push(`  - Go-Live: ${p.goLiveDate || 'TBD'} (${daysToGoLive} days)`);
-        lines.push(`  - Phase: ${p.currentPhase || 'N/A'} | Deployment: ${p.deploymentPct || 0}%`);
-        if (p.leadDeveloper) lines.push(`  - Lead: ${p.leadDeveloper}`);
+        const ragIcon = rag === 'RED' ? '🔴' : rag === 'AMBER' ? '🟡' : '🟢';
+        const testInfo = (p.testTotal || 0) > 0
+          ? `${p.testPassed || 0}/${p.testTotal} (${p.testCompletionPct || 0}%)`
+          : 'N/A';
+        const uat = p.uatStatus || 'N/A';
+        lines.push(`| ${p.workItemName} | ${ragIcon} ${rag} | ${p.currentPhase || 'N/A'} | ${p.deploymentPct || 0}% | ${testInfo} | ${uat} |`);
+      }
+      lines.push('');
+    }
+
+    // Test Status Detail (only for projects with tests)
+    if (data.withTests.length > 0) {
+      lines.push(`## UAT / Test Progress`);
+      for (const p of data.withTests) {
+        const total = p.testTotal || 0;
+        const passed = p.testPassed || 0;
+        const failed = p.testFailed || 0;
+        const tbd = p.testTBD || 0;
+        const blocked = p.testBlocked || 0;
+        const skipped = p.testSkipped || 0;
+        lines.push(`**${p.workItemName}** — ${p.uatStatus || 'In Progress'}`);
+        lines.push(`  ✅ Passed: ${passed}/${total} (${Math.round(passed/total*100)}%) | ❌ Failed: ${failed} | ⏳ TBD: ${tbd} | 🚫 Blocked: ${blocked} | ⏭ Skipped: ${skipped}`);
+        if (failed > 0) {
+          lines.push(`  ⚠ Action needed: ${failed} test case(s) failed — review and retest`);
+        }
       }
       lines.push('');
     }
@@ -113,30 +140,32 @@ class ReportGenerator {
     if (data.upcoming.length > 0) {
       lines.push(`## 🚀 Upcoming Go-Lives (Next 14 Days)`);
       for (const p of data.upcoming) {
-        lines.push(`- **${p.workItemName}** — ${p.goLiveDate}`);
+        const days = Math.ceil((new Date(p.goLiveDate) - new Date()) / 86400000);
+        lines.push(`- **${p.workItemName}** — ${p.goLiveDate} (${days} days) | Lead: ${p.leadDeveloper || 'TBD'}`);
       }
       lines.push('');
     }
 
     // Alerts
-    if (data.stuck.length > 0 || data.failed.length > 0 || data.overdue.length > 0) {
-      lines.push(`## ⚠ Alerts`);
+    const hasAlerts = data.stuck.length > 0 || data.failed.length > 0 || data.overdue.length > 0;
+    if (hasAlerts) {
+      lines.push(`## ⚠ Alerts & Risks`);
       if (data.failed.length > 0) {
-        lines.push(`### ❌ Failed Imports`);
+        lines.push(`**Failed Imports (RC≥8):**`);
         for (const tr of data.failed) {
           lines.push(`- ${tr.trNumber} — RC=${tr.importRC} in ${tr.currentSystem} | Owner: ${tr.ownerFullName || tr.trOwner}`);
         }
       }
       if (data.stuck.length > 0) {
-        lines.push(`### ⏳ Stuck Transports (>5 days)`);
-        for (const tr of data.stuck.slice(0, 10)) {
+        lines.push(`**Stuck Transports (>5 days):** ${data.stuck.length} total`);
+        for (const tr of data.stuck.slice(0, 5)) {
           lines.push(`- ${tr.trNumber} — ${tr.currentSystem} | Owner: ${tr.ownerFullName || tr.trOwner}`);
         }
-        if (data.stuck.length > 10) lines.push(`  ... and ${data.stuck.length - 10} more`);
+        if (data.stuck.length > 5) lines.push(`  ... and ${data.stuck.length - 5} more`);
       }
       if (data.overdue.length > 0) {
-        lines.push(`### 📅 Overdue Milestones`);
-        for (const m of data.overdue) {
+        lines.push(`**Overdue Milestones:** ${data.overdue.length}`);
+        for (const m of data.overdue.slice(0, 5)) {
           lines.push(`- ${m.milestoneName} — due ${m.milestoneDate}`);
         }
       }
@@ -153,7 +182,9 @@ class ReportGenerator {
     }
 
     lines.push(`---`);
-    lines.push(`_Generated by SAP Project Management App on ${new Date().toISOString()}_`);
+    lines.push(`Best regards,`);
+    lines.push(`SAP Project Management Team`);
+    lines.push(`\n_Generated by SAP PM App on ${new Date().toISOString()}_`);
 
     return lines.join('\n');
   }

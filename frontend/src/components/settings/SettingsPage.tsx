@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
   Card, Form, Input, InputNumber, Switch, Button, Select, Typography,
-  Divider, Space, message, Descriptions, Tag
+  Divider, Space, message, Descriptions, Tag, Alert
 } from 'antd';
 import {
   SettingOutlined, SaveOutlined, RobotOutlined, SyncOutlined,
-  ClockCircleOutlined
+  ClockCircleOutlined, ThunderboltOutlined, CheckCircleOutlined, CloseCircleOutlined
 } from '@ant-design/icons';
 import { useHealth } from '../../hooks/useData';
-import { configApi } from '../../services/api';
+import { configApi, aiApi } from '../../services/api';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -17,6 +17,8 @@ const SettingsPage: React.FC = () => {
   const { data: health } = useHealth();
   const [loading, setLoading] = useState(false);
   const [configs, setConfigs] = useState<any[]>([]);
+  const [aiTestResult, setAiTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [aiTesting, setAiTesting] = useState(false);
 
   useEffect(() => {
     loadConfigs();
@@ -165,17 +167,81 @@ const SettingsPage: React.FC = () => {
           </Form.Item>
 
           <Divider orientation="left">
-            <Space><RobotOutlined /> AI Features</Space>
+            <Space><RobotOutlined /> AI Agent (Claude)</Space>
           </Divider>
 
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message="Enterprise Claude Integration"
+            description={
+              <div>
+                <Paragraph style={{ margin: 0, fontSize: 12 }}>
+                  To use AI features, your IT admin needs to create an API key at{' '}
+                  <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer">console.anthropic.com</a>.
+                  If your organization has an Anthropic enterprise contract, the API calls bill to the org account — 
+                  no personal cost. Enterprise Claude.ai login (SSO) is for the chat app only; API access requires a separate key.
+                </Paragraph>
+              </div>
+            }
+          />
+
           <Form.Item
-            label="Enable AI (Claude)"
+            label="Enable AI Features"
             name="ENABLE_AI"
             valuePropName="checked"
-            tooltip="Enable Claude AI for report polishing and auto-categorization"
+            tooltip="Enable Claude AI for report polish, test analysis, and smart insights"
           >
             <Switch checkedChildren="ON" unCheckedChildren="OFF" />
           </Form.Item>
+
+          <Form.Item
+            label="Claude API Key"
+            name="CLAUDE_API_KEY"
+            tooltip="Anthropic API key (sk-ant-...). Stored securely in app config."
+          >
+            <Input.Password
+              placeholder="sk-ant-api03-..."
+              style={{ width: 400 }}
+            />
+          </Form.Item>
+
+          <Form.Item>
+            <Button
+              icon={<ThunderboltOutlined />}
+              loading={aiTesting}
+              onClick={async () => {
+                setAiTesting(true);
+                setAiTestResult(null);
+                try {
+                  const result = await aiApi.testConnection();
+                  setAiTestResult(result);
+                } catch (err: any) {
+                  setAiTestResult({ success: false, message: err.message || 'Connection failed' });
+                } finally {
+                  setAiTesting(false);
+                }
+              }}
+            >
+              Test AI Connection
+            </Button>
+            {aiTestResult && (
+              <Tag
+                color={aiTestResult.success ? 'success' : 'error'}
+                icon={aiTestResult.success ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+                style={{ marginLeft: 12 }}
+              >
+                {aiTestResult.message}
+              </Tag>
+            )}
+          </Form.Item>
+
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            AI is used for: (1) Polishing weekly reports into executive emails, 
+            (2) Analyzing test results for risk insights. 
+            Without AI, the app still generates structured reports — AI just makes them prettier.
+          </Text>
 
           <Divider orientation="left">
             <Space><SettingOutlined /> Transport Settings</Space>

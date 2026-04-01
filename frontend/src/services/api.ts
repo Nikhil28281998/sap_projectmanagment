@@ -96,6 +96,26 @@ export const reportApi = {
     }),
 };
 
+// ─── Test Status ───
+export const testStatusApi = {
+  update: (workItemId: string, data: {
+    testTotal: number; testPassed: number; testFailed: number;
+    testBlocked: number; testTBD: number; testSkipped: number;
+  }) =>
+    request<any>('/updateTestStatus', {
+      method: 'POST',
+      body: JSON.stringify({ workItemId, ...data }),
+    }),
+};
+
+// ─── AI Agent ───
+export const aiApi = {
+  testConnection: () =>
+    request<{ success: boolean; message: string }>('/testAIConnection', { method: 'POST' }),
+  getMethodologies: () =>
+    request<{ value: any[] }>('/getMethodologies'),
+};
+
 // ─── Notifications ───
 export const notificationApi = {
   getAll: () => request<{ value: any[] }>('/Notifications?$orderby=createdAt desc&$top=50'),

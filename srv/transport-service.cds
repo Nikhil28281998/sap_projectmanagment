@@ -100,6 +100,28 @@ service TransportService {
     message : String;
   };
 
+  // Update test status counts for a work item
+  action updateTestStatus(
+    workItemId : String,
+    testTotal  : Integer,
+    testPassed : Integer,
+    testFailed : Integer,
+    testBlocked: Integer,
+    testTBD    : Integer,
+    testSkipped: Integer
+  ) returns { success: Boolean; message: String; testCompletionPct: Decimal; uatStatus: String; ragImpact: String };
+
+  // Test AI connection
+  action testAIConnection() returns { success: Boolean; message: String };
+
+  // Get methodology templates
+  function getMethodologies() returns array of {
+    methodologyKey : String;
+    name           : String;
+    description    : String;
+    phaseCount     : Integer;
+  };
+
   // Health check
   function health() returns {
     status    : String;

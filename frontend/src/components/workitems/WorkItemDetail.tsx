@@ -2,15 +2,16 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Card, Row, Col, Tag, Descriptions, Timeline, Table, Button, Space,
-  Typography, Progress, Tooltip, Divider, Spin, Empty, Modal, Input, message
+  Typography, Progress, Tooltip, Divider, Spin, Empty, Modal, Input, InputNumber, message
 } from 'antd';
 import {
   ArrowLeftOutlined, CheckCircleOutlined, ClockCircleOutlined,
-  ExclamationCircleOutlined, EditOutlined, SyncOutlined, LinkOutlined, FileExcelOutlined
+  ExclamationCircleOutlined, EditOutlined, SyncOutlined, LinkOutlined,
+  FileExcelOutlined, ExperimentOutlined, BarChartOutlined
 } from '@ant-design/icons';
 import { useWorkItem, useTransports } from '../../hooks/useData';
 import { calculateRAG, daysFromNow, WORK_TYPE_MAP, WORK_TYPE_COLORS } from '../../utils/tr-parser';
-import { workItemApi } from '../../services/api';
+import { workItemApi, testStatusApi } from '../../services/api';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -23,6 +24,8 @@ const WorkItemDetail: React.FC = () => {
   const [veevaCC, setVeevaCC] = useState('');
   const [spModalOpen, setSpModalOpen] = useState(false);
   const [spUrl, setSpUrl] = useState('');
+  const [testModalOpen, setTestModalOpen] = useState(false);
+  const [testData, setTestData] = useState({ testTotal: 0, testPassed: 0, testFailed: 0, testBlocked: 0, testTBD: 0, testSkipped: 0 });
 
   if (wiLoading) {
     return (
@@ -77,6 +80,16 @@ const WorkItemDetail: React.FC = () => {
       setSpModalOpen(false);
     } catch {
       message.error('Failed to update SharePoint link');
+    }
+  };
+
+  const handleUpdateTestStatus = async () => {
+    try {
+      const result = await testStatusApi.update(workItem.ID, testData);
+      message.success(result.message || 'Test status updated');
+      setTestModalOpen(false);
+    } catch {
+      message.error('Failed to update test status');
     }
   };
 
@@ -277,8 +290,122 @@ const WorkItemDetail: React.FC = () => {
           </Card>
         </Col>
 
-        {/* Right: Milestones */}
+        {/* Right: Test Progress + Milestones */}
         <Col xs={24} lg={8}>
+          {/* UAT / Test Progress Card */}
+          <Card
+            title={<Space><ExperimentOutlined />UAT / Test Progress</Space>}
+            size="small"
+            style={{ marginBottom: 16 }}
+            extra={
+              <Button
+                type="link"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => {
+                  setTestData({
+                    testTotal: workItem.testTotal || 0,
+                    testPassed: workItem.testPassed || 0,
+                    testFailed: workItem.testFailed || 0,
+                    testBlocked: workItem.testBlocked || 0,
+                    testTBD: workItem.testTBD || 0,
+                    testSkipped: workItem.testSkipped || 0,
+                  });
+                  setTestModalOpen(true);
+                }}
+              >
+                Update
+              </Button>
+            }
+          >
+            {(workItem.testTotal || 0) > 0 ? (
+              <>
+                <div style={{ textAlign: 'center', marginBottom: 12 }}>
+                  <Progress
+                    type="dashboard"
+                    percent={workItem.testCompletionPct || 0}
+                    size={120}
+                    strokeColor={{
+                      '0%': '#52c41a',
+                      '50%': '#faad14',
+                      '100%': '#52c41a',
+                    }}
+                    format={(pct) => (
+                      <div>
+                        <div style={{ fontSize: 20, fontWeight: 'bold' }}>{pct}%</div>
+                        <div style={{ fontSize: 11, color: '#888' }}>Executed</div>
+                      </div>
+                    )}
+                  />
+                </div>
+                <Tag color={
+                  workItem.uatStatus === 'Passed' ? 'success' :
+                  workItem.uatStatus === 'Failed' ? 'error' :
+                  workItem.uatStatus === 'Blocked' ? 'warning' :
+                  workItem.uatStatus === 'In Progress' ? 'processing' : 'default'
+                } style={{ marginBottom: 8 }}>
+                  UAT: {workItem.uatStatus || 'Not Started'}
+                </Tag>
+                {workItem.methodology && (
+                  <Tag color="purple" style={{ marginBottom: 8 }}>{workItem.methodology}</Tag>
+                )}
+                <Descriptions size="small" column={2} style={{ marginTop: 8 }}>
+                  <Descriptions.Item label="Total">{workItem.testTotal}</Descriptions.Item>
+                  <Descriptions.Item label={<Text type="success">Passed</Text>}>{workItem.testPassed || 0}</Descriptions.Item>
+                  <Descriptions.Item label={<Text type="danger">Failed</Text>}>{workItem.testFailed || 0}</Descriptions.Item>
+                  <Descriptions.Item label={<Text type="warning">Blocked</Text>}>{workItem.testBlocked || 0}</Descriptions.Item>
+                  <Descriptions.Item label="TBD">{workItem.testTBD || 0}</Descriptions.Item>
+                  <Descriptions.Item label="Skipped">{workItem.testSkipped || 0}</Descriptions.Item>
+                </Descriptions>
+                {/* Stacked bar visual */}
+                <div style={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden', marginTop: 8 }}>
+                  {workItem.testPassed > 0 && (
+                    <Tooltip title={`Passed: ${workItem.testPassed}`}>
+                      <div style={{ width: `${(workItem.testPassed / workItem.testTotal) * 100}%`, background: '#52c41a' }} />
+                    </Tooltip>
+                  )}
+                  {workItem.testFailed > 0 && (
+                    <Tooltip title={`Failed: ${workItem.testFailed}`}>
+                      <div style={{ width: `${(workItem.testFailed / workItem.testTotal) * 100}%`, background: '#ff4d4f' }} />
+                    </Tooltip>
+                  )}
+                  {workItem.testBlocked > 0 && (
+                    <Tooltip title={`Blocked: ${workItem.testBlocked}`}>
+                      <div style={{ width: `${(workItem.testBlocked / workItem.testTotal) * 100}%`, background: '#faad14' }} />
+                    </Tooltip>
+                  )}
+                  {workItem.testTBD > 0 && (
+                    <Tooltip title={`TBD: ${workItem.testTBD}`}>
+                      <div style={{ width: `${(workItem.testTBD / workItem.testTotal) * 100}%`, background: '#d9d9d9' }} />
+                    </Tooltip>
+                  )}
+                  {workItem.testSkipped > 0 && (
+                    <Tooltip title={`Skipped: ${workItem.testSkipped}`}>
+                      <div style={{ width: `${(workItem.testSkipped / workItem.testTotal) * 100}%`, background: '#bfbfbf' }} />
+                    </Tooltip>
+                  )}
+                </div>
+              </>
+            ) : (
+              <Empty
+                description="No test data yet"
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              >
+                <Button
+                  type="dashed"
+                  size="small"
+                  icon={<BarChartOutlined />}
+                  onClick={() => {
+                    setTestData({ testTotal: 0, testPassed: 0, testFailed: 0, testBlocked: 0, testTBD: 0, testSkipped: 0 });
+                    setTestModalOpen(true);
+                  }}
+                >
+                  Enter Test Data
+                </Button>
+              </Empty>
+            )}
+          </Card>
+
           <Card title="Milestones" size="small">
             {milestones.length === 0 ? (
               <Empty description="No milestones" image={Empty.PRESENTED_IMAGE_SIMPLE} />
@@ -352,6 +479,58 @@ const WorkItemDetail: React.FC = () => {
         />
         <Text type="secondary" style={{ marginTop: 8, display: 'block', fontSize: 12 }}>
           Tip: In SharePoint, open the file &rarr; Share &rarr; Copy link (View only)
+        </Text>
+      </Modal>
+
+      {/* Test Status Modal */}
+      <Modal
+        title="Update UAT / Test Status"
+        open={testModalOpen}
+        onOk={handleUpdateTestStatus}
+        onCancel={() => setTestModalOpen(false)}
+        okText="Save Test Data"
+        width={500}
+      >
+        <div style={{ marginBottom: 12 }}>
+          <Text type="secondary">
+            Enter the test case counts from your SharePoint Excel tracker.
+            The app will auto-calculate completion %, UAT status, and RAG impact.
+          </Text>
+        </div>
+        <Space direction="vertical" style={{ width: '100%' }} size="small">
+          <div>
+            <Text strong>Total Test Cases</Text>
+            <InputNumber min={0} value={testData.testTotal} onChange={(v) => setTestData({ ...testData, testTotal: v || 0 })} style={{ width: '100%' }} />
+          </div>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Text type="success">Passed</Text>
+              <InputNumber min={0} value={testData.testPassed} onChange={(v) => setTestData({ ...testData, testPassed: v || 0 })} style={{ width: '100%' }} />
+            </Col>
+            <Col span={12}>
+              <Text type="danger">Failed</Text>
+              <InputNumber min={0} value={testData.testFailed} onChange={(v) => setTestData({ ...testData, testFailed: v || 0 })} style={{ width: '100%' }} />
+            </Col>
+          </Row>
+          <Row gutter={12}>
+            <Col span={8}>
+              <Text type="warning">Blocked</Text>
+              <InputNumber min={0} value={testData.testBlocked} onChange={(v) => setTestData({ ...testData, testBlocked: v || 0 })} style={{ width: '100%' }} />
+            </Col>
+            <Col span={8}>
+              <Text>TBD</Text>
+              <InputNumber min={0} value={testData.testTBD} onChange={(v) => setTestData({ ...testData, testTBD: v || 0 })} style={{ width: '100%' }} />
+            </Col>
+            <Col span={8}>
+              <Text type="secondary">Skipped</Text>
+              <InputNumber min={0} value={testData.testSkipped} onChange={(v) => setTestData({ ...testData, testSkipped: v || 0 })} style={{ width: '100%' }} />
+            </Col>
+          </Row>
+        </Space>
+        <Divider />
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          Example: If your SharePoint tracker has 80 rows — 40 Pass, 10 Failed, 25 TBD, 5 Blocked —
+          the app will show 62.5% executed, UAT: Failed (due to failures), and may escalate RAG to RED/AMBER.
         </Text>
       </Modal>
     </div>

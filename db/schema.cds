@@ -53,9 +53,19 @@ entity WorkItems : cuid, managed {
   // Status (auto-calculated, manual override)
   status           : String(20) default 'Active' @title: 'Status';
   currentPhase     : String(20) @title: 'Current Phase';      // Planning/Development/Testing/Go-Live/Hypercare/Complete
+  methodology      : String(30) default 'Waterfall' @title: 'Methodology'; // Waterfall/Agile/Hybrid/SAFe
   overallRAG       : String(10) @title: 'RAG Status';         // GREEN/AMBER/RED
   riskScore        : Integer @title: 'Risk Score (0-100)';
   deploymentPct    : Decimal(5,2) @title: 'Deployment %';
+  // Test Tracking (parsed from SharePoint Excel or manual entry)
+  testTotal        : Integer default 0 @title: 'Total Test Cases';
+  testPassed       : Integer default 0 @title: 'Tests Passed';
+  testFailed       : Integer default 0 @title: 'Tests Failed';
+  testBlocked      : Integer default 0 @title: 'Tests Blocked';
+  testTBD          : Integer default 0 @title: 'Tests TBD';
+  testSkipped      : Integer default 0 @title: 'Tests Skipped';
+  testCompletionPct: Decimal(5,2) default 0 @title: 'Test Completion %';
+  uatStatus        : String(20) default 'Not Started' @title: 'UAT Status'; // Not Started/In Progress/Passed/Failed/Blocked
   // Meta
   notes            : LargeString @title: 'Notes';
   sharepointUrl    : String(500) @title: 'SharePoint Tracker URL'; // Link to Excel tracker per project

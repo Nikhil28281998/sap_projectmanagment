@@ -5,3 +5,4 @@ ENABLE_AI;false;Enable Claude API for report polish
 ENABLE_NOTIFICATIONS;false;Enable notification system
 PREFIX_ENFORCED_FROM;;Date to start flagging TRs without prefix (empty = not enforced)
 DEFAULT_LOOKBACK_DAYS;90;Default transport lookback period
+CLAUDE_API_KEY;;Anthropic API key for AI features (get from console.anthropic.com)
