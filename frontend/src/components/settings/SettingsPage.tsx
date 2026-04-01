@@ -1,21 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import {
   Card, Form, Input, InputNumber, Switch, Button, Select, Typography,
-  Divider, Space, message, Descriptions, Tag, Alert, Radio, Steps
+  Divider, Space, message, Tag, Alert, Radio,
 } from 'antd';
 import {
   SettingOutlined, SaveOutlined, RobotOutlined, SyncOutlined,
   ClockCircleOutlined, ThunderboltOutlined, CheckCircleOutlined,
   CloseCircleOutlined, LinkOutlined, ApiOutlined
 } from '@ant-design/icons';
-import { useHealth } from '../../hooks/useData';
 import { configApi, aiApi } from '../../services/api';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 
 const SettingsPage: React.FC = () => {
   const [form] = Form.useForm();
-  const { data: health } = useHealth();
   const [loading, setLoading] = useState(false);
   const [configs, setConfigs] = useState<any[]>([]);
   const [aiTestResult, setAiTestResult] = useState<{ success: boolean; message: string; provider?: string } | null>(null);
@@ -75,44 +73,6 @@ const SettingsPage: React.FC = () => {
         <SettingOutlined style={{ marginRight: 8 }} />
         Settings
       </Title>
-
-      {/* System Health */}
-      <Card title="System Health" size="small" style={{ marginBottom: 16 }}>
-        {health ? (
-          <Descriptions bordered size="small" column={{ xs: 1, sm: 2, md: 3 }}>
-            <Descriptions.Item label="Status">
-              <Tag color={health.status === 'UP' ? 'success' : 'error'}>{health.status}</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="Database">
-              <Tag color={health.db === 'connected' ? 'success' : 'error'}>{health.db}</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="RFC Connection">
-              <Tag color={
-                health.rfc === 'connected' ? 'success' :
-                health.rfc === 'mock' ? 'warning' : 'error'
-              }>
-                {health.rfc}
-              </Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="SharePoint">
-              <Tag color={
-                health.sharepoint === 'connected' ? 'success' :
-                health.sharepoint === 'mock' ? 'warning' : 'error'
-              }>
-                {health.sharepoint}
-              </Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="Last Sync">
-              {health.lastSync ? new Date(health.lastSync).toLocaleString() : 'Never'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Uptime">
-              {health.uptime ? `${Math.round(health.uptime / 60)}m` : '—'}
-            </Descriptions.Item>
-          </Descriptions>
-        ) : (
-          <Text type="secondary">Loading health status...</Text>
-        )}
-      </Card>
 
       {/* Application Settings */}
       <Card title="Application Settings" size="small" style={{ marginBottom: 16 }}>
@@ -358,15 +318,6 @@ const SettingsPage: React.FC = () => {
         </Form>
       </Card>
 
-      {/* About */}
-      <Card title="About" size="small">
-        <Descriptions size="small" column={1}>
-          <Descriptions.Item label="Application">SAP Project Management App</Descriptions.Item>
-          <Descriptions.Item label="Version">1.0.0</Descriptions.Item>
-          <Descriptions.Item label="Framework">SAP CAP + React + Ant Design</Descriptions.Item>
-          <Descriptions.Item label="Target Platform">SAP BTP Cloud Foundry</Descriptions.Item>
-        </Descriptions>
-      </Card>
     </div>
   );
 };

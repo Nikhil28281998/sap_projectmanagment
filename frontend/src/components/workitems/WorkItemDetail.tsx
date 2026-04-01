@@ -232,7 +232,10 @@ const WorkItemDetail: React.FC = () => {
                 <Tag>{workItem.sapModule}</Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Business Owner">{workItem.businessOwner || '—'}</Descriptions.Item>
+              <Descriptions.Item label="System Owner">{workItem.systemOwner || '—'}</Descriptions.Item>
               <Descriptions.Item label="Lead Developer">{workItem.leadDeveloper || '—'}</Descriptions.Item>
+              <Descriptions.Item label="Functional Lead">{workItem.functionalLead || '—'}</Descriptions.Item>
+              <Descriptions.Item label="QA Lead">{workItem.qaLead || '—'}</Descriptions.Item>
               <Descriptions.Item label="SNOW Ticket">{workItem.snowTicket || '—'}</Descriptions.Item>
               <Descriptions.Item label="Veeva CC">
                 <Space>

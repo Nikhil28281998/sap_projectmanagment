@@ -53,6 +53,12 @@ service TransportService {
     { grant: 'WRITE', to: ['Manager'] }
   ]) as projection on db.AppConfig;
 
+  // ── Report Templates ──
+  entity ReportTemplates @(restrict: [
+    { grant: 'READ',  to: ['Developer', 'Manager', 'Executive'] },
+    { grant: 'WRITE', to: ['Manager'] }
+  ]) as projection on db.ReportTemplates;
+
   // ── Actions ──
 
   // Categorize a single transport (Manager only)
@@ -91,13 +97,12 @@ service TransportService {
     message       : String;
   };
 
-  // Generate weekly report (optional: for a specific project)
+  // Generate weekly report data (structured JSON for template rendering)
   action generateWeeklyReport(
-    useAI      : Boolean,
     workItemId : String
   ) returns {
     success : Boolean;
-    report  : LargeString;
+    data    : LargeString;
     message : String;
   };
 
@@ -125,6 +130,29 @@ service TransportService {
   action chatWithAgent(
     question : String
   ) returns { success: Boolean; answer: LargeString; provider: String };
+
+  // Generate a report template from sample email content (AI-powered)
+  action generateTemplateFromEmail(
+    emailContent : LargeString,
+    templateName : String,
+    scope        : String
+  ) returns { success: Boolean; templateHtml: LargeString; message: String; provider: String };
+
+  // Save a report template (create or update)
+  action saveReportTemplate(
+    id           : String,
+    templateName : String,
+    description  : String,
+    templateHtml : LargeString,
+    scope        : String,
+    visibility   : String,
+    isDefault    : Boolean
+  ) returns { success: Boolean; templateId: String; message: String };
+
+  // Delete a report template
+  action deleteReportTemplate(
+    id : String
+  ) returns { success: Boolean; message: String };
 
   // Get methodology templates
   function getMethodologies() returns array of {

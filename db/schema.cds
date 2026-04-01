@@ -129,6 +129,18 @@ entity ActivityLog : cuid {
   createdAt   : Timestamp @title: 'Timestamp';
 }
 
+// ─── Report Templates (user-created or AI-generated) ───
+entity ReportTemplates : cuid, managed {
+  templateName   : String(200)  @title: 'Template Name';
+  description    : String(500)  @title: 'Description';
+  templateHtml   : LargeString  @title: 'Template HTML';       // Outlook-ready HTML with {{placeholders}}
+  scope          : String(10)   @title: 'Scope';               // single / multi / both
+  visibility     : String(10)   @title: 'Visibility';          // private / public
+  isDefault      : Boolean default false @title: 'Default Template';
+  ownerEmail     : String(120)  @title: 'Owner Email';         // who created it
+  sourceType     : String(20)   @title: 'Source';              // manual / ai-generated
+}
+
 // ─── Application Configuration (key-value settings) ───
 entity AppConfig {
   key configKey  : String(100) @title: 'Config Key';

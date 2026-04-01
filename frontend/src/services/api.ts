@@ -89,10 +89,10 @@ export const syncApi = {
 
 // ─── Reports ───
 export const reportApi = {
-  generate: (useAI: boolean = false, workItemId?: string) =>
+  generate: (workItemId?: string) =>
     request<any>('/generateWeeklyReport', {
       method: 'POST',
-      body: JSON.stringify({ useAI, workItemId: workItemId || null }),
+      body: JSON.stringify({ workItemId: workItemId || null }),
     }),
 };
 
@@ -122,8 +122,32 @@ export const aiApi = {
       method: 'POST',
       body: JSON.stringify({ question }),
     }),
+  generateTemplate: (emailContent: string, templateName: string, scope: string) =>
+    request<{ success: boolean; templateHtml: string; message: string; provider: string }>('/generateTemplateFromEmail', {
+      method: 'POST',
+      body: JSON.stringify({ emailContent, templateName, scope }),
+    }),
   getMethodologies: () =>
     request<{ value: any[] }>('/getMethodologies'),
+};
+
+// ─── Report Templates ───
+export const templateApi = {
+  getAll: () => request<{ value: any[] }>('/ReportTemplates?$orderby=createdAt desc'),
+  getPublic: () => request<{ value: any[] }>("/ReportTemplates?$filter=visibility eq 'public'&$orderby=createdAt desc"),
+  save: (data: {
+    id?: string; templateName: string; description: string;
+    templateHtml: string; scope: string; visibility: string; isDefault: boolean;
+  }) =>
+    request<{ success: boolean; templateId: string; message: string }>('/saveReportTemplate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    request<{ success: boolean; message: string }>('/deleteReportTemplate', {
+      method: 'POST',
+      body: JSON.stringify({ id }),
+    }),
 };
 
 // ─── Notifications ───

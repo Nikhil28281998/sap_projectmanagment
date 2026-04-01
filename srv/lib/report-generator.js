@@ -1,7 +1,7 @@
 /**
- * Report Generator — Gathers data and formats weekly leadership report
- * Works without AI — AI polish is optional
- * Includes test status summary per project
+ * Report Generator — Gathers structured project data for template-based reports
+ * Returns JSON data that the frontend renders using templates
+ * No AI dependency — pure data transformation
  */
 
 class ReportGenerator {
@@ -11,7 +11,7 @@ class ReportGenerator {
   }
 
   /**
-   * Gather all data needed for the weekly report
+   * Gather all data needed for the report (structured JSON)
    * @param {string} [workItemId] — Optional: generate report for a single project only
    */
   async gatherReportData(workItemId) {
@@ -20,38 +20,31 @@ class ReportGenerator {
     let transports, workItems, milestones;
 
     if (workItemId) {
-      // Per-project report — only fetch data for this work item
-      const [allTransports, allWorkItems, allMilestones] = await Promise.all([
+      [transports, workItems, milestones] = await Promise.all([
         SELECT.from(TransportWorkItems).where({ workItem_ID: workItemId }),
         SELECT.from(WorkItems).where({ ID: workItemId }),
-        SELECT.from(Milestones).where({ workItem_ID: workItemId })
+        SELECT.from(Milestones).where({ workItem_ID: workItemId }).orderBy('milestoneOrder asc'),
       ]);
-      transports = allTransports;
-      workItems = allWorkItems;
-      milestones = allMilestones;
     } else {
-      // All-projects report
-      const [allTransports, allWorkItems, allMilestones] = await Promise.all([
+      [transports, workItems, milestones] = await Promise.all([
         SELECT.from(TransportWorkItems),
         SELECT.from(WorkItems),
-        SELECT.from(Milestones)
+        SELECT.from(Milestones).orderBy('milestoneOrder asc'),
       ]);
-      transports = allTransports;
-      workItems = allWorkItems;
-      milestones = allMilestones;
     }
 
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const oneWeekAhead = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const fourteenDays = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
 
-    // Active projects
     const activeProjects = workItems.filter(wi => wi.status === 'Active');
 
     // Transports by system
     const trsBySys = {
       DEV: transports.filter(t => t.currentSystem === 'DEV'),
       QAS: transports.filter(t => t.currentSystem === 'QAS'),
-      PRD: transports.filter(t => t.currentSystem === 'PRD')
+      PRD: transports.filter(t => t.currentSystem === 'PRD'),
     };
 
     // Stuck transports (in non-PRD > 5 days)
@@ -64,20 +57,34 @@ class ReportGenerator {
     const failed = transports.filter(t => t.importRC >= 8);
 
     // Upcoming go-lives (next 14 days)
-    const fourteenDays = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
     const upcoming = activeProjects.filter(p => {
       const goLive = new Date(p.goLiveDate);
       return goLive >= now && goLive <= fourteenDays;
     });
 
     // Overdue milestones
-    const overdue = milestones.filter(m => {
-      return m.status !== 'Complete' && new Date(m.milestoneDate) < now;
-    });
+    const overdue = milestones.filter(m =>
+      m.status !== 'Complete' && new Date(m.milestoneDate) < now
+    );
 
-    // Completed work items
-    const completed = workItems.filter(wi => {
-      return wi.status === 'Done' && new Date(wi.modifiedAt || wi.createdAt) >= oneWeekAgo;
+    // Completed this week
+    const completedThisWeek = workItems.filter(wi =>
+      wi.status === 'Done' && new Date(wi.modifiedAt || wi.createdAt) >= oneWeekAgo
+    );
+
+    // Recently completed milestones (this week)
+    const completedMilestones = milestones.filter(m =>
+      m.status === 'Complete' && m.completedDate && new Date(m.completedDate) >= oneWeekAgo
+    );
+
+    // In-progress milestones
+    const inProgressMilestones = milestones.filter(m => m.status === 'Pending' || m.status === 'In Progress');
+
+    // Upcoming milestones (next 7 days)
+    const upcomingMilestones = milestones.filter(m => {
+      if (m.status === 'Complete') return false;
+      const d = new Date(m.milestoneDate);
+      return d >= now && d <= oneWeekAhead;
     });
 
     // Unassigned
@@ -86,130 +93,198 @@ class ReportGenerator {
     // Projects with test tracking
     const withTests = activeProjects.filter(p => (p.testTotal || 0) > 0);
 
+    // Build per-project summary for the overview table
+    const projectOverviews = activeProjects.map(p => {
+      const projectTRs = transports.filter(t => t.workItem_ID === p.ID);
+      const projectMilestones = milestones.filter(m => m.workItem_ID === p.ID);
+      const projectStuck = projectTRs.filter(t =>
+        t.currentSystem !== 'PRD' && (now - new Date(t.createdDate)) / 86400000 > 5
+      );
+      const projectFailed = projectTRs.filter(t => t.importRC >= 8);
+
+      return {
+        id: p.ID,
+        name: p.workItemName,
+        projectCode: p.projectCode,
+        type: p.workItemType,
+        sapModule: p.sapModule || 'N/A',
+        sapOwner: p.leadDeveloper || 'TBD',
+        businessOwner: p.businessOwner || 'TBD',
+        systemOwner: p.systemOwner || 'TBD',
+        functionalLead: p.functionalLead || 'TBD',
+        qaLead: p.qaLead || 'TBD',
+        goLiveDate: p.goLiveDate || 'TBD',
+        overallRAG: p.overallRAG || 'GREEN',
+        currentPhase: p.currentPhase || 'N/A',
+        deploymentPct: p.deploymentPct || 0,
+        status: p.status,
+        complexity: p.complexity || 'N/A',
+        priority: p.priority || 'N/A',
+        // Test data
+        testTotal: p.testTotal || 0,
+        testPassed: p.testPassed || 0,
+        testFailed: p.testFailed || 0,
+        testBlocked: p.testBlocked || 0,
+        testTBD: p.testTBD || 0,
+        testSkipped: p.testSkipped || 0,
+        testCompletionPct: p.testCompletionPct || 0,
+        uatStatus: p.uatStatus || 'Not Started',
+        // Transport counts
+        totalTRs: projectTRs.length,
+        trsDEV: projectTRs.filter(t => t.currentSystem === 'DEV').length,
+        trsQAS: projectTRs.filter(t => t.currentSystem === 'QAS').length,
+        trsPRD: projectTRs.filter(t => t.currentSystem === 'PRD').length,
+        stuckCount: projectStuck.length,
+        failedCount: projectFailed.length,
+        // Milestones
+        milestones: projectMilestones.map(m => ({
+          name: m.milestoneName,
+          date: m.milestoneDate,
+          status: m.status,
+          completedDate: m.completedDate,
+          evidence: m.evidence,
+          order: m.milestoneOrder,
+        })),
+        // Dates
+        kickoffDate: p.kickoffDate,
+        devCompleteDate: p.devCompleteDate,
+        uatStartDate: p.uatStartDate,
+        uatSignoffDate: p.uatSignoffDate,
+        hypercareEndDate: p.hypercareEndDate,
+        notes: p.notes,
+      };
+    });
+
+    // Auto-suggestions for "Current Week" and "Next Week"
+    const currentWeekSuggestions = this._generateCurrentWeekSuggestions(
+      completedMilestones, inProgressMilestones, transports, activeProjects, failed, workItemId
+    );
+    const nextWeekSuggestions = this._generateNextWeekSuggestions(
+      upcomingMilestones, inProgressMilestones, activeProjects, workItemId
+    );
+
+    // Compute fiscal week
+    const weekNumber = this._getISOWeek(now);
+    const fiscalYear = now.getFullYear();
+
     return {
+      generatedAt: now.toISOString(),
       date: now.toISOString().split('T')[0],
+      weekLabel: `WK${String(weekNumber).padStart(2, '0')} FY${fiscalYear}`,
+      weekNumber,
+      fiscalYear,
+      // Aggregate stats
       totalTransports: transports.length,
-      trsBySys,
-      activeProjects,
-      stuck,
-      failed,
-      upcoming,
-      overdue,
-      completed,
-      unassigned,
-      withTests
+      trsBySys: {
+        DEV: trsBySys.DEV.length,
+        QAS: trsBySys.QAS.length,
+        PRD: trsBySys.PRD.length,
+      },
+      activeProjectCount: activeProjects.length,
+      stuckCount: stuck.length,
+      failedCount: failed.length,
+      unassignedCount: unassigned.length,
+      upcomingGoLives: upcoming.map(p => ({
+        name: p.workItemName,
+        goLiveDate: p.goLiveDate,
+        daysUntil: Math.ceil((new Date(p.goLiveDate) - now) / 86400000),
+        lead: p.leadDeveloper || 'TBD',
+      })),
+      overdueCount: overdue.length,
+      overdueMilestones: overdue.slice(0, 10).map(m => ({
+        name: m.milestoneName,
+        dueDate: m.milestoneDate,
+      })),
+      completedThisWeek: completedThisWeek.map(c => ({
+        name: c.workItemName,
+        type: c.workItemType,
+      })),
+      // Per-project data
+      projects: projectOverviews,
+      // Suggestions
+      currentWeekSuggestions,
+      nextWeekSuggestions,
     };
   }
 
   /**
-   * Format report data into professional email-ready text
+   * Generate current week activity suggestions from data
    */
-  formatReport(data) {
-    const lines = [];
-    const isSingleProject = data.activeProjects.length <= 1 && data.activeProjects.length > 0;
-    const projectLabel = isSingleProject
-      ? data.activeProjects[0].workItemName
-      : 'All Projects';
-    lines.push(`Subject: Weekly SAP Status — ${projectLabel} — ${data.date}\n`);
-    lines.push(`Hi Team,\n`);
-    lines.push(`Please find this week's SAP project status update below.\n`);
+  _generateCurrentWeekSuggestions(completedMilestones, inProgressMilestones, transports, activeProjects, failed, workItemId) {
+    const suggestions = [];
 
-    // Executive Summary
-    lines.push(`## Executive Summary`);
-    lines.push(`- **${data.activeProjects.length}** active work items across all modules`);
-    lines.push(`- **${data.totalTransports}** transports tracked (DEV: ${data.trsBySys.DEV.length} | QAS: ${data.trsBySys.QAS.length} | PRD: ${data.trsBySys.PRD.length})`);
-    if (data.stuck.length > 0) lines.push(`- **${data.stuck.length}** transports stuck >5 days ⚠`);
-    if (data.failed.length > 0) lines.push(`- **${data.failed.length}** failed imports requiring attention ❌`);
-    if (data.unassigned.length > 0) lines.push(`- **${data.unassigned.length}** unassigned transports`);
-    lines.push('');
-
-    // Active Projects with RAG + Test Status
-    if (data.activeProjects.length > 0) {
-      lines.push(`## Project Status`);
-      lines.push('| Project | RAG | Phase | Deployment | Tests | UAT |');
-      lines.push('|---------|-----|-------|------------|-------|-----|');
-      for (const p of data.activeProjects) {
-        const rag = p.overallRAG || 'N/A';
-        const ragIcon = rag === 'RED' ? '🔴' : rag === 'AMBER' ? '🟡' : '🟢';
-        const testInfo = (p.testTotal || 0) > 0
-          ? `${p.testPassed || 0}/${p.testTotal} (${p.testCompletionPct || 0}%)`
-          : 'N/A';
-        const uat = p.uatStatus || 'N/A';
-        lines.push(`| ${p.workItemName} | ${ragIcon} ${rag} | ${p.currentPhase || 'N/A'} | ${p.deploymentPct || 0}% | ${testInfo} | ${uat} |`);
-      }
-      lines.push('');
+    for (const m of completedMilestones) {
+      if (workItemId && m.workItem_ID !== workItemId) continue;
+      suggestions.push(`${m.milestoneName} completed`);
     }
 
-    // Test Status Detail (only for projects with tests)
-    if (data.withTests.length > 0) {
-      lines.push(`## UAT / Test Progress`);
-      for (const p of data.withTests) {
-        const total = p.testTotal || 0;
-        const passed = p.testPassed || 0;
-        const failed = p.testFailed || 0;
-        const tbd = p.testTBD || 0;
-        const blocked = p.testBlocked || 0;
-        const skipped = p.testSkipped || 0;
-        lines.push(`**${p.workItemName}** — ${p.uatStatus || 'In Progress'}`);
-        lines.push(`  ✅ Passed: ${passed}/${total} (${Math.round(passed/total*100)}%) | ❌ Failed: ${failed} | ⏳ TBD: ${tbd} | 🚫 Blocked: ${blocked} | ⏭ Skipped: ${skipped}`);
-        if (failed > 0) {
-          lines.push(`  ⚠ Action needed: ${failed} test case(s) failed — review and retest`);
-        }
+    for (const m of inProgressMilestones.slice(0, 5)) {
+      if (workItemId && m.workItem_ID !== workItemId) continue;
+      if (m.milestoneName.toLowerCase().includes('uat')) {
+        suggestions.push('UAT in progress');
+      } else if (m.milestoneName.toLowerCase().includes('test')) {
+        suggestions.push(`${m.milestoneName} in progress`);
       }
-      lines.push('');
     }
 
-    // Upcoming Go-Lives
-    if (data.upcoming.length > 0) {
-      lines.push(`## 🚀 Upcoming Go-Lives (Next 14 Days)`);
-      for (const p of data.upcoming) {
-        const days = Math.ceil((new Date(p.goLiveDate) - new Date()) / 86400000);
-        lines.push(`- **${p.workItemName}** — ${p.goLiveDate} (${days} days) | Lead: ${p.leadDeveloper || 'TBD'}`);
+    for (const p of activeProjects) {
+      if (workItemId && p.ID !== workItemId) continue;
+      if (p.currentPhase === 'Testing' && !suggestions.some(s => s.includes('UAT'))) {
+        suggestions.push('UAT in progress');
       }
-      lines.push('');
+      if (p.currentPhase === 'Development') {
+        suggestions.push('Development activities ongoing');
+      }
     }
 
-    // Alerts
-    const hasAlerts = data.stuck.length > 0 || data.failed.length > 0 || data.overdue.length > 0;
-    if (hasAlerts) {
-      lines.push(`## ⚠ Alerts & Risks`);
-      if (data.failed.length > 0) {
-        lines.push(`**Failed Imports (RC≥8):**`);
-        for (const tr of data.failed) {
-          lines.push(`- ${tr.trNumber} — RC=${tr.importRC} in ${tr.currentSystem} | Owner: ${tr.ownerFullName || tr.trOwner}`);
-        }
-      }
-      if (data.stuck.length > 0) {
-        lines.push(`**Stuck Transports (>5 days):** ${data.stuck.length} total`);
-        for (const tr of data.stuck.slice(0, 5)) {
-          lines.push(`- ${tr.trNumber} — ${tr.currentSystem} | Owner: ${tr.ownerFullName || tr.trOwner}`);
-        }
-        if (data.stuck.length > 5) lines.push(`  ... and ${data.stuck.length - 5} more`);
-      }
-      if (data.overdue.length > 0) {
-        lines.push(`**Overdue Milestones:** ${data.overdue.length}`);
-        for (const m of data.overdue.slice(0, 5)) {
-          lines.push(`- ${m.milestoneName} — due ${m.milestoneDate}`);
-        }
-      }
-      lines.push('');
+    if (failed.length > 0) {
+      suggestions.push(`${failed.length} transport import issue(s) being investigated`);
     }
 
-    // Completed
-    if (data.completed.length > 0) {
-      lines.push(`## ✅ Completed This Week`);
-      for (const c of data.completed) {
-        lines.push(`- ${c.workItemName} (${c.workItemType})`);
-      }
-      lines.push('');
+    return [...new Set(suggestions)].slice(0, 8);
+  }
+
+  /**
+   * Generate next week plan suggestions from data
+   */
+  _generateNextWeekSuggestions(upcomingMilestones, inProgressMilestones, activeProjects, workItemId) {
+    const suggestions = [];
+
+    for (const m of upcomingMilestones) {
+      if (workItemId && m.workItem_ID !== workItemId) continue;
+      suggestions.push(`${m.milestoneName} — target ${m.milestoneDate}`);
     }
 
-    lines.push(`---`);
-    lines.push(`Best regards,`);
-    lines.push(`SAP Project Management Team`);
-    lines.push(`\n_Generated by SAP PM App on ${new Date().toISOString()}_`);
+    for (const p of activeProjects) {
+      if (workItemId && p.ID !== workItemId) continue;
+      if (p.uatStatus === 'In Progress') {
+        suggestions.push('Continue UAT testing');
+      }
+      if (p.currentPhase === 'Testing') {
+        suggestions.push('UAT Testing');
+      }
+    }
 
-    return lines.join('\n');
+    for (const m of inProgressMilestones.slice(0, 3)) {
+      if (workItemId && m.workItem_ID !== workItemId) continue;
+      const name = m.milestoneName;
+      if (!suggestions.some(s => s.includes(name))) {
+        suggestions.push(`Continue ${name}`);
+      }
+    }
+
+    return [...new Set(suggestions)].slice(0, 8);
+  }
+
+  /**
+   * Get ISO week number
+   */
+  _getISOWeek(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
   }
 }
 

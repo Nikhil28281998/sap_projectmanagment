@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { transportApi, dashboardApi, workItemApi, syncApi, reportApi, notificationApi } from '../services/api';
+import { transportApi, dashboardApi, workItemApi, syncApi, reportApi, notificationApi, templateApi, aiApi } from '../services/api';
 
 // ─── Transport Queries ───
 export function useTransports() {
@@ -125,7 +125,50 @@ export function useRefreshSharePoint() {
 
 export function useGenerateReport() {
   return useMutation({
-    mutationFn: ({ aiPolish, workItemId }: { aiPolish: boolean; workItemId?: string }) =>
-      reportApi.generate(aiPolish, workItemId),
+    mutationFn: ({ workItemId }: { workItemId?: string }) =>
+      reportApi.generate(workItemId),
+  });
+}
+
+// ─── Report Templates ───
+export function useReportTemplates() {
+  return useQuery({
+    queryKey: ['reportTemplates'],
+    queryFn: async () => {
+      const res = await templateApi.getAll();
+      return res.value || [];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+export function useSaveReportTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      id?: string; templateName: string; description: string;
+      templateHtml: string; scope: string; visibility: string; isDefault: boolean;
+    }) => templateApi.save(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reportTemplates'] });
+    },
+  });
+}
+
+export function useDeleteReportTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => templateApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reportTemplates'] });
+    },
+  });
+}
+
+export function useGenerateTemplateFromEmail() {
+  return useMutation({
+    mutationFn: ({ emailContent, templateName, scope }: {
+      emailContent: string; templateName: string; scope: string;
+    }) => aiApi.generateTemplate(emailContent, templateName, scope),
   });
 }

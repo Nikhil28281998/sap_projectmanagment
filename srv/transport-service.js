@@ -17,11 +17,12 @@ class TransportService extends cds.ApplicationService {
       Notifications,
       SyncLog,
       ActivityLog,
-      AppConfig
+      AppConfig,
+      ReportTemplates
     } = db.entities('sap.pm');
 
     this.db = db;
-    this._e = { TransportWorkItems, WorkItems, Milestones, Notifications, SyncLog, ActivityLog, AppConfig };
+    this._e = { TransportWorkItems, WorkItems, Milestones, Notifications, SyncLog, ActivityLog, AppConfig, ReportTemplates };
 
     // ── Before handlers ──
     this.before('UPDATE', 'Transports', this._checkOptimisticLock.bind(this));
@@ -37,6 +38,9 @@ class TransportService extends cds.ApplicationService {
     this.on('testAIConnection', this._onTestAIConnection.bind(this));
     this.on('saveAIConfig', this._onSaveAIConfig.bind(this));
     this.on('chatWithAgent', this._onChatWithAgent.bind(this));
+    this.on('generateTemplateFromEmail', this._onGenerateTemplateFromEmail.bind(this));
+    this.on('saveReportTemplate', this._onSaveReportTemplate.bind(this));
+    this.on('deleteReportTemplate', this._onDeleteReportTemplate.bind(this));
     this.on('getMethodologies', this._onGetMethodologies.bind(this));
     this.on('health', this._onHealth.bind(this));
     this.on('dashboardSummary', this._onDashboardSummary.bind(this));
@@ -366,17 +370,11 @@ class TransportService extends cds.ApplicationService {
 
   // ─── Generate Weekly Report ───
   async _onGenerateWeeklyReport(req) {
-    const { useAI, workItemId } = req.data;
+    const { workItemId } = req.data;
     const reportGen = new ReportGenerator(this.db, this._e);
 
     try {
       const reportData = await reportGen.gatherReportData(workItemId);
-      let report = reportGen.formatReport(reportData);
-
-      if (useAI) {
-        const ai = await AIClient.create(this.db, this._e);
-        report = await ai.polishReport(report);
-      }
 
       // Log it
       const { ActivityLog } = this._e;
@@ -385,14 +383,14 @@ class TransportService extends cds.ApplicationService {
         action: 'GENERATE_REPORT',
         entityType: 'REPORT',
         entityId: new Date().toISOString().split('T')[0],
-        newValue: `Report generated (AI: ${useAI ? 'yes' : 'no'})`,
+        newValue: `Report data generated (project: ${workItemId || 'all'})`,
         createdAt: new Date().toISOString()
       });
 
-      return { success: true, report, message: 'Weekly report generated' };
+      return { success: true, data: JSON.stringify(reportData), message: 'Report data generated' };
     } catch (err) {
       console.error('Report generation failed:', err.message);
-      return { success: false, report: null, message: `Report failed: ${err.message}` };
+      return { success: false, data: null, message: `Report failed: ${err.message}` };
     }
   }
 
@@ -599,6 +597,150 @@ class TransportService extends cds.ApplicationService {
     lines.push(`Today: ${now.toISOString().split('T')[0]}`);
 
     return lines.join('\n');
+  }
+
+  // ─── Generate Template from Email (AI-powered) ───
+  async _onGenerateTemplateFromEmail(req) {
+    const { emailContent, templateName, scope } = req.data;
+    if (!emailContent?.trim()) {
+      return { success: false, templateHtml: '', message: 'Please provide email content.', provider: '' };
+    }
+
+    try {
+      const ai = await AIClient.create(this.db, this._e);
+      if (!ai.enabled) {
+        return { success: false, templateHtml: '', message: 'AI is not configured. Go to Settings → AI Integration.', provider: '' };
+      }
+
+      const systemPrompt = `You are an expert email template engineer. The user will provide a sample email they currently send for project reporting.
+Your job: analyze the email structure, layout, and style, then generate a REUSABLE Outlook-compatible HTML template.
+
+OUTPUT RULES:
+- Output ONLY valid HTML — NO markdown, NO code fences
+- Use inline CSS on every element (Outlook ignores <style> blocks)
+- Font: Calibri, Arial, sans-serif
+- Tables: border-collapse:collapse, 1px solid #d6d6d6 borders, header row background #1f4e79 with white text
+- Use {{placeholders}} for dynamic content that will be replaced with real project data
+
+AVAILABLE PLACEHOLDERS (use these in the template):
+  {{weekLabel}} — e.g. "WK14 FY2026"
+  {{date}} — report date
+  {{projectName}} — project name
+  {{projectCode}} — project code
+  {{sapModule}} — e.g. FICO, SD, MM
+  {{sapOwner}} — SAP project owner
+  {{businessOwner}} — business owner
+  {{systemOwner}} — system owner
+  {{goLiveDate}} — go-live date
+  {{overallRAG}} — RAG status (GREEN/AMBER/RED) — you can use 🟢🟡🔴 emojis
+  {{currentPhase}} — current project phase
+  {{deploymentPct}} — deployment percentage
+  {{testCompletionPct}} — test completion %
+  {{totalTRs}} — total transport count
+  {{trsDEV}} — transports in DEV
+  {{trsQAS}} — transports in QAS
+  {{trsPRD}} — transports in PRD
+  {{milestonesTable}} — will be replaced with a milestones HTML table
+  {{currentWeekItems}} — bullet list of current week activities
+  {{nextWeekItems}} — bullet list of next week plans
+  {{risksSection}} — will contain risk/issue highlights
+
+Preserve the user's email structure as closely as possible but make it professional and Outlook-ready.
+If the email has a greeting, keep it. If it has a sign-off, keep it.`;
+
+      const userMessage = `Here is a sample email the user currently sends for project reporting. Generate a reusable Outlook HTML template from this:
+
+---
+${emailContent}
+---
+
+Template name: ${templateName || 'Custom Template'}
+Scope: ${scope || 'single'} (${scope === 'multi' ? 'all projects summary' : scope === 'both' ? 'works for single and multi' : 'single project report'})`;
+
+      let html = await ai._call(systemPrompt, userMessage, 6000);
+
+      // Strip code fences if AI wraps in ```html
+      if (html.trimStart().startsWith('```')) {
+        html = html.replace(/^[\s]*```(?:html)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+      }
+
+      return { success: true, templateHtml: html, message: 'Template generated successfully', provider: ai.provider };
+    } catch (err) {
+      return { success: false, templateHtml: '', message: `Template generation failed: ${err.message}`, provider: '' };
+    }
+  }
+
+  // ─── Save Report Template (CRUD) ───
+  async _onSaveReportTemplate(req) {
+    const { id, templateName, description, templateHtml, scope, visibility, isDefault } = req.data;
+    const { ReportTemplates } = this._e;
+    const userEmail = req.user?.id || 'anonymous@test.com';
+
+    try {
+      // If setting as default, clear other defaults for this user+scope
+      if (isDefault) {
+        const existing = await SELECT.from(ReportTemplates)
+          .where({ ownerEmail: userEmail, scope: scope || 'single', isDefault: true });
+        for (const t of existing) {
+          await UPDATE(ReportTemplates, t.ID).set({ isDefault: false });
+        }
+      }
+
+      if (id) {
+        // Update existing template
+        const existing = await SELECT.one.from(ReportTemplates, id);
+        if (!existing) return { success: false, templateId: '', message: 'Template not found' };
+        // Only owner can edit
+        if (existing.ownerEmail !== userEmail) {
+          return { success: false, templateId: '', message: 'You can only edit your own templates' };
+        }
+        await UPDATE(ReportTemplates, id).set({
+          templateName: templateName || existing.templateName,
+          description: description ?? existing.description,
+          templateHtml: templateHtml || existing.templateHtml,
+          scope: scope || existing.scope,
+          visibility: visibility || existing.visibility,
+          isDefault: isDefault ?? existing.isDefault,
+        });
+        return { success: true, templateId: id, message: 'Template updated' };
+      } else {
+        // Create new template
+        const newId = cds.utils.uuid();
+        await INSERT.into(ReportTemplates).entries({
+          ID: newId,
+          templateName: templateName || 'Untitled Template',
+          description: description || '',
+          templateHtml: templateHtml || '',
+          scope: scope || 'single',
+          visibility: visibility || 'private',
+          isDefault: isDefault || false,
+          ownerEmail: userEmail,
+          sourceType: 'manual',
+        });
+        return { success: true, templateId: newId, message: 'Template saved' };
+      }
+    } catch (err) {
+      return { success: false, templateId: '', message: `Save failed: ${err.message}` };
+    }
+  }
+
+  // ─── Delete Report Template ───
+  async _onDeleteReportTemplate(req) {
+    const { id } = req.data;
+    const { ReportTemplates } = this._e;
+    const userEmail = req.user?.id || 'anonymous@test.com';
+
+    try {
+      const existing = await SELECT.one.from(ReportTemplates, id);
+      if (!existing) return { success: false, message: 'Template not found' };
+      if (existing.ownerEmail !== userEmail) {
+        return { success: false, message: 'You can only delete your own templates' };
+      }
+      await DELETE.from(ReportTemplates, id);
+      return { success: true, message: 'Template deleted' };
+    } catch (err) {
+      return { success: false, message: `Delete failed: ${err.message}` };
+    }
   }
 
   // ─── Get Methodology Templates ───

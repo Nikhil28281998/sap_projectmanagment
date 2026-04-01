@@ -13,8 +13,8 @@ import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
 
 const { Title, Text } = Typography;
 
-const RAG_COLORS = { GREEN: '#52c41a', AMBER: '#faad14', RED: '#ff4d4f' };
-const RAG_ICONS = { GREEN: '🟢', AMBER: '🟡', RED: '🔴' };
+const RAG_COLORS: Record<string, string> = { GREEN: '#52c41a', AMBER: '#faad14', RED: '#ff4d4f' };
+const RAG_ICONS: Record<string, string> = { GREEN: '🟢', AMBER: '🟡', RED: '🔴' };
 
 const HomeDashboard: React.FC = () => {
   const navigate = useNavigate();

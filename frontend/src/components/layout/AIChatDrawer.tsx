@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  Drawer, Input, Button, Typography, Space, Tag, Spin, Avatar, Empty
+  Drawer, Input, Button, Typography, Space, Tag, Spin, Avatar, Empty,
+  Upload, Modal, Select, Switch, message as antMessage
 } from 'antd';
 import {
   RobotOutlined, SendOutlined, UserOutlined, CloseOutlined,
-  BulbOutlined
+  BulbOutlined, UploadOutlined, FileTextOutlined, SaveOutlined
 } from '@ant-design/icons';
-import { aiApi } from '../../services/api';
+import { aiApi, templateApi } from '../../services/api';
 
 const { Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -36,7 +37,7 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'system',
-      content: 'Hi! I\'m your SAP Project Assistant. I can answer questions about your projects, transports, test status, milestones, and more. Ask me anything!',
+      content: 'Hi! I\'m your SAP Project Assistant. I can answer questions about your projects, transports, test status, milestones, and more.\n\nYou can also generate report templates — paste your current email format or upload a file, and I\'ll create a reusable Outlook template for you!',
       timestamp: new Date(),
     }
   ]);
@@ -44,6 +45,16 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<any>(null);
+
+  // Template generation state
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [templateEmail, setTemplateEmail] = useState('');
+  const [templateName, setTemplateName] = useState('');
+  const [templateScope, setTemplateScope] = useState('single');
+  const [templateVisibility, setTemplateVisibility] = useState('private');
+  const [templateDefault, setTemplateDefault] = useState(false);
+  const [generatingTemplate, setGeneratingTemplate] = useState(false);
+  const [generatedHtml, setGeneratedHtml] = useState('');
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -99,6 +110,81 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
     }]);
   };
 
+  // ─── Template generation from email ───
+  const handleFileUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      setTemplateEmail(content);
+      setTemplateModalOpen(true);
+    };
+    reader.readAsText(file);
+    return false; // prevent auto upload
+  };
+
+  const handleGenerateTemplate = async () => {
+    if (!templateEmail.trim()) {
+      antMessage.warning('Please paste or upload an email sample.');
+      return;
+    }
+    if (!templateName.trim()) {
+      antMessage.warning('Please provide a template name.');
+      return;
+    }
+
+    setGeneratingTemplate(true);
+    try {
+      const result = await aiApi.generateTemplate(templateEmail, templateName, templateScope);
+      if (result.success) {
+        setGeneratedHtml(result.templateHtml);
+        // Add a message in chat
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `Template "${templateName}" generated successfully using ${result.provider}! You can preview it below and save it.`,
+          timestamp: new Date(),
+          provider: result.provider,
+        }]);
+        antMessage.success('Template generated! Review and save below.');
+      } else {
+        antMessage.error(result.message);
+      }
+    } catch (err: any) {
+      antMessage.error(`Generation failed: ${err.message}`);
+    } finally {
+      setGeneratingTemplate(false);
+    }
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!generatedHtml) return;
+    try {
+      const result = await templateApi.save({
+        templateName,
+        description: `AI-generated from email sample (${templateScope} scope)`,
+        templateHtml: generatedHtml,
+        scope: templateScope,
+        visibility: templateVisibility,
+        isDefault: templateDefault,
+      });
+      if (result.success) {
+        antMessage.success(`Template saved! ${templateVisibility === 'public' ? 'Visible to all users.' : 'Private to you.'}`);
+        setTemplateModalOpen(false);
+        setGeneratedHtml('');
+        setTemplateEmail('');
+        setTemplateName('');
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `Template "${templateName}" has been saved as ${templateVisibility}. ${templateDefault ? 'It is set as your default template.' : ''} You can find it in the Report Builder under custom templates.`,
+          timestamp: new Date(),
+        }]);
+      } else {
+        antMessage.error(result.message);
+      }
+    } catch (err: any) {
+      antMessage.error(`Save failed: ${err.message}`);
+    }
+  };
+
   return (
     <Drawer
       title={
@@ -112,7 +198,16 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
       open={open}
       onClose={onClose}
       extra={
-        <Button size="small" onClick={clearChat}>Clear</Button>
+        <Space>
+          <Button
+            size="small"
+            icon={<FileTextOutlined />}
+            onClick={() => setTemplateModalOpen(true)}
+          >
+            New Template
+          </Button>
+          <Button size="small" onClick={clearChat}>Clear</Button>
+        </Space>
       }
       styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column' } }}
     >
@@ -222,10 +317,147 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
             style={{ height: 'auto', borderRadius: '0 8px 8px 0' }}
           />
         </Space.Compact>
-        <Text type="secondary" style={{ fontSize: 10, marginTop: 4, display: 'block' }}>
-          Shift+Enter for new line • AI queries your live project data
-        </Text>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+          <Text type="secondary" style={{ fontSize: 10 }}>
+            Shift+Enter for new line • AI queries your live project data
+          </Text>
+          <Upload
+            accept=".txt,.html,.htm,.eml,.msg"
+            showUploadList={false}
+            beforeUpload={handleFileUpload}
+          >
+            <Button type="link" size="small" icon={<UploadOutlined />} style={{ fontSize: 10, padding: 0 }}>
+              Upload email sample
+            </Button>
+          </Upload>
+        </div>
       </div>
+
+      {/* Template Generation Modal */}
+      <Modal
+        title={
+          <Space>
+            <FileTextOutlined style={{ color: '#1677ff' }} />
+            Generate Report Template from Email
+          </Space>
+        }
+        open={templateModalOpen}
+        onCancel={() => { setTemplateModalOpen(false); setGeneratedHtml(''); }}
+        footer={null}
+        width={700}
+        styles={{ body: { maxHeight: '70vh', overflow: 'auto' } }}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <div>
+            <Text strong style={{ display: 'block', marginBottom: 6 }}>Template Name</Text>
+            <Input
+              value={templateName}
+              onChange={e => setTemplateName(e.target.value)}
+              placeholder="e.g. Weekly Status — FICO Projects"
+              maxLength={200}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: 16 }}>
+            <div style={{ flex: 1 }}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>Scope</Text>
+              <Select
+                value={templateScope}
+                onChange={setTemplateScope}
+                style={{ width: '100%' }}
+                options={[
+                  { value: 'single', label: 'Single Project' },
+                  { value: 'multi', label: 'All Projects' },
+                  { value: 'both', label: 'Both' },
+                ]}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>Visibility</Text>
+              <Select
+                value={templateVisibility}
+                onChange={setTemplateVisibility}
+                style={{ width: '100%' }}
+                options={[
+                  { value: 'private', label: 'Private (only me)' },
+                  { value: 'public', label: 'Public (all users)' },
+                ]}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Switch checked={templateDefault} onChange={setTemplateDefault} size="small" />
+            <Text>Set as my default template</Text>
+          </div>
+
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <Text strong>Paste or Upload Your Email Sample</Text>
+              <Upload
+                accept=".txt,.html,.htm,.eml,.msg"
+                showUploadList={false}
+                beforeUpload={(file) => {
+                  const reader = new FileReader();
+                  reader.onload = (e) => setTemplateEmail(e.target?.result as string);
+                  reader.readAsText(file);
+                  return false;
+                }}
+              >
+                <Button size="small" icon={<UploadOutlined />}>Upload File</Button>
+              </Upload>
+            </div>
+            <TextArea
+              value={templateEmail}
+              onChange={e => setTemplateEmail(e.target.value)}
+              placeholder="Paste your current email report here... The AI will analyze the structure and generate a reusable Outlook HTML template with {{placeholders}} for dynamic data."
+              rows={8}
+              style={{ fontFamily: 'monospace', fontSize: 12 }}
+            />
+          </div>
+
+          <Button
+            type="primary"
+            icon={<RobotOutlined />}
+            onClick={handleGenerateTemplate}
+            loading={generatingTemplate}
+            block
+            size="large"
+            disabled={!templateEmail.trim() || !templateName.trim()}
+          >
+            {generatingTemplate ? 'AI is generating template...' : 'Generate Template with AI'}
+          </Button>
+
+          {generatedHtml && (
+            <>
+              <div>
+                <Text strong style={{ display: 'block', marginBottom: 6 }}>Preview</Text>
+                <div
+                  dangerouslySetInnerHTML={{ __html: generatedHtml }}
+                  style={{
+                    border: '1px solid #d9d9d9',
+                    borderRadius: 6,
+                    padding: 16,
+                    maxHeight: 300,
+                    overflow: 'auto',
+                    background: '#fff',
+                  }}
+                />
+              </div>
+              <Button
+                type="primary"
+                icon={<SaveOutlined />}
+                onClick={handleSaveTemplate}
+                block
+                size="large"
+                style={{ background: '#52c41a', borderColor: '#52c41a' }}
+              >
+                Save Template ({templateVisibility === 'public' ? 'Public' : 'Private'})
+              </Button>
+            </>
+          )}
+        </Space>
+      </Modal>
     </Drawer>
   );
 };
