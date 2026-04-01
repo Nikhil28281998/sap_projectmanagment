@@ -366,11 +366,11 @@ class TransportService extends cds.ApplicationService {
 
   // ─── Generate Weekly Report ───
   async _onGenerateWeeklyReport(req) {
-    const { useAI } = req.data;
+    const { useAI, workItemId } = req.data;
     const reportGen = new ReportGenerator(this.db, this._e);
 
     try {
-      const reportData = await reportGen.gatherReportData();
+      const reportData = await reportGen.gatherReportData(workItemId);
       let report = reportGen.formatReport(reportData);
 
       if (useAI) {
@@ -492,7 +492,7 @@ class TransportService extends cds.ApplicationService {
       }
 
       // Save API key for the chosen provider
-      const keyConfigName = provider === 'chatgpt' ? 'OPENAI_API_KEY' : 'CLAUDE_API_KEY';
+      const keyConfigName = provider === 'chatgpt' ? 'OPENAI_API_KEY' : provider === 'gemini' ? 'GEMINI_API_KEY' : 'CLAUDE_API_KEY';
       const existingKey = await SELECT.one.from(AppConfig).where({ configKey: keyConfigName });
       if (existingKey) {
         await UPDATE(AppConfig).set({ configValue: apiKey }).where({ configKey: keyConfigName });
@@ -524,7 +524,7 @@ class TransportService extends cds.ApplicationService {
     try {
       const ai = await AIClient.create(this.db, this._e);
       if (!ai.enabled) {
-        return { success: false, answer: 'AI is not configured. Go to Settings → AI Integration to connect your Claude or ChatGPT account.', provider: '' };
+        return { success: false, answer: 'AI is not configured. Go to Settings → AI Integration to connect your Claude, ChatGPT, or Gemini account.', provider: '' };
       }
 
       // Gather all app data as context for the agent

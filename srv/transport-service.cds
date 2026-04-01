@@ -91,9 +91,10 @@ service TransportService {
     message       : String;
   };
 
-  // Generate weekly report
+  // Generate weekly report (optional: for a specific project)
   action generateWeeklyReport(
-    useAI: Boolean
+    useAI      : Boolean,
+    workItemId : String
   ) returns {
     success : Boolean;
     report  : LargeString;

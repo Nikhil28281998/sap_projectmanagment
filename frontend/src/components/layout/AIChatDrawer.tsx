@@ -158,10 +158,10 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
               {msg.provider && (
                 <div style={{ marginTop: 4 }}>
                   <Tag
-                    color={msg.provider === 'claude' ? 'orange' : 'green'}
+                    color={msg.provider === 'claude' ? 'orange' : msg.provider === 'gemini' ? 'blue' : 'green'}
                     style={{ fontSize: 10-1, margin: 0 }}
                   >
-                    {msg.provider === 'claude' ? 'Claude' : 'ChatGPT'}
+                    {msg.provider === 'claude' ? 'Claude' : msg.provider === 'gemini' ? 'Gemini' : 'ChatGPT'}
                   </Tag>
                 </div>
               )}

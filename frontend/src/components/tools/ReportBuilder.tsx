@@ -1,22 +1,28 @@
 import React, { useState } from 'react';
 import {
-  Card, Button, Switch, Typography, Space, Alert, Spin, Divider, message
+  Card, Button, Switch, Typography, Space, Alert, Spin, Divider, message, Select
 } from 'antd';
 import {
-  FileTextOutlined, RobotOutlined, DownloadOutlined, CopyOutlined
+  FileTextOutlined, RobotOutlined, DownloadOutlined, CopyOutlined,
+  ProjectOutlined
 } from '@ant-design/icons';
-import { useGenerateReport } from '../../hooks/useData';
+import { useGenerateReport, useWorkItems } from '../../hooks/useData';
 
 const { Title, Text, Paragraph } = Typography;
 
 const ReportBuilder: React.FC = () => {
   const generateReport = useGenerateReport();
+  const { data: workItems = [] } = useWorkItems();
   const [aiPolish, setAiPolish] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<string | undefined>(undefined);
   const [report, setReport] = useState<string | null>(null);
 
   const handleGenerate = async () => {
     try {
-      const result = await generateReport.mutateAsync({ aiPolish });
+      const result = await generateReport.mutateAsync({
+        aiPolish,
+        workItemId: selectedProject || undefined,
+      });
       setReport(result.markdown || result.report || JSON.stringify(result, null, 2));
       message.success('Report generated successfully');
     } catch {
@@ -56,6 +62,37 @@ const ReportBuilder: React.FC = () => {
             transport progress, and key metrics.
           </Text>
           <Divider />
+
+          {/* Project Scope Selector */}
+          <div>
+            <Text strong style={{ display: 'block', marginBottom: 6 }}>
+              <ProjectOutlined style={{ marginRight: 4 }} />
+              Report Scope
+            </Text>
+            <Select
+              style={{ width: 360 }}
+              placeholder="All Projects (full weekly report)"
+              allowClear
+              value={selectedProject}
+              onChange={(val) => setSelectedProject(val)}
+              options={[
+                ...workItems
+                  .filter((wi: any) => wi.status === 'Active')
+                  .map((wi: any) => ({
+                    value: wi.ID,
+                    label: `${wi.workItemName} — ${wi.workItemType} (${wi.overallRAG || 'N/A'})`,
+                  })),
+              ]}
+            />
+            <br />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {selectedProject
+                ? 'Report will be generated for the selected project only.'
+                : 'Report will include all active projects.'}
+            </Text>
+          </div>
+
+          <Divider />
           <Space>
             <Switch
               checked={aiPolish}
@@ -68,7 +105,7 @@ const ReportBuilder: React.FC = () => {
           {aiPolish && (
             <Alert
               message="AI Polish enabled"
-              description="The report data will be sent to your connected AI provider (Claude or ChatGPT) to produce a polished executive email. Configure your AI account in Settings → AI Integration."
+              description="The report data will be sent to your connected AI provider (Claude, ChatGPT, or Gemini) to produce a polished executive email. Configure your AI account in Settings → AI Integration."
               type="info"
               showIcon
             />

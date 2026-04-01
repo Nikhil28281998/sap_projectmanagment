@@ -26,6 +26,13 @@ const PROVIDERS = {
     baseUrl: 'https://api.openai.com/v1/chat/completions',
     keyPrefix: 'sk-',
     configKey: 'OPENAI_API_KEY',
+  },
+  gemini: {
+    name: 'Gemini (Google)',
+    defaultModel: 'gemini-2.0-flash',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models',
+    keyPrefix: 'AIza',
+    configKey: 'GEMINI_API_KEY',
   }
 };
 
@@ -69,6 +76,8 @@ class AIClient {
     if (!apiKey) {
       if (provider === 'chatgpt') {
         apiKey = process.env.OPENAI_API_KEY;
+      } else if (provider === 'gemini') {
+        apiKey = process.env.GEMINI_API_KEY;
       } else {
         apiKey = process.env.CLAUDE_API_KEY;
       }
@@ -89,6 +98,9 @@ class AIClient {
 
     if (this.provider === 'chatgpt') {
       return this._callOpenAI(systemPrompt, userMessage, maxTokens);
+    }
+    if (this.provider === 'gemini') {
+      return this._callGemini(systemPrompt, userMessage, maxTokens);
     }
     return this._callClaude(systemPrompt, userMessage, maxTokens);
   }
@@ -117,6 +129,28 @@ class AIClient {
 
     const data = await response.json();
     return data.content?.[0]?.text || '';
+  }
+
+  // ── Gemini (Google) — FREE tier: 15 RPM, 1M tokens/day ──
+  async _callGemini(systemPrompt, userMessage, maxTokens) {
+    const url = `${this.providerConfig.baseUrl}/${this.model}:generateContent?key=${this.apiKey}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ parts: [{ text: userMessage }] }],
+        generationConfig: { maxOutputTokens: maxTokens }
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`Gemini API ${response.status}: ${err}`);
+    }
+
+    const data = await response.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   }
 
   // ── ChatGPT (OpenAI) ──

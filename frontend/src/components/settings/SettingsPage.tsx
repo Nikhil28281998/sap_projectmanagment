@@ -20,7 +20,7 @@ const SettingsPage: React.FC = () => {
   const [configs, setConfigs] = useState<any[]>([]);
   const [aiTestResult, setAiTestResult] = useState<{ success: boolean; message: string; provider?: string } | null>(null);
   const [aiTesting, setAiTesting] = useState(false);
-  const [aiProvider, setAiProvider] = useState<'claude' | 'chatgpt'>('claude');
+  const [aiProvider, setAiProvider] = useState<'claude' | 'chatgpt' | 'gemini'>('gemini');
   const [aiApiKey, setAiApiKey] = useState('');
   const [aiSaving, setAiSaving] = useState(false);
   const [aiConnected, setAiConnected] = useState(false);
@@ -180,12 +180,15 @@ const SettingsPage: React.FC = () => {
             showIcon
             icon={<ApiOutlined />}
             style={{ marginBottom: 16 }}
-            message="Connect Claude or ChatGPT"
+            message="Connect an AI Provider"
             description={
               <div>
                 <p style={{ margin: '4px 0', fontSize: 12 }}>
                   Connect your AI account to unlock: <strong>AI Chat Assistant</strong> (ask questions about your projects),
                   <strong> Smart Email Reports</strong> (AI-polished weekly emails), and <strong>Test Risk Analysis</strong>.
+                </p>
+                <p style={{ margin: '4px 0', fontSize: 12, color: '#389e0d' }}>
+                  <strong>Gemini is FREE</strong> — 15 requests/min, 1 million tokens/day. No credit card required.
                 </p>
                 <p style={{ margin: '4px 0', fontSize: 12 }}>
                   Enterprise users: your IT admin provisions API keys billed to the org — no personal cost.
@@ -216,6 +219,12 @@ const SettingsPage: React.FC = () => {
                   <span style={{ fontSize: 11, color: 'inherit', opacity: 0.8 }}>OpenAI</span>
                 </Space>
               </Radio.Button>
+              <Radio.Button value="gemini" style={{ height: 60, display: 'inline-flex', alignItems: 'center', padding: '0 24px' }}>
+                <Space direction="vertical" size={0} align="center">
+                  <span style={{ fontSize: 16, fontWeight: 600 }}>Gemini ✨</span>
+                  <span style={{ fontSize: 11, color: 'inherit', opacity: 0.8 }}>Google • FREE</span>
+                </Space>
+              </Radio.Button>
             </Radio.Group>
           </div>
 
@@ -225,13 +234,15 @@ const SettingsPage: React.FC = () => {
             <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
               {aiProvider === 'claude'
                 ? <>Get your key from <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">console.anthropic.com</a> → API Keys → Create Key</>
-                : <>Get your key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">platform.openai.com</a> → API Keys → Create new secret key</>
+                : aiProvider === 'chatgpt'
+                ? <>Get your key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">platform.openai.com</a> → API Keys → Create new secret key</>
+                : <>Get your key from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com/apikey</a> → Create API Key (FREE, takes 10 seconds)</>
               }
             </Text>
             <Input.Password
               value={aiApiKey}
               onChange={e => setAiApiKey(e.target.value)}
-              placeholder={aiProvider === 'claude' ? 'sk-ant-api03-...' : 'sk-proj-...'}
+              placeholder={aiProvider === 'claude' ? 'sk-ant-api03-...' : aiProvider === 'chatgpt' ? 'sk-proj-...' : 'AIzaSy...'}
               style={{ width: 420 }}
               addonBefore={<LinkOutlined />}
             />
@@ -262,7 +273,7 @@ const SettingsPage: React.FC = () => {
                     setAiTestResult(testResult);
                     setAiConnected(testResult.success);
                     if (testResult.success) {
-                      message.success(`${aiProvider === 'claude' ? 'Claude' : 'ChatGPT'} connected successfully!`);
+                      message.success(`${aiProvider === 'claude' ? 'Claude' : aiProvider === 'chatgpt' ? 'ChatGPT' : 'Gemini'} connected successfully!`);
                     }
                   } catch (err: any) {
                     setAiTestResult({ success: false, message: err.message || 'Connection failed' });

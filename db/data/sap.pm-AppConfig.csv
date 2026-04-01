@@ -5,6 +5,7 @@ ENABLE_AI;false;Enable AI features (Claude or ChatGPT)
 ENABLE_NOTIFICATIONS;false;Enable notification system
 PREFIX_ENFORCED_FROM;;Date to start flagging TRs without prefix (empty = not enforced)
 DEFAULT_LOOKBACK_DAYS;90;Default transport lookback period
-AI_PROVIDER;claude;AI provider: claude or chatgpt
+AI_PROVIDER;gemini;AI provider: claude, chatgpt or gemini
 CLAUDE_API_KEY;;Anthropic API key (get from console.anthropic.com)
 OPENAI_API_KEY;;OpenAI API key (get from platform.openai.com)
+GEMINI_API_KEY;;Google Gemini API key - FREE (get from aistudio.google.com/apikey)

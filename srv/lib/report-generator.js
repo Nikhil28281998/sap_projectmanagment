@@ -12,15 +12,34 @@ class ReportGenerator {
 
   /**
    * Gather all data needed for the weekly report
+   * @param {string} [workItemId] — Optional: generate report for a single project only
    */
-  async gatherReportData() {
+  async gatherReportData(workItemId) {
     const { TransportWorkItems, WorkItems, Milestones } = this.entities;
 
-    const [transports, workItems, milestones] = await Promise.all([
-      SELECT.from(TransportWorkItems),
-      SELECT.from(WorkItems),
-      SELECT.from(Milestones)
-    ]);
+    let transports, workItems, milestones;
+
+    if (workItemId) {
+      // Per-project report — only fetch data for this work item
+      const [allTransports, allWorkItems, allMilestones] = await Promise.all([
+        SELECT.from(TransportWorkItems).where({ workItem_ID: workItemId }),
+        SELECT.from(WorkItems).where({ ID: workItemId }),
+        SELECT.from(Milestones).where({ workItem_ID: workItemId })
+      ]);
+      transports = allTransports;
+      workItems = allWorkItems;
+      milestones = allMilestones;
+    } else {
+      // All-projects report
+      const [allTransports, allWorkItems, allMilestones] = await Promise.all([
+        SELECT.from(TransportWorkItems),
+        SELECT.from(WorkItems),
+        SELECT.from(Milestones)
+      ]);
+      transports = allTransports;
+      workItems = allWorkItems;
+      milestones = allMilestones;
+    }
 
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -87,7 +106,11 @@ class ReportGenerator {
    */
   formatReport(data) {
     const lines = [];
-    lines.push(`Subject: Weekly SAP Project Status — ${data.date}\n`);
+    const isSingleProject = data.activeProjects.length <= 1 && data.activeProjects.length > 0;
+    const projectLabel = isSingleProject
+      ? data.activeProjects[0].workItemName
+      : 'All Projects';
+    lines.push(`Subject: Weekly SAP Status — ${projectLabel} — ${data.date}\n`);
     lines.push(`Hi Team,\n`);
     lines.push(`Please find this week's SAP project status update below.\n`);
 

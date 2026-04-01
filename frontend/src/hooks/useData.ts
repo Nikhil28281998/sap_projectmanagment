@@ -125,6 +125,7 @@ export function useRefreshSharePoint() {
 
 export function useGenerateReport() {
   return useMutation({
-    mutationFn: ({ aiPolish }: { aiPolish: boolean }) => reportApi.generate(aiPolish),
+    mutationFn: ({ aiPolish, workItemId }: { aiPolish: boolean; workItemId?: string }) =>
+      reportApi.generate(aiPolish, workItemId),
   });
 }

@@ -89,10 +89,10 @@ export const syncApi = {
 
 // ─── Reports ───
 export const reportApi = {
-  generate: (useAI: boolean = false) =>
+  generate: (useAI: boolean = false, workItemId?: string) =>
     request<any>('/generateWeeklyReport', {
       method: 'POST',
-      body: JSON.stringify({ useAI }),
+      body: JSON.stringify({ useAI, workItemId: workItemId || null }),
     }),
 };
 
