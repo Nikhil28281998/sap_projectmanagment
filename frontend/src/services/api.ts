@@ -111,7 +111,17 @@ export const testStatusApi = {
 // ─── AI Agent ───
 export const aiApi = {
   testConnection: () =>
-    request<{ success: boolean; message: string }>('/testAIConnection', { method: 'POST' }),
+    request<{ success: boolean; message: string; provider: string }>('/testAIConnection', { method: 'POST' }),
+  saveConfig: (provider: string, apiKey: string) =>
+    request<{ success: boolean; message: string }>('/saveAIConfig', {
+      method: 'POST',
+      body: JSON.stringify({ provider, apiKey }),
+    }),
+  chat: (question: string) =>
+    request<{ success: boolean; answer: string; provider: string }>('/chatWithAgent', {
+      method: 'POST',
+      body: JSON.stringify({ question }),
+    }),
   getMethodologies: () =>
     request<{ value: any[] }>('/getMethodologies'),
 };

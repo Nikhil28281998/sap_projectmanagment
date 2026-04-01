@@ -112,7 +112,18 @@ service TransportService {
   ) returns { success: Boolean; message: String; testCompletionPct: Decimal; uatStatus: String; ragImpact: String };
 
   // Test AI connection
-  action testAIConnection() returns { success: Boolean; message: String };
+  action testAIConnection() returns { success: Boolean; message: String; provider: String };
+
+  // Save AI provider configuration
+  action saveAIConfig(
+    provider : String,
+    apiKey   : String
+  ) returns { success: Boolean; message: String };
+
+  // Chat with the AI agent — asks questions about project data
+  action chatWithAgent(
+    question : String
+  ) returns { success: Boolean; answer: LargeString; provider: String };
 
   // Get methodology templates
   function getMethodologies() returns array of {

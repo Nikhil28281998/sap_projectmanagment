@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
   Card, Form, Input, InputNumber, Switch, Button, Select, Typography,
-  Divider, Space, message, Descriptions, Tag, Alert
+  Divider, Space, message, Descriptions, Tag, Alert, Radio, Steps
 } from 'antd';
 import {
   SettingOutlined, SaveOutlined, RobotOutlined, SyncOutlined,
-  ClockCircleOutlined, ThunderboltOutlined, CheckCircleOutlined, CloseCircleOutlined
+  ClockCircleOutlined, ThunderboltOutlined, CheckCircleOutlined,
+  CloseCircleOutlined, LinkOutlined, ApiOutlined
 } from '@ant-design/icons';
 import { useHealth } from '../../hooks/useData';
 import { configApi, aiApi } from '../../services/api';
@@ -17,8 +18,12 @@ const SettingsPage: React.FC = () => {
   const { data: health } = useHealth();
   const [loading, setLoading] = useState(false);
   const [configs, setConfigs] = useState<any[]>([]);
-  const [aiTestResult, setAiTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [aiTestResult, setAiTestResult] = useState<{ success: boolean; message: string; provider?: string } | null>(null);
   const [aiTesting, setAiTesting] = useState(false);
+  const [aiProvider, setAiProvider] = useState<'claude' | 'chatgpt'>('claude');
+  const [aiApiKey, setAiApiKey] = useState('');
+  const [aiSaving, setAiSaving] = useState(false);
+  const [aiConnected, setAiConnected] = useState(false);
 
   useEffect(() => {
     loadConfigs();
@@ -167,80 +172,145 @@ const SettingsPage: React.FC = () => {
           </Form.Item>
 
           <Divider orientation="left">
-            <Space><RobotOutlined /> AI Agent (Claude)</Space>
+            <Space><RobotOutlined /> AI Integration — Connect Your Account</Space>
           </Divider>
 
           <Alert
             type="info"
             showIcon
+            icon={<ApiOutlined />}
             style={{ marginBottom: 16 }}
-            message="Enterprise Claude Integration"
+            message="Connect Claude or ChatGPT"
             description={
               <div>
-                <Paragraph style={{ margin: 0, fontSize: 12 }}>
-                  To use AI features, your IT admin needs to create an API key at{' '}
-                  <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer">console.anthropic.com</a>.
-                  If your organization has an Anthropic enterprise contract, the API calls bill to the org account — 
-                  no personal cost. Enterprise Claude.ai login (SSO) is for the chat app only; API access requires a separate key.
-                </Paragraph>
+                <p style={{ margin: '4px 0', fontSize: 12 }}>
+                  Connect your AI account to unlock: <strong>AI Chat Assistant</strong> (ask questions about your projects),
+                  <strong> Smart Email Reports</strong> (AI-polished weekly emails), and <strong>Test Risk Analysis</strong>.
+                </p>
+                <p style={{ margin: '4px 0', fontSize: 12 }}>
+                  Enterprise users: your IT admin provisions API keys billed to the org — no personal cost.
+                </p>
               </div>
             }
           />
 
-          <Form.Item
-            label="Enable AI Features"
-            name="ENABLE_AI"
-            valuePropName="checked"
-            tooltip="Enable Claude AI for report polish, test analysis, and smart insights"
-          >
-            <Switch checkedChildren="ON" unCheckedChildren="OFF" />
-          </Form.Item>
-
-          <Form.Item
-            label="Claude API Key"
-            name="CLAUDE_API_KEY"
-            tooltip="Anthropic API key (sk-ant-...). Stored securely in app config."
-          >
-            <Input.Password
-              placeholder="sk-ant-api03-..."
-              style={{ width: 400 }}
-            />
-          </Form.Item>
-
-          <Form.Item>
-            <Button
-              icon={<ThunderboltOutlined />}
-              loading={aiTesting}
-              onClick={async () => {
-                setAiTesting(true);
-                setAiTestResult(null);
-                try {
-                  const result = await aiApi.testConnection();
-                  setAiTestResult(result);
-                } catch (err: any) {
-                  setAiTestResult({ success: false, message: err.message || 'Connection failed' });
-                } finally {
-                  setAiTesting(false);
-                }
-              }}
+          {/* Step 1: Choose Provider */}
+          <div style={{ marginBottom: 16 }}>
+            <Text strong style={{ display: 'block', marginBottom: 8 }}>Step 1: Choose AI Provider</Text>
+            <Radio.Group
+              value={aiProvider}
+              onChange={e => { setAiProvider(e.target.value); setAiTestResult(null); setAiConnected(false); }}
+              optionType="button"
+              buttonStyle="solid"
+              size="large"
             >
-              Test AI Connection
-            </Button>
-            {aiTestResult && (
-              <Tag
-                color={aiTestResult.success ? 'success' : 'error'}
-                icon={aiTestResult.success ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-                style={{ marginLeft: 12 }}
-              >
-                {aiTestResult.message}
-              </Tag>
-            )}
-          </Form.Item>
+              <Radio.Button value="claude" style={{ height: 60, display: 'inline-flex', alignItems: 'center', padding: '0 24px' }}>
+                <Space direction="vertical" size={0} align="center">
+                  <span style={{ fontSize: 16, fontWeight: 600 }}>Claude</span>
+                  <span style={{ fontSize: 11, color: 'inherit', opacity: 0.8 }}>Anthropic</span>
+                </Space>
+              </Radio.Button>
+              <Radio.Button value="chatgpt" style={{ height: 60, display: 'inline-flex', alignItems: 'center', padding: '0 24px' }}>
+                <Space direction="vertical" size={0} align="center">
+                  <span style={{ fontSize: 16, fontWeight: 600 }}>ChatGPT</span>
+                  <span style={{ fontSize: 11, color: 'inherit', opacity: 0.8 }}>OpenAI</span>
+                </Space>
+              </Radio.Button>
+            </Radio.Group>
+          </div>
 
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            AI is used for: (1) Polishing weekly reports into executive emails, 
-            (2) Analyzing test results for risk insights. 
-            Without AI, the app still generates structured reports — AI just makes them prettier.
+          {/* Step 2: Enter API Key */}
+          <div style={{ marginBottom: 16 }}>
+            <Text strong style={{ display: 'block', marginBottom: 8 }}>Step 2: Enter API Key</Text>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
+              {aiProvider === 'claude'
+                ? <>Get your key from <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">console.anthropic.com</a> → API Keys → Create Key</>
+                : <>Get your key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">platform.openai.com</a> → API Keys → Create new secret key</>
+              }
+            </Text>
+            <Input.Password
+              value={aiApiKey}
+              onChange={e => setAiApiKey(e.target.value)}
+              placeholder={aiProvider === 'claude' ? 'sk-ant-api03-...' : 'sk-proj-...'}
+              style={{ width: 420 }}
+              addonBefore={<LinkOutlined />}
+            />
+          </div>
+
+          {/* Step 3: Connect & Test */}
+          <div style={{ marginBottom: 16 }}>
+            <Text strong style={{ display: 'block', marginBottom: 8 }}>Step 3: Connect Account</Text>
+            <Space>
+              <Button
+                type="primary"
+                icon={<ThunderboltOutlined />}
+                loading={aiSaving}
+                disabled={!aiApiKey.trim()}
+                onClick={async () => {
+                  setAiSaving(true);
+                  setAiTestResult(null);
+                  try {
+                    // Save config
+                    const saveResult = await aiApi.saveConfig(aiProvider, aiApiKey);
+                    if (!saveResult.success) {
+                      setAiTestResult({ success: false, message: saveResult.message });
+                      return;
+                    }
+                    // Test connection
+                    setAiTesting(true);
+                    const testResult = await aiApi.testConnection();
+                    setAiTestResult(testResult);
+                    setAiConnected(testResult.success);
+                    if (testResult.success) {
+                      message.success(`${aiProvider === 'claude' ? 'Claude' : 'ChatGPT'} connected successfully!`);
+                    }
+                  } catch (err: any) {
+                    setAiTestResult({ success: false, message: err.message || 'Connection failed' });
+                  } finally {
+                    setAiSaving(false);
+                    setAiTesting(false);
+                  }
+                }}
+              >
+                Connect & Test
+              </Button>
+              <Button
+                icon={<ThunderboltOutlined />}
+                loading={aiTesting && !aiSaving}
+                onClick={async () => {
+                  setAiTesting(true);
+                  setAiTestResult(null);
+                  try {
+                    const result = await aiApi.testConnection();
+                    setAiTestResult(result);
+                    setAiConnected(result.success);
+                  } catch (err: any) {
+                    setAiTestResult({ success: false, message: err.message || 'Test failed' });
+                  } finally {
+                    setAiTesting(false);
+                  }
+                }}
+              >
+                Test Existing Connection
+              </Button>
+            </Space>
+          </div>
+
+          {/* Connection Status */}
+          {aiTestResult && (
+            <Alert
+              type={aiTestResult.success ? 'success' : 'error'}
+              showIcon
+              icon={aiTestResult.success ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+              style={{ marginBottom: 16 }}
+              message={aiTestResult.success ? 'AI Connected' : 'Connection Failed'}
+              description={aiTestResult.message}
+            />
+          )}
+
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
+            Once connected, click the <RobotOutlined /> button (bottom-right) or use the <strong>AI Assistant</strong> menu item 
+            to chat with the agent. It can answer questions like "Which projects are RED?" or "Draft a status email for PP project."
           </Text>
 
           <Divider orientation="left">

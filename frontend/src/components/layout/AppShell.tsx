@@ -7,9 +7,10 @@ import {
   MenuOutlined, HomeOutlined, DashboardOutlined, ProjectOutlined,
   ToolOutlined, SettingOutlined, SearchOutlined, FileTextOutlined,
   BellOutlined, UserOutlined, ReloadOutlined, WarningOutlined,
-  AppstoreOutlined, QuestionCircleOutlined
+  AppstoreOutlined, QuestionCircleOutlined, RobotOutlined
 } from '@ant-design/icons';
 import { useHealth, useNotifications, useRefreshTransports } from '../../hooks/useData';
+import AIChatDrawer from './AIChatDrawer';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -20,6 +21,7 @@ interface AppShellProps {
 
 const AppShell: React.FC<AppShellProps> = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { data: health } = useHealth();
@@ -67,6 +69,11 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
       ],
     },
     {
+      key: 'ai-agent',
+      icon: <RobotOutlined />,
+      label: 'AI Assistant',
+    },
+    {
       key: '/settings',
       icon: <SettingOutlined />,
       label: 'Settings',
@@ -108,7 +115,13 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
           mode="inline"
           selectedKeys={[location.pathname]}
           items={menuItems}
-          onClick={({ key }) => navigate(key)}
+          onClick={({ key }) => {
+            if (key === 'ai-agent') {
+              setChatOpen(true);
+            } else {
+              navigate(key);
+            }
+          }}
           style={{ borderRight: 0 }}
         />
       </Sider>
@@ -157,6 +170,28 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
           {children}
         </Content>
       </Layout>
+
+      {/* AI Chat Drawer */}
+      <AIChatDrawer open={chatOpen} onClose={() => setChatOpen(false)} />
+
+      {/* Floating AI Button */}
+      <Button
+        type="primary"
+        shape="circle"
+        size="large"
+        icon={<RobotOutlined />}
+        onClick={() => setChatOpen(true)}
+        style={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          width: 56,
+          height: 56,
+          fontSize: 24,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+          zIndex: 1000,
+        }}
+      />
     </Layout>
   );
 };

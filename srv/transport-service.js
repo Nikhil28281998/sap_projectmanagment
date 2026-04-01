@@ -4,6 +4,7 @@ const { RFCClient } = require('./lib/rfc-client');
 const { SharePointClient } = require('./lib/sharepoint-client');
 const { ReportGenerator } = require('./lib/report-generator');
 const { parseTestStatuses, testRAGImpact, getMethodologyList } = require('./lib/test-status-parser');
+const { AIClient } = require('./lib/ai-client');
 
 class TransportService extends cds.ApplicationService {
 
@@ -34,6 +35,8 @@ class TransportService extends cds.ApplicationService {
     this.on('generateWeeklyReport', this._onGenerateWeeklyReport.bind(this));
     this.on('updateTestStatus', this._onUpdateTestStatus.bind(this));
     this.on('testAIConnection', this._onTestAIConnection.bind(this));
+    this.on('saveAIConfig', this._onSaveAIConfig.bind(this));
+    this.on('chatWithAgent', this._onChatWithAgent.bind(this));
     this.on('getMethodologies', this._onGetMethodologies.bind(this));
     this.on('health', this._onHealth.bind(this));
     this.on('dashboardSummary', this._onDashboardSummary.bind(this));
@@ -371,9 +374,8 @@ class TransportService extends cds.ApplicationService {
       let report = reportGen.formatReport(reportData);
 
       if (useAI) {
-        const { ClaudeClient } = require('./lib/claude-client');
-        const claude = await ClaudeClient.create(this.db, this._e);
-        report = await claude.polishReport(report);
+        const ai = await AIClient.create(this.db, this._e);
+        report = await ai.polishReport(report);
       }
 
       // Log it
@@ -467,13 +469,136 @@ class TransportService extends cds.ApplicationService {
   // ─── Test AI Connection ───
   async _onTestAIConnection(req) {
     try {
-      const { ClaudeClient } = require('./lib/claude-client');
-      const claude = await ClaudeClient.create(this.db, this._e);
-      const result = await claude.testConnection();
-      return { success: true, message: result.message };
+      const ai = await AIClient.create(this.db, this._e);
+      const result = await ai.testConnection();
+      return { success: true, message: result.message, provider: result.provider };
     } catch (err) {
-      return { success: false, message: `AI connection failed: ${err.message}` };
+      return { success: false, message: `AI connection failed: ${err.message}`, provider: '' };
     }
+  }
+
+  // ─── Save AI Configuration ───
+  async _onSaveAIConfig(req) {
+    const { provider, apiKey } = req.data;
+    const { AppConfig } = this._e;
+
+    try {
+      // Save provider choice
+      const existingProvider = await SELECT.one.from(AppConfig).where({ configKey: 'AI_PROVIDER' });
+      if (existingProvider) {
+        await UPDATE(AppConfig).set({ configValue: provider }).where({ configKey: 'AI_PROVIDER' });
+      } else {
+        await INSERT.into(AppConfig).entries({ configKey: 'AI_PROVIDER', configValue: provider, description: 'AI provider: claude or chatgpt' });
+      }
+
+      // Save API key for the chosen provider
+      const keyConfigName = provider === 'chatgpt' ? 'OPENAI_API_KEY' : 'CLAUDE_API_KEY';
+      const existingKey = await SELECT.one.from(AppConfig).where({ configKey: keyConfigName });
+      if (existingKey) {
+        await UPDATE(AppConfig).set({ configValue: apiKey }).where({ configKey: keyConfigName });
+      } else {
+        await INSERT.into(AppConfig).entries({ configKey: keyConfigName, configValue: apiKey, description: `${provider} API key` });
+      }
+
+      // Enable AI
+      const existingEnable = await SELECT.one.from(AppConfig).where({ configKey: 'ENABLE_AI' });
+      if (existingEnable) {
+        await UPDATE(AppConfig).set({ configValue: 'true' }).where({ configKey: 'ENABLE_AI' });
+      } else {
+        await INSERT.into(AppConfig).entries({ configKey: 'ENABLE_AI', configValue: 'true', description: 'Enable AI features' });
+      }
+
+      return { success: true, message: `${provider} configured successfully` };
+    } catch (err) {
+      return { success: false, message: `Failed to save AI config: ${err.message}` };
+    }
+  }
+
+  // ─── Chat with AI Agent ───
+  async _onChatWithAgent(req) {
+    const { question } = req.data;
+    if (!question?.trim()) {
+      return { success: false, answer: 'Please ask a question.', provider: '' };
+    }
+
+    try {
+      const ai = await AIClient.create(this.db, this._e);
+      if (!ai.enabled) {
+        return { success: false, answer: 'AI is not configured. Go to Settings → AI Integration to connect your Claude or ChatGPT account.', provider: '' };
+      }
+
+      // Gather all app data as context for the agent
+      const appContext = await this._gatherAgentContext();
+      const answer = await ai.chat(question, appContext);
+
+      return { success: true, answer, provider: ai.provider };
+    } catch (err) {
+      return { success: false, answer: `Agent error: ${err.message}`, provider: '' };
+    }
+  }
+
+  // ─── Gather all data for AI agent context ───
+  async _gatherAgentContext() {
+    const { TransportWorkItems, WorkItems, Milestones, Notifications } = this._e;
+
+    const [workItems, transports, milestones] = await Promise.all([
+      SELECT.from(WorkItems),
+      SELECT.from(TransportWorkItems),
+      SELECT.from(Milestones)
+    ]);
+
+    const now = new Date();
+    const lines = [];
+    lines.push(`=== WORK ITEMS (${workItems.length} total) ===`);
+    for (const wi of workItems) {
+      const goLiveDays = wi.goLiveDate ? Math.ceil((new Date(wi.goLiveDate) - now) / 86400000) : null;
+      lines.push(`- ${wi.workItemName} [${wi.workItemType}] | Code: ${wi.projectCode} | Module: ${wi.sapModule}`);
+      lines.push(`  RAG: ${wi.overallRAG || 'N/A'} | Phase: ${wi.currentPhase || 'N/A'} | Status: ${wi.status} | Methodology: ${wi.methodology || 'N/A'}`);
+      lines.push(`  Deploy: ${wi.deploymentPct || 0}% | Priority: ${wi.priority || 'N/A'} | Complexity: ${wi.complexity || 'N/A'}`);
+      if (wi.testTotal > 0) {
+        lines.push(`  Tests: ${wi.testPassed}/${wi.testTotal} passed (${wi.testCompletionPct}%), Failed: ${wi.testFailed}, TBD: ${wi.testTBD}, Blocked: ${wi.testBlocked} | UAT: ${wi.uatStatus}`);
+      }
+      lines.push(`  Business Owner: ${wi.businessOwner || 'N/A'} | System Owner: ${wi.systemOwner || 'N/A'} | Dev Lead: ${wi.leadDeveloper || 'N/A'}`);
+      if (wi.goLiveDate) lines.push(`  Go-Live: ${wi.goLiveDate} (${goLiveDays > 0 ? goLiveDays + ' days away' : 'OVERDUE'})`);
+      if (wi.notes) lines.push(`  Notes: ${wi.notes}`);
+    }
+
+    lines.push(`\n=== TRANSPORTS (${transports.length} total) ===`);
+    const bySys = { DEV: 0, QAS: 0, PRD: 0 };
+    const stuck = [];
+    const failed = [];
+    for (const tr of transports) {
+      bySys[tr.currentSystem] = (bySys[tr.currentSystem] || 0) + 1;
+      const age = (now - new Date(tr.createdDate)) / 86400000;
+      if (tr.currentSystem !== 'PRD' && age > 5) stuck.push(tr);
+      if (tr.importRC >= 8) failed.push(tr);
+    }
+    lines.push(`DEV: ${bySys.DEV || 0} | QAS: ${bySys.QAS || 0} | PRD: ${bySys.PRD || 0}`);
+    lines.push(`Stuck (>5 days): ${stuck.length} | Failed imports (RC>=8): ${failed.length}`);
+    lines.push(`Unassigned: ${transports.filter(t => !t.workType).length}`);
+
+    if (failed.length > 0) {
+      lines.push('Failed transports:');
+      for (const tr of failed.slice(0, 10)) {
+        lines.push(`  - ${tr.trNumber} | ${tr.trDescription} | RC=${tr.importRC} | System: ${tr.currentSystem} | Owner: ${tr.ownerFullName || tr.trOwner}`);
+      }
+    }
+
+    lines.push(`\n=== MILESTONES (${milestones.length} total) ===`);
+    const overdue = milestones.filter(m => m.status !== 'Complete' && new Date(m.milestoneDate) < now);
+    lines.push(`Overdue: ${overdue.length}`);
+    for (const m of overdue.slice(0, 10)) {
+      lines.push(`  - ${m.milestoneName} | Due: ${m.milestoneDate} | Status: ${m.status}`);
+    }
+
+    lines.push(`\n=== SUMMARY ===`);
+    const redProjects = workItems.filter(w => w.overallRAG === 'RED');
+    const amberProjects = workItems.filter(w => w.overallRAG === 'AMBER');
+    lines.push(`RED projects: ${redProjects.length} — ${redProjects.map(p => p.workItemName).join(', ') || 'None'}`);
+    lines.push(`AMBER projects: ${amberProjects.length} — ${amberProjects.map(p => p.workItemName).join(', ') || 'None'}`);
+    lines.push(`Today: ${now.toISOString().split('T')[0]}`);
+
+    return lines.join('\n');
   }
 
   // ─── Get Methodology Templates ───

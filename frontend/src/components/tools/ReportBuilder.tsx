@@ -63,12 +63,12 @@ const ReportBuilder: React.FC = () => {
               checkedChildren={<RobotOutlined />}
               unCheckedChildren="AI"
             />
-            <Text>AI-Polish with Claude (adds executive summary)</Text>
+            <Text>AI-polish report (transforms raw data into executive-ready email)</Text>
           </Space>
           {aiPolish && (
             <Alert
               message="AI Polish enabled"
-              description="The report will be sent to Claude API for executive summary generation. Requires ENABLE_AI=true on the server."
+              description="The report data will be sent to your connected AI provider (Claude or ChatGPT) to produce a polished executive email. Configure your AI account in Settings → AI Integration."
               type="info"
               showIcon
             />
