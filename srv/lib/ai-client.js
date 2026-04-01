@@ -286,7 +286,7 @@ ${appContext}`;
   }
 
   /**
-   * Polish a weekly report into a professional executive email
+   * Polish a weekly report into a professional Outlook-ready HTML email
    */
   async polishReport(rawReport) {
     if (!this.enabled) {
@@ -294,19 +294,50 @@ ${appContext}`;
     }
 
     try {
-      return await this._call(
+      let result = await this._call(
         `You are a senior IT Program Manager writing a weekly status email to VP-level leadership.
-RULES:
+You MUST output valid Outlook-compatible HTML that can be pasted directly into Outlook. 
+
+CRITICAL FORMAT RULES:
+- Output ONLY HTML — NO markdown, NO code fences, NO \`\`\`html blocks
+- Start directly with <div> or <p> tags
+- Use inline CSS styles on every element (Outlook ignores <style> blocks)
+- Use HTML <table> with borders for ALL tabular data — this is essential
+- Table styling: border-collapse:collapse; width:100% on <table>
+- Cell styling: border:1px solid #ddd; padding:8px 12px; text-align:left; font-size:13px on every <td> and <th>
+- Header row: background-color:#1f4e79; color:white; font-weight:bold; padding:10px 12px
+- Alternating row colors: even rows background-color:#f2f7fb
+- Use 🟢 🟡 🔴 emoji for RAG status (these render in Outlook)
+- Use <span style="color:green">●</span> as backup for RAG if needed
+- Font: Calibri, Arial, sans-serif throughout (Outlook default)
 - Keep ALL numbers and data points EXACTLY as provided — NEVER invent or change data
-- Professional tone, concise, executive-friendly
-- Structure: Subject line → Executive Summary (2-3 sentences) → Project Status Table → Key Risks → Action Items → Next Steps
-- Use clean formatting with bullet points and bold for emphasis
-- Flag RED items prominently with clear risk statements
-- Include a brief go-live countdown for upcoming deployments
-- End with "Regards," signature block`,
-        `Transform this raw project data into a polished executive status email. Keep every number accurate:\n\n${rawReport}`,
-        4000
+
+EMAIL STRUCTURE (follow this exact order):
+1. Greeting: "Hi All," 
+2. Brief intro paragraph (1-2 sentences about the week's status)
+3. **Project Overview Table**: Project Name | SAP Owner | Business Owner | Go-Live Target | Overall Status
+4. **Schedule & Key Milestones Table**: Milestone | SAP Area | Planned Date | Status | Owner | Comments
+5. **Current Week** section: bullet points of what happened this week
+6. **Next Week** section: bullet points of what's planned next week
+7. **Risks & Issues** section: only if there are RED items or alerts (use a table if multiple)
+8. Closing: "Please let us know if you have any questions or more information is required."
+9. Sign-off: "Best regards,<br>SAP Project Management Team"
+
+IMPORTANT:
+- Every table MUST use <table style="border-collapse:collapse; width:100%; font-family:Calibri,Arial,sans-serif; margin:16px 0">
+- Every <th> MUST have style="border:1px solid #ddd; padding:10px 12px; background-color:#1f4e79; color:white; font-weight:bold; text-align:left; font-size:13px"
+- Every <td> MUST have style="border:1px solid #ddd; padding:8px 12px; text-align:left; font-size:13px"
+- Section headers use <h3 style="color:#1f4e79; font-family:Calibri,Arial,sans-serif; margin:20px 0 8px 0">
+- Paragraphs use <p style="font-family:Calibri,Arial,sans-serif; font-size:14px; line-height:1.6; color:#333">
+- Bullet lists use <ul style="font-family:Calibri,Arial,sans-serif; font-size:14px; color:#333">`,
+        `Transform this raw project data into a polished Outlook HTML email. Keep every number accurate. Output ONLY HTML, no markdown:\n\n${rawReport}`,
+        6000
       );
+      // Strip markdown code fences if AI wraps output in ```html ... ```
+      if (result.trimStart().startsWith('```')) {
+        result = result.replace(/^[\s]*```(?:html)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+      }
+      return result;
     } catch (err) {
       console.warn(`AI polish failed: ${err.message}`);
       return rawReport;

@@ -142,6 +142,12 @@ const HomeDashboard: React.FC = () => {
               const totalCount = projectTRs.length || project.estimatedTRCount || 1;
               const deployPct = project.deploymentPct || Math.round((prdCount / totalCount) * 100);
               const rag = project.overallRAG || calculateRAG({ goLiveDate: project.goLiveDate, deploymentPct: deployPct, status: project.status, overallRAG: project.overallRAG });
+              const projectStuck = projectTRs.filter((t: any) => {
+                if (t.currentSystem === 'PRD') return false;
+                const days = (Date.now() - new Date(t.createdDate).getTime()) / 86400000;
+                return days > 5;
+              });
+              const projectFailed = projectTRs.filter((t: any) => t.importRC >= 8);
 
               return (
                 <List.Item

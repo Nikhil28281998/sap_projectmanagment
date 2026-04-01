@@ -30,8 +30,23 @@ const ReportBuilder: React.FC = () => {
     }
   };
 
-  const handleCopy = () => {
-    if (report) {
+  const handleCopy = async () => {
+    if (!report) return;
+    // Detect if report is HTML (AI-polished) vs plain text
+    const isHtml = report.trim().startsWith('<') || report.includes('<table');
+    if (isHtml) {
+      // Copy as rich HTML so it pastes with formatting in Outlook
+      try {
+        const blob = new Blob([report], { type: 'text/html' });
+        const clipboardItem = new ClipboardItem({ 'text/html': blob, 'text/plain': new Blob([report], { type: 'text/plain' }) });
+        await navigator.clipboard.write([clipboardItem]);
+        message.success('Copied as rich HTML — paste directly into Outlook');
+      } catch {
+        // Fallback to plain text
+        navigator.clipboard.writeText(report);
+        message.success('Copied to clipboard (plain text)');
+      }
+    } else {
       navigator.clipboard.writeText(report);
       message.success('Report copied to clipboard');
     }
@@ -39,11 +54,17 @@ const ReportBuilder: React.FC = () => {
 
   const handleDownload = () => {
     if (!report) return;
-    const blob = new Blob([report], { type: 'text/markdown' });
+    const isHtml = report.trim().startsWith('<') || report.includes('<table');
+    const ext = isHtml ? 'html' : 'md';
+    const mimeType = isHtml ? 'text/html' : 'text/markdown';
+    const content = isHtml
+      ? `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Weekly Report</title></head><body style="font-family:Calibri,Arial,sans-serif; padding:20px">${report}</body></html>`
+      : report;
+    const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `weekly-report-${new Date().toISOString().split('T')[0]}.md`;
+    a.download = `weekly-report-${new Date().toISOString().split('T')[0]}.${ext}`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -137,28 +158,46 @@ const ReportBuilder: React.FC = () => {
           title="Generated Report"
           extra={
             <Space>
-              <Button icon={<CopyOutlined />} onClick={handleCopy}>Copy</Button>
-              <Button icon={<DownloadOutlined />} onClick={handleDownload}>Download .md</Button>
+              <Button icon={<CopyOutlined />} onClick={handleCopy}>
+                {(report.trim().startsWith('<') || report.includes('<table')) ? 'Copy HTML' : 'Copy'}
+              </Button>
+              <Button icon={<DownloadOutlined />} onClick={handleDownload}>
+                Download {(report.trim().startsWith('<') || report.includes('<table')) ? '.html' : '.md'}
+              </Button>
             </Space>
           }
         >
-          <pre
-            style={{
-              whiteSpace: 'pre-wrap',
-              wordWrap: 'break-word',
-              fontFamily: 'Consolas, monospace',
-              fontSize: 13,
-              lineHeight: 1.6,
-              maxHeight: '60vh',
-              overflow: 'auto',
-              padding: 16,
-              backgroundColor: '#fafafa',
-              border: '1px solid #f0f0f0',
-              borderRadius: 6,
-            }}
-          >
-            {report}
-          </pre>
+          {(report.trim().startsWith('<') || report.includes('<table')) ? (
+            <div
+              dangerouslySetInnerHTML={{ __html: report }}
+              style={{
+                maxHeight: '60vh',
+                overflow: 'auto',
+                padding: 16,
+                backgroundColor: '#fff',
+                border: '1px solid #f0f0f0',
+                borderRadius: 6,
+              }}
+            />
+          ) : (
+            <pre
+              style={{
+                whiteSpace: 'pre-wrap',
+                wordWrap: 'break-word',
+                fontFamily: 'Consolas, monospace',
+                fontSize: 13,
+                lineHeight: 1.6,
+                maxHeight: '60vh',
+                overflow: 'auto',
+                padding: 16,
+                backgroundColor: '#fafafa',
+                border: '1px solid #f0f0f0',
+                borderRadius: 6,
+              }}
+            >
+              {report}
+            </pre>
+          )}
         </Card>
       )}
     </div>
