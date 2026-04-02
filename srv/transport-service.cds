@@ -203,7 +203,7 @@ service TransportService {
   };
 
   // Dashboard summary data
-  function dashboardSummary() returns {
+  function dashboardSummary(application : String) returns {
     activeProjects     : Integer;
     totalTransports    : Integer;
     unassignedCount    : Integer;
@@ -215,7 +215,7 @@ service TransportService {
   };
 
   // Pipeline summary (TR counts per system)
-  function pipelineSummary() returns {
+  function pipelineSummary(application : String) returns {
     devCount  : Integer;
     qasCount  : Integer;
     prdCount  : Integer;

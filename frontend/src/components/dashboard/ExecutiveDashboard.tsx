@@ -6,18 +6,32 @@ import {
 import {
   ProjectOutlined, CheckCircleOutlined, ClockCircleOutlined,
   WarningOutlined, RocketOutlined, DashboardOutlined, FundOutlined,
-  ExclamationCircleOutlined, TeamOutlined
+  ExclamationCircleOutlined, TeamOutlined,
+  ApartmentOutlined, ShoppingCartOutlined, MedicineBoxOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useWorkItems } from '../../hooks/useData';
 import { useAuth } from '../../contexts/AuthContext';
-import { useModule } from '../../contexts/ModuleContext';
+import { useModule, MODULE_DEFINITIONS, ModuleKey } from '../../contexts/ModuleContext';
 import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
 
 const { Title, Text } = Typography;
 
 const RAG_COLORS: Record<string, string> = { GREEN: '#52c41a', AMBER: '#faad14', RED: '#ff4d4f' };
 const RAG_LABELS: Record<string, string> = { GREEN: 'On Track', AMBER: 'At Risk', RED: 'Critical' };
+const APP_COLORS: Record<string, string> = { SAP: '#1677ff', Coupa: '#0070d2', Commercial: '#722ed1' };
+const APP_ICONS: Record<string, React.ReactNode> = {
+  SAP: <ApartmentOutlined />,
+  Coupa: <ShoppingCartOutlined />,
+  Commercial: <MedicineBoxOutlined />,
+};
+
+function getRAG(wi: any): string {
+  return wi.overallRAG || calculateRAG({
+    goLiveDate: wi.goLiveDate, deploymentPct: wi.deploymentPct || 0,
+    status: wi.status, overallRAG: wi.overallRAG,
+  });
+}
 
 const ExecutiveDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -31,38 +45,35 @@ const ExecutiveDashboard: React.FC = () => {
   );
   const activeProjects = workItems.filter((wi: any) => wi.status === 'Active');
 
-  // RAG distribution
+  // ── Per-Application Breakdown ──
+  const appBreakdown = useMemo(() => {
+    const apps = ['SAP', 'Coupa', 'Commercial'].filter(a => allowedApps.includes(a));
+    return apps.map(app => {
+      const appItems = workItems.filter((wi: any) => wi.application === app);
+      const active = appItems.filter((wi: any) => wi.status === 'Active');
+      const completed = appItems.filter((wi: any) => wi.status === 'Complete' || wi.status === 'Done' || wi.status === 'Completed');
+      const rag = { GREEN: 0, AMBER: 0, RED: 0 };
+      for (const wi of active) {
+        const r = getRAG(wi);
+        if (r in rag) rag[r as keyof typeof rag]++;
+        else rag.GREEN++;
+      }
+      const avgPct = active.length > 0
+        ? Math.round(active.reduce((s: number, wi: any) => s + (wi.deploymentPct || 0), 0) / active.length)
+        : 0;
+      return { app, total: appItems.length, active: active.length, completed: completed.length, rag, avgPct };
+    });
+  }, [workItems, allowedApps]);
+
+  // RAG distribution (global)
   const ragSummary = useMemo(() => {
     const dist = { GREEN: 0, AMBER: 0, RED: 0 };
     for (const wi of activeProjects) {
-      const rag = wi.overallRAG || calculateRAG({
-        goLiveDate: wi.goLiveDate, deploymentPct: wi.deploymentPct || 0,
-        status: wi.status, overallRAG: wi.overallRAG,
-      });
+      const rag = getRAG(wi);
       if (rag in dist) dist[rag as keyof typeof dist]++;
       else dist.GREEN++;
     }
     return dist;
-  }, [activeProjects]);
-
-  // Phase distribution
-  const phaseSummary = useMemo(() => {
-    const phases: Record<string, number> = {};
-    for (const wi of activeProjects) {
-      const p = wi.currentPhase || 'Planning';
-      phases[p] = (phases[p] || 0) + 1;
-    }
-    return Object.entries(phases).sort((a, b) => b[1] - a[1]);
-  }, [activeProjects]);
-
-  // Type distribution
-  const typeSummary = useMemo(() => {
-    const types: Record<string, number> = {};
-    for (const wi of activeProjects) {
-      const t = wi.workItemType || 'Other';
-      types[t] = (types[t] || 0) + 1;
-    }
-    return Object.entries(types).sort((a, b) => b[1] - a[1]);
   }, [activeProjects]);
 
   // Critical upcoming go-lives
@@ -77,22 +88,16 @@ const ExecutiveDashboard: React.FC = () => {
   // At-risk projects
   const atRiskProjects = useMemo(() => {
     return activeProjects.filter((wi: any) => {
-      const rag = wi.overallRAG || calculateRAG({
-        goLiveDate: wi.goLiveDate, deploymentPct: wi.deploymentPct || 0,
-        status: wi.status, overallRAG: wi.overallRAG,
-      });
+      const rag = getRAG(wi);
       return rag === 'RED' || rag === 'AMBER';
     }).map((wi: any) => ({
       ...wi,
-      rag: wi.overallRAG || calculateRAG({
-        goLiveDate: wi.goLiveDate, deploymentPct: wi.deploymentPct || 0,
-        status: wi.status, overallRAG: wi.overallRAG,
-      }),
+      rag: getRAG(wi),
     }));
   }, [activeProjects]);
 
   // Completed projects
-  const completedCount = workItems.filter((wi: any) => wi.status === 'Complete' || wi.status === 'Completed').length;
+  const completedCount = workItems.filter((wi: any) => wi.status === 'Complete' || wi.status === 'Completed' || wi.status === 'Done').length;
 
   // Average completion rate
   const avgDeployment = useMemo(() => {
@@ -113,6 +118,16 @@ const ExecutiveDashboard: React.FC = () => {
 
   const projectTableCols = [
     {
+      title: 'Application', dataIndex: 'application', key: 'app', width: 120,
+      filters: appBreakdown.map(a => ({ text: a.app, value: a.app })),
+      onFilter: (v: any, r: any) => r.application === v,
+      render: (app: string) => (
+        <Tag color={APP_COLORS[app] || 'default'} icon={APP_ICONS[app]}>
+          {app}
+        </Tag>
+      ),
+    },
+    {
       title: 'Project', dataIndex: 'workItemName', key: 'name', ellipsis: true,
       render: (t: string, r: any) => (
         <a onClick={() => navigate(`/workitem/${r.ID}`)}>{t}</a>
@@ -127,12 +142,15 @@ const ExecutiveDashboard: React.FC = () => {
       render: (t: string) => <Tag color="processing">{t || 'Planning'}</Tag>,
     },
     {
-      title: 'Status', key: 'rag', width: 90, align: 'center' as const,
+      title: 'Health', key: 'rag', width: 80, align: 'center' as const,
+      filters: [
+        { text: 'On Track', value: 'GREEN' },
+        { text: 'At Risk', value: 'AMBER' },
+        { text: 'Critical', value: 'RED' },
+      ],
+      onFilter: (v: any, r: any) => getRAG(r) === v,
       render: (_: any, r: any) => {
-        const rag = r.overallRAG || calculateRAG({
-          goLiveDate: r.goLiveDate, deploymentPct: r.deploymentPct || 0,
-          status: r.status, overallRAG: r.overallRAG,
-        });
+        const rag = getRAG(r);
         return (
           <Tooltip title={RAG_LABELS[rag]}>
             <div style={{
@@ -155,15 +173,15 @@ const ExecutiveDashboard: React.FC = () => {
       ) : '—',
     },
     {
-      title: 'Progress', key: 'progress', width: 140,
+      title: 'Progress', key: 'progress', width: 130,
       render: (_: any, r: any) => (
         <Progress percent={r.deploymentPct || 0} size="small" strokeColor={
-          RAG_COLORS[r.overallRAG || 'GREEN']
+          RAG_COLORS[getRAG(r)]
         } />
       ),
     },
     {
-      title: 'Owner', dataIndex: 'businessOwner', key: 'owner', width: 130, ellipsis: true,
+      title: 'Owner', dataIndex: 'businessOwner', key: 'owner', width: 120, ellipsis: true,
       render: (t: string) => t || '—',
     },
   ];
@@ -178,10 +196,10 @@ const ExecutiveDashboard: React.FC = () => {
         <Row align="middle" justify="space-between">
           <Col>
             <Title level={3} style={{ color: '#fff', margin: 0 }}>
-              <FundOutlined /> Executive Portfolio View
+              <FundOutlined /> Executive Dashboard
             </Title>
             <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginTop: 4, display: 'block' }}>
-              Welcome, <strong>{user?.name || 'Executive'}</strong> — High-level portfolio health across all modules
+              Welcome, <strong>{user?.name || 'Executive'}</strong> — Cross-application portfolio health
             </Text>
           </Col>
           <Col>
@@ -211,8 +229,57 @@ const ExecutiveDashboard: React.FC = () => {
         </Row>
       </Card>
 
-      {/* Portfolio Health Cards */}
+      {/* ── Per-Application Breakdown Cards ── */}
       <Row gutter={[12, 12]}>
+        {appBreakdown.map(({ app, total, active, completed, rag, avgPct }) => (
+          <Col xs={24} md={8} key={app}>
+            <Card
+              size="small"
+              title={
+                <Space>
+                  {APP_ICONS[app]}
+                  <Text strong>{app}</Text>
+                  <Tag color={APP_COLORS[app]} style={{ fontSize: 10 }}>{total} total</Tag>
+                </Space>
+              }
+              style={{ borderTop: `3px solid ${APP_COLORS[app]}` }}
+            >
+              <Row gutter={8}>
+                <Col span={8}>
+                  <Statistic title={<Text type="secondary" style={{ fontSize: 10 }}>Active</Text>} value={active} valueStyle={{ fontSize: 20 }} />
+                </Col>
+                <Col span={8}>
+                  <Statistic title={<Text type="secondary" style={{ fontSize: 10 }}>Done</Text>} value={completed} valueStyle={{ fontSize: 20, color: '#52c41a' }} />
+                </Col>
+                <Col span={8}>
+                  <Statistic title={<Text type="secondary" style={{ fontSize: 10 }}>Progress</Text>} value={avgPct} suffix="%" valueStyle={{ fontSize: 20 }} />
+                </Col>
+              </Row>
+              <div style={{ display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden', marginTop: 8 }}>
+                {rag.GREEN > 0 && (
+                  <Tooltip title={`On Track: ${rag.GREEN}`}>
+                    <div style={{ width: `${(rag.GREEN / (active || 1)) * 100}%`, background: '#52c41a' }} />
+                  </Tooltip>
+                )}
+                {rag.AMBER > 0 && (
+                  <Tooltip title={`At Risk: ${rag.AMBER}`}>
+                    <div style={{ width: `${(rag.AMBER / (active || 1)) * 100}%`, background: '#faad14' }} />
+                  </Tooltip>
+                )}
+                {rag.RED > 0 && (
+                  <Tooltip title={`Critical: ${rag.RED}`}>
+                    <div style={{ width: `${(rag.RED / (active || 1)) * 100}%`, background: '#ff4d4f' }} />
+                  </Tooltip>
+                )}
+                {active === 0 && <div style={{ width: '100%', background: '#f0f0f0' }} />}
+              </div>
+            </Card>
+          </Col>
+        ))}
+      </Row>
+
+      {/* Global Health Summary Cards */}
+      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
         <Col xs={8} lg={4}>
           <Card size="small">
             <Statistic
@@ -267,8 +334,8 @@ const ExecutiveDashboard: React.FC = () => {
         <Col xs={8} lg={4}>
           <Card size="small">
             <Statistic
-              title={<Text type="secondary" style={{ fontSize: 11 }}>Modules</Text>}
-              value={allModules.length}
+              title={<Text type="secondary" style={{ fontSize: 11 }}>Applications</Text>}
+              value={appBreakdown.length}
               prefix={<TeamOutlined />}
               valueStyle={{ fontSize: 24 }}
             />
@@ -296,14 +363,6 @@ const ExecutiveDashboard: React.FC = () => {
               </Tooltip>
             )}
           </div>
-          <Row gutter={24}>
-            {phaseSummary.map(([phase, count]) => (
-              <Col key={phase}>
-                <Text type="secondary" style={{ fontSize: 11 }}>{phase}:</Text>{' '}
-                <Text strong style={{ fontSize: 13 }}>{count}</Text>
-              </Col>
-            ))}
-          </Row>
         </Card>
       )}
 
@@ -311,7 +370,7 @@ const ExecutiveDashboard: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} lg={16}>
           <Card
-            title={<Space><ProjectOutlined /> Active Projects</Space>}
+            title={<Space><ProjectOutlined /> All Active Projects</Space>}
             size="small"
             extra={<a onClick={() => navigate('/tracker')}>View All →</a>}
           >
@@ -324,7 +383,7 @@ const ExecutiveDashboard: React.FC = () => {
                 rowKey="ID"
                 size="small"
                 pagination={{ pageSize: 10, size: 'small' }}
-                scroll={{ x: 800 }}
+                scroll={{ x: 900 }}
                 loading={isLoading}
               />
             )}
@@ -340,7 +399,10 @@ const ExecutiveDashboard: React.FC = () => {
                   color: wi.daysLeft <= 0 ? 'red' : wi.daysLeft <= 14 ? 'orange' : 'blue',
                   children: (
                     <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/workitem/${wi.ID}`)}>
-                      <Text strong style={{ fontSize: 12 }}>{wi.workItemName}</Text>
+                      <Space size={4}>
+                        <Tag color={APP_COLORS[wi.application] || 'default'} style={{ fontSize: 9, lineHeight: '14px', padding: '0 3px' }}>{wi.application}</Tag>
+                        <Text strong style={{ fontSize: 12 }}>{wi.workItemName}</Text>
+                      </Space>
                       <br />
                       <Text type="secondary" style={{ fontSize: 11 }}>
                         {wi.goLiveDate} — <Tag color={wi.daysLeft <= 7 ? 'red' : wi.daysLeft <= 14 ? 'orange' : 'blue'} style={{ fontSize: 10 }}>{wi.daysLeft}d</Tag>
@@ -357,7 +419,7 @@ const ExecutiveDashboard: React.FC = () => {
             <Card title={<Space><WarningOutlined style={{ color: '#faad14' }} /> Projects at Risk</Space>} size="small">
               <List
                 size="small"
-                dataSource={atRiskProjects.slice(0, 5)}
+                dataSource={atRiskProjects.slice(0, 6)}
                 renderItem={(wi: any) => (
                   <List.Item style={{ cursor: 'pointer', padding: '6px 0' }} onClick={() => navigate(`/workitem/${wi.ID}`)}>
                     <Space size={4}>
@@ -365,6 +427,7 @@ const ExecutiveDashboard: React.FC = () => {
                         width: 10, height: 10, borderRadius: '50%',
                         background: RAG_COLORS[wi.rag],
                       }} />
+                      <Tag color={APP_COLORS[wi.application] || 'default'} style={{ fontSize: 9, lineHeight: '14px', padding: '0 3px' }}>{wi.application}</Tag>
                       <Text style={{ fontSize: 12 }}>{wi.workItemName}</Text>
                       {wi.goLiveDate && <Tag style={{ fontSize: 10 }}>{daysFromNow(wi.goLiveDate)}d</Tag>}
                     </Space>
@@ -373,19 +436,6 @@ const ExecutiveDashboard: React.FC = () => {
               />
             </Card>
           )}
-
-          {/* Type Distribution */}
-          <Card title={<Space><ProjectOutlined /> By Type</Space>} size="small" style={{ marginTop: 16 }}>
-            {typeSummary.map(([type, count]) => (
-              <div key={type} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                <Text style={{ fontSize: 12 }}>{type}</Text>
-                <Space size={4}>
-                  <Progress percent={Math.round((count / (activeProjects.length || 1)) * 100)} size="small" style={{ width: 80 }} showInfo={false} />
-                  <Text strong style={{ fontSize: 12, width: 20, textAlign: 'right' }}>{count}</Text>
-                </Space>
-              </div>
-            ))}
-          </Card>
         </Col>
       </Row>
     </div>

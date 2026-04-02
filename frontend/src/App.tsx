@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ModuleProvider } from './contexts/ModuleContext';
+import ErrorBoundary from './components/layout/ErrorBoundary';
 import AppShell from './components/layout/AppShell';
 import DashboardRouter from './components/dashboard/DashboardRouter';
 import TransportPipeline from './components/pipeline/TransportPipeline';
@@ -14,6 +15,7 @@ import AdminPage from './components/admin/AdminPage';
 
 const App: React.FC = () => {
   return (
+    <ErrorBoundary>
     <BrowserRouter>
       <AuthProvider>
         <ModuleProvider>
@@ -36,6 +38,7 @@ const App: React.FC = () => {
         </ModuleProvider>
       </AuthProvider>
     </BrowserRouter>
+    </ErrorBoundary>
   );
 };
 

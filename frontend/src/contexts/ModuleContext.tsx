@@ -23,8 +23,8 @@ export interface ModuleDefinition {
 export const MODULE_DEFINITIONS: Record<ModuleKey, ModuleDefinition> = {
   sap: {
     key: 'sap',
-    name: 'SAP Operations',
-    shortName: 'SAP',
+    name: 'SAP Project Management',
+    shortName: 'SAP PM',
     icon: '⚙️',
     color: '#1677ff',
     description: 'SAP Transport & Project Management',
@@ -40,8 +40,8 @@ export const MODULE_DEFINITIONS: Record<ModuleKey, ModuleDefinition> = {
   },
   coupa: {
     key: 'coupa',
-    name: 'Coupa BSM',
-    shortName: 'Coupa',
+    name: 'Coupa Spend Management',
+    shortName: 'Coupa BSM',
     icon: '🛒',
     color: '#0070d2',
     description: 'Coupa Business Spend Management — Procurement, Invoicing, Sourcing & Supply Chain',
@@ -57,8 +57,8 @@ export const MODULE_DEFINITIONS: Record<ModuleKey, ModuleDefinition> = {
   },
   commercial: {
     key: 'commercial',
-    name: 'Commercial Ops',
-    shortName: 'Commercial',
+    name: 'Life Sciences Commercial',
+    shortName: 'Life Sciences',
     icon: '💊',
     color: '#722ed1',
     description: 'Life Sciences Commercial Operations — Product Launches, Campaigns, Compliance & Field Force',

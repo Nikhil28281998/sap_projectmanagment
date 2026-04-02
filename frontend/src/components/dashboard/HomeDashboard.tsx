@@ -23,7 +23,7 @@ const SYS_COLORS: Record<string, string> = { DEV: 'blue', QAS: 'orange', PRD: 'g
 const HomeDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { data: summary, isLoading: summaryLoading, error: summaryError } = useDashboardSummary();
+  const { data: summary, isLoading: summaryLoading, error: summaryError } = useDashboardSummary('SAP');
   const { data: allWorkItems = [], isLoading: wiLoading } = useWorkItems();
   const { data: transports = [], isLoading: trLoading } = useTransports();
 

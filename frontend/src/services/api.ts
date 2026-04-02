@@ -93,8 +93,8 @@ export const milestoneApi = {
 
 // ─── Dashboard ───
 export const dashboardApi = {
-  getSummary: () => request<any>('/dashboardSummary'),
-  getPipeline: () => request<any>('/pipelineSummary'),
+  getSummary: (application?: string) => request<any>(`/dashboardSummary${application ? `(application='${application}')` : '()'}`),
+  getPipeline: (application?: string) => request<any>(`/pipelineSummary${application ? `(application='${application}')` : '()'}`),
   getHealth: () => request<any>('/health'),
 };
 

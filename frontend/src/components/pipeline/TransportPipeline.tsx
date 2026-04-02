@@ -11,7 +11,7 @@ const { Title, Text } = Typography;
 
 const TransportPipeline: React.FC = () => {
   const { data: transports = [], isLoading } = useTransports();
-  const { data: pipeline } = usePipelineSummary();
+  const { data: pipeline } = usePipelineSummary('SAP');
 
   const devTRs = transports.filter((t: any) => t.currentSystem === 'DEV');
   const qasTRs = transports.filter((t: any) => t.currentSystem === 'QAS');

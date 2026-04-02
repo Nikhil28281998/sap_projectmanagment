@@ -10,6 +10,7 @@ import {
   SwapOutlined, ThunderboltOutlined, CustomerServiceOutlined, SafetyOutlined
 } from '@ant-design/icons';
 import { useWorkItems, useTransports } from '../../hooks/useData';
+import { useModule } from '../../contexts/ModuleContext';
 import { calculateRAG, daysFromNow, WORK_TYPE_MAP, WORK_TYPE_COLORS } from '../../utils/tr-parser';
 
 const { Title, Text } = Typography;
@@ -37,8 +38,16 @@ const WorkItemList: React.FC = () => {
   const { type } = useParams<{ type?: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { data: workItems = [], isLoading: wiLoading, refetch } = useWorkItems();
+  const { data: allWorkItems = [], isLoading: wiLoading, refetch } = useWorkItems();
   const { data: transports = [], isLoading: trLoading } = useTransports();
+  const { activeModule } = useModule();
+
+  // Filter work items by active application module
+  const APP_MAP: Record<string, string> = { sap: 'SAP', coupa: 'Coupa', commercial: 'Commercial' };
+  const workItems = allWorkItems.filter((wi: any) => {
+    const appKey = APP_MAP[activeModule] || 'SAP';
+    return wi.application === appKey || (!wi.application && activeModule === 'sap');
+  });
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');

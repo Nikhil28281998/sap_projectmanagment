@@ -59,19 +59,19 @@ export function useWorkItem(id: string) {
 }
 
 // ─── Dashboard Queries ───
-export function useDashboardSummary() {
+export function useDashboardSummary(application?: string) {
   return useQuery({
-    queryKey: ['dashboardSummary'],
-    queryFn: dashboardApi.getSummary,
+    queryKey: ['dashboardSummary', application],
+    queryFn: () => dashboardApi.getSummary(application),
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: true,
   });
 }
 
-export function usePipelineSummary() {
+export function usePipelineSummary(application?: string) {
   return useQuery({
-    queryKey: ['pipelineSummary'],
-    queryFn: dashboardApi.getPipeline,
+    queryKey: ['pipelineSummary', application],
+    queryFn: () => dashboardApi.getPipeline(application),
     staleTime: 2 * 60 * 1000,
   });
 }

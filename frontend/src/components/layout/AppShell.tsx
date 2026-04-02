@@ -75,7 +75,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
       icon: <AppstoreOutlined />,
       label: 'Applications',
       children: appSubItems.length > 0 ? appSubItems : [
-        { key: 'app-sap', icon: APP_ICONS.sap, label: 'SAP Operations' },
+        { key: 'app-sap', icon: APP_ICONS.sap, label: 'SAP PM' },
       ],
     },
     { type: 'divider' as const },

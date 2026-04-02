@@ -58,8 +58,8 @@ const DashboardRouter: React.FC = () => {
   const moduleLabel = activeModule === 'coupa'
     ? 'Coupa BSM'
     : activeModule === 'commercial'
-    ? 'Commercial Ops'
-    : 'SAP Operations';
+    ? 'Life Sciences'
+    : 'SAP PM';
 
   // Admin & Executive can toggle between module view and executive view
   const canSeeExecutive = isAdmin || isExecutive;
@@ -90,7 +90,7 @@ const DashboardRouter: React.FC = () => {
                 label: (
                   <Space size={4}>
                     <FundProjectionScreenOutlined />
-                    <span>Executive Portfolio</span>
+                    <span>Executive Dashboard</span>
                   </Space>
                 ),
               },

@@ -848,7 +848,7 @@ Scope: ${scope || 'single'} (${scope === 'multi' ? 'all projects summary' : scop
         if (daysUntil > 0 && daysUntil <= 14) {
           const existing = await SELECT.one.from(Notifications)
             .where({ type: 'GOLIVE_APPROACHING', isRead: false })
-            .and(`message like '%${wi.workItemName}%'`);
+            .and('message like', `%${wi.workItemName}%`);
           if (!existing) {
             await INSERT.into(Notifications).entries({
               userEmail: wi.businessOwner || wi.leadDeveloper || 'system',
@@ -869,7 +869,7 @@ Scope: ${scope || 'single'} (${scope === 'multi' ? 'all projects summary' : scop
           if (failRate > 0.10) {
             const existing = await SELECT.one.from(Notifications)
               .where({ type: 'TEST_FAILURES', isRead: false })
-              .and(`message like '%${wi.workItemName}%'`);
+              .and('message like', `%${wi.workItemName}%`);
             if (!existing) {
               await INSERT.into(Notifications).entries({
                 userEmail: wi.qaLead || wi.leadDeveloper || 'system',
@@ -932,6 +932,11 @@ Scope: ${scope || 'single'} (${scope === 'multi' ? 'all projects summary' : scop
   // ─── Dashboard Summary ───
   async _onDashboardSummary(req) {
     const { TransportWorkItems, WorkItems } = this._e;
+    const application = req.data?.application || null;
+
+    // Build application filter for WorkItems
+    const wiFilter = application ? { status: 'Active', application } : { status: 'Active' };
+    const wiDoneFilter = application ? { status: 'Done', application } : { status: 'Done' };
 
     const [
       allTRs,
@@ -940,9 +945,9 @@ Scope: ${scope || 'single'} (${scope === 'multi' ? 'all projects summary' : scop
       completedWorkItems
     ] = await Promise.all([
       SELECT.from(TransportWorkItems),
-      SELECT.from(WorkItems).where({ status: 'Active' }),
+      SELECT.from(WorkItems).where(wiFilter),
       SELECT.from(TransportWorkItems).where({ workType: null }),
-      SELECT.from(WorkItems).where({ status: 'Done' })
+      SELECT.from(WorkItems).where(wiDoneFilter)
     ]);
 
     const now = new Date();
@@ -991,6 +996,7 @@ Scope: ${scope || 'single'} (${scope === 'multi' ? 'all projects summary' : scop
   // ─── Pipeline Summary ───
   async _onPipelineSummary(req) {
     const { TransportWorkItems } = this._e;
+    // Pipeline summary is SAP-transport specific; application param reserved for future use
     const allTRs = await SELECT.from(TransportWorkItems);
 
     const now = new Date();
