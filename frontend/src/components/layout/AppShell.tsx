@@ -5,8 +5,8 @@ import {
 } from 'antd';
 import {
   HomeOutlined, DashboardOutlined, ProjectOutlined,
-  ToolOutlined, SettingOutlined, FileTextOutlined,
-  BellOutlined, ReloadOutlined,
+  SettingOutlined, FileTextOutlined,
+  BellOutlined, ReloadOutlined, WarningOutlined,
   AppstoreOutlined, RobotOutlined, TeamOutlined
 } from '@ant-design/icons';
 import { useNotifications, useRefreshTransports } from '../../hooks/useData';
@@ -43,41 +43,24 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
       label: 'Home Dashboard',
     },
     {
-      key: 'dashboards',
+      key: '/pipeline',
       icon: <DashboardOutlined />,
-      label: 'Dashboards',
-      children: [
-        { key: '/pipeline', label: 'Transport Pipeline' },
-        { key: '/workitems', label: 'Project Tracker' },
-      ],
+      label: 'Transport Pipeline',
     },
     {
-      key: 'workitems-group',
+      key: '/tracker',
       icon: <ProjectOutlined />,
-      label: 'Work Items',
-      children: [
-        { key: '/workitems/Project', label: 'Projects' },
-        { key: '/workitems/Enhancement', label: 'Enhancements' },
-        { key: '/workitems/Break-fix', label: 'Break-Fixes' },
-        { key: '/workitems/Upgrade', label: 'Upgrades' },
-        { key: '/workitems/Support', label: 'Retailer Support' },
-        { key: '/workitems/Hypercare', label: 'Hypercare' },
-        ...(canWrite ? [{ key: '/unassigned', label: '⚠ Unassigned' }] : []),
-      ],
+      label: 'Tracker',
     },
+    ...(canWrite ? [{
+      key: '/unassigned',
+      icon: <WarningOutlined />,
+      label: 'Unassigned TRs',
+    }] : []),
     {
       key: '/report',
       icon: <FileTextOutlined />,
       label: 'Weekly Report',
-    },
-    {
-      key: 'tools',
-      icon: <ToolOutlined />,
-      label: 'Tools',
-      children: [
-        { key: '/search', label: 'TR Search' },
-        { key: '/methodologies', label: 'Methodologies' },
-      ],
     },
     {
       key: 'ai-agent',

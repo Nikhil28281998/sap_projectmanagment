@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Card, Row, Col, Tag, Descriptions, Timeline, Table, Button, Space,
-  Typography, Progress, Tooltip, Divider, Spin, Empty, Modal, Input, InputNumber, message
+  Typography, Progress, Tooltip, Divider, Spin, Empty, Modal, Input, InputNumber, Select, message
 } from 'antd';
 import {
   ArrowLeftOutlined, CheckCircleOutlined, ClockCircleOutlined,
   ExclamationCircleOutlined, EditOutlined, SyncOutlined, LinkOutlined,
   FileExcelOutlined, ExperimentOutlined, BarChartOutlined
 } from '@ant-design/icons';
-import { useWorkItem, useTransports } from '../../hooks/useData';
+import { useWorkItem, useTransports, useMethodologies } from '../../hooks/useData';
+import { useAuth } from '../../contexts/AuthContext';
 import { calculateRAG, daysFromNow, WORK_TYPE_MAP, WORK_TYPE_COLORS } from '../../utils/tr-parser';
 import { workItemApi, testStatusApi } from '../../services/api';
 
@@ -18,8 +19,10 @@ const { Title, Text, Paragraph } = Typography;
 const WorkItemDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { data: workItem, isLoading: wiLoading } = useWorkItem(id!);
+  const { data: workItem, isLoading: wiLoading, refetch: refetchWI } = useWorkItem(id!);
   const { data: allTransports = [] } = useTransports();
+  const { data: methodologies = [] } = useMethodologies();
+  const { canWrite } = useAuth();
   const [veevaModalOpen, setVeevaModalOpen] = useState(false);
   const [veevaCC, setVeevaCC] = useState('');
   const [spModalOpen, setSpModalOpen] = useState(false);
@@ -92,6 +95,25 @@ const WorkItemDetail: React.FC = () => {
       message.error('Failed to update test status');
     }
   };
+
+  const handleMethodologyChange = async (value: string) => {
+    try {
+      await workItemApi.update(workItem.ID, { methodology: value || null });
+      message.success(`Methodology updated to ${value || 'None'}`);
+      refetchWI();
+    } catch {
+      message.error('Failed to update methodology');
+    }
+  };
+
+  // Build methodology options from backend + empty
+  const methodologyOptions = [
+    { value: '', label: '— None —' },
+    ...(methodologies?.value || methodologies || []).map((m: any) => ({
+      value: m.methodologyKey || m.name,
+      label: m.name,
+    })),
+  ];
 
   // Build milestone timeline
   const milestones = workItem.milestones || [];
@@ -268,6 +290,20 @@ const WorkItemDetail: React.FC = () => {
               <Descriptions.Item label="In Production">{prodTR}</Descriptions.Item>
               <Descriptions.Item label="Deployment %">{workItem.deploymentPct || 0}%</Descriptions.Item>
               <Descriptions.Item label="Phase">{workItem.currentPhase || '—'}</Descriptions.Item>
+              <Descriptions.Item label="Methodology">
+                {canWrite ? (
+                  <Select
+                    value={workItem.methodology || ''}
+                    onChange={handleMethodologyChange}
+                    options={methodologyOptions}
+                    style={{ width: 180 }}
+                    size="small"
+                    placeholder="Select methodology"
+                  />
+                ) : (
+                  workItem.methodology ? <Tag color="purple">{workItem.methodology}</Tag> : '—'
+                )}
+              </Descriptions.Item>
             </Descriptions>
             {workItem.notes && (
               <>

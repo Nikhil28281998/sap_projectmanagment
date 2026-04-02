@@ -45,37 +45,30 @@ const HomeDashboard: React.FC = () => {
     return { dev, qas, prd, total };
   }, [transports]);
 
-  // ── Test Status summary ──
+  // ── Test Status summary (aggregated from WorkItem-level test fields) ──
   const testSummary = useMemo(() => {
-    const projects = workItems.filter((w: any) => w.workItemType === 'Project');
-    let passed = 0, failed = 0, notRun = 0;
-    for (const p of projects) {
-      const pTRs = transports.filter((t: any) => t.workItem_ID === p.ID);
-      for (const tr of pTRs) {
-        if (tr.testStatus === 'Passed') passed++;
-        else if (tr.testStatus === 'Failed') failed++;
-        else notRun++;
-      }
+    const activeWIs = workItems.filter((w: any) => w.status === 'Active');
+    let passed = 0, failed = 0, blocked = 0, tbd = 0, skipped = 0, totalCases = 0;
+    for (const wi of activeWIs) {
+      passed += wi.testPassed || 0;
+      failed += wi.testFailed || 0;
+      blocked += wi.testBlocked || 0;
+      tbd += wi.testTBD || 0;
+      skipped += wi.testSkipped || 0;
+      totalCases += wi.testTotal || 0;
     }
-    const total = passed + failed + notRun || 1;
+    const notRun = tbd + blocked;
+    const total = totalCases || 1;
     return { passed, failed, notRun, passRate: Math.round((passed / total) * 100) };
-  }, [workItems, transports]);
+  }, [workItems]);
 
   // ── Upcoming go-lives (within 30 days) ──
   const upcomingGoLives = useMemo(() => {
     return workItems
       .filter((wi: any) => wi.goLiveDate && wi.status === 'Active')
       .map((wi: any) => ({ ...wi, daysLeft: daysFromNow(wi.goLiveDate) }))
-      .filter((wi: any) => {
-        const match = wi.daysLeft.match?.(/(-?\d+)/);
-        const days = match ? parseInt(match[1]) : 999;
-        return days >= 0 && days <= 30;
-      })
-      .sort((a: any, b: any) => {
-        const da = parseInt(a.daysLeft.match?.(/(-?\d+)/)?.[1] || '999');
-        const db = parseInt(b.daysLeft.match?.(/(-?\d+)/)?.[1] || '999');
-        return da - db;
-      });
+      .filter((wi: any) => wi.daysLeft >= 0 && wi.daysLeft <= 30)
+      .sort((a: any, b: any) => a.daysLeft - b.daysLeft);
   }, [workItems]);
 
   // Pending items: stuck + unassigned + failed
@@ -152,7 +145,7 @@ const HomeDashboard: React.FC = () => {
       {/* ── Summary Cards ── */}
       <Row gutter={[16, 16]}>
         <Col xs={12} sm={8} md={6} lg={4}>
-          <Card hoverable onClick={() => navigate('/workitems/Project')} size="small">
+          <Card hoverable onClick={() => navigate('/tracker/Project')} size="small">
             <Statistic
               title="Projects"
               value={summaryLoading ? '-' : (summary?.activeProjects ?? activeProjects.length)}
@@ -162,7 +155,7 @@ const HomeDashboard: React.FC = () => {
           </Card>
         </Col>
         <Col xs={12} sm={8} md={6} lg={4}>
-          <Card hoverable onClick={() => navigate('/workitems/Enhancement')} size="small">
+          <Card hoverable onClick={() => navigate('/tracker/Enhancement')} size="small">
             <Statistic
               title="Enhancements"
               value={workItems.filter((w: any) => w.workItemType === 'Enhancement' && w.status === 'Active').length}
@@ -172,7 +165,7 @@ const HomeDashboard: React.FC = () => {
           </Card>
         </Col>
         <Col xs={12} sm={8} md={6} lg={4}>
-          <Card hoverable onClick={() => navigate('/workitems/Break-fix')} size="small">
+          <Card hoverable onClick={() => navigate('/tracker/Break-fix')} size="small">
             <Statistic
               title="Break-Fixes"
               value={transports.filter((t: any) => t.workType === 'BRK').length}
@@ -219,40 +212,46 @@ const HomeDashboard: React.FC = () => {
           <Card title={<><CloudServerOutlined /> Transport Pipeline</>} size="small">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 0' }}>
               {/* DEV */}
-              <div style={{ textAlign: 'center', flex: 1 }}>
+              <Tooltip title="Click to view DEV transports">
+              <div style={{ textAlign: 'center', flex: 1, cursor: 'pointer' }} onClick={() => navigate('/tracker/tr-search?system=DEV')}>
                 <div style={{
                   background: '#e6f4ff', borderRadius: 8, padding: '12px 8px',
-                  border: '2px solid #91caff',
+                  border: '2px solid #91caff', transition: 'all 0.2s',
                 }}>
                   <Text strong style={{ fontSize: 24, color: '#1677ff' }}>{pipeline.dev}</Text>
                   <br />
                   <Text type="secondary">DEV</Text>
                 </div>
               </div>
+              </Tooltip>
               <ArrowRightOutlined style={{ fontSize: 18, color: '#bbb' }} />
               {/* QAS */}
-              <div style={{ textAlign: 'center', flex: 1 }}>
+              <Tooltip title="Click to view QAS transports">
+              <div style={{ textAlign: 'center', flex: 1, cursor: 'pointer' }} onClick={() => navigate('/tracker/tr-search?system=QAS')}>
                 <div style={{
                   background: '#fff7e6', borderRadius: 8, padding: '12px 8px',
-                  border: '2px solid #ffd591',
+                  border: '2px solid #ffd591', transition: 'all 0.2s',
                 }}>
                   <Text strong style={{ fontSize: 24, color: '#fa8c16' }}>{pipeline.qas}</Text>
                   <br />
                   <Text type="secondary">QAS</Text>
                 </div>
               </div>
+              </Tooltip>
               <ArrowRightOutlined style={{ fontSize: 18, color: '#bbb' }} />
               {/* PRD */}
-              <div style={{ textAlign: 'center', flex: 1 }}>
+              <Tooltip title="Click to view PRD transports">
+              <div style={{ textAlign: 'center', flex: 1, cursor: 'pointer' }} onClick={() => navigate('/tracker/tr-search?system=PRD')}>
                 <div style={{
                   background: '#f6ffed', borderRadius: 8, padding: '12px 8px',
-                  border: '2px solid #b7eb8f',
+                  border: '2px solid #b7eb8f', transition: 'all 0.2s',
                 }}>
                   <Text strong style={{ fontSize: 24, color: '#52c41a' }}>{pipeline.prd}</Text>
                   <br />
                   <Text type="secondary">PRD</Text>
                 </div>
               </div>
+              </Tooltip>
             </div>
             <div style={{ textAlign: 'center', marginTop: 8 }}>
               <Progress
@@ -308,12 +307,12 @@ const HomeDashboard: React.FC = () => {
             <Card title={<><RocketOutlined /> Upcoming Go-Lives</>} size="small" style={{ marginTop: 16 }}>
               <Timeline
                 items={upcomingGoLives.slice(0, 5).map((wi: any) => ({
-                  color: wi.daysLeft.includes('0d') ? 'red' : wi.daysLeft.match?.(/[1-7]d/) ? 'orange' : 'blue',
+                  color: wi.daysLeft <= 0 ? 'red' : wi.daysLeft <= 7 ? 'orange' : 'blue',
                   children: (
                     <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/workitem/${wi.ID}`)}>
                       <Text strong>{wi.workItemName}</Text>
                       <br />
-                      <Text type="secondary">{wi.goLiveDate} — <Tag color="blue">{wi.daysLeft}</Tag></Text>
+                      <Text type="secondary">{wi.goLiveDate} — <Tag color="blue">{wi.daysLeft}d left</Tag></Text>
                     </div>
                   ),
                 }))}
@@ -327,7 +326,7 @@ const HomeDashboard: React.FC = () => {
       <Card
         title="Active Projects"
         style={{ marginTop: 16 }}
-        extra={<a onClick={() => navigate('/workitems/Project')}>View All</a>}
+        extra={<a onClick={() => navigate('/tracker/Project')}>View All</a>}
       >
         {wiLoading ? (
           <Skeleton active />
