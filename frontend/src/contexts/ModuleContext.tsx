@@ -44,7 +44,7 @@ export const MODULE_DEFINITIONS: Record<ModuleKey, ModuleDefinition> = {
     shortName: 'Coupa PM',
     icon: '🛝',
     color: '#0070d2',
-    description: 'Coupa Project Management — Procurement, Invoicing, Sourcing & Supply Chain',
+    description: 'Coupa Project Management — Implementation, Integration, Configuration & Enablement',
     workItemTypes: ['Implementation', 'Integration', 'Configuration', 'Data Migration', 'Upgrade', 'Support', 'Optimization', 'Supplier Enablement'],
     terminology: {
       transport: 'Configuration Item',

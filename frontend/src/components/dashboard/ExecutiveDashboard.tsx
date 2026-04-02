@@ -204,20 +204,20 @@ const ExecutiveDashboard: React.FC = () => {
           </Col>
           <Col>
             <Space size="large">
-              <div style={{ textAlign: 'center', padding: '4px 16px' }}>
+              <div style={{ textAlign: 'center', padding: '4px 16px', cursor: 'pointer' }} onClick={() => navigate('/tracker?app=all')}>
                 <div style={{ color: '#fff', fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>
                   {activeProjects.length}
                 </div>
                 <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>Active Projects</div>
               </div>
-              <div style={{ textAlign: 'center', padding: '4px 16px' }}>
+              <div style={{ textAlign: 'center', padding: '4px 16px', cursor: 'pointer' }} onClick={() => navigate('/tracker?app=all&status=completed')}>
                 <div style={{ color: '#52c41a', fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>
                   {completedCount}
                 </div>
                 <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>Completed</div>
               </div>
               {atRiskProjects.length > 0 && (
-                <div style={{ textAlign: 'center', padding: '4px 16px' }}>
+                <div style={{ textAlign: 'center', padding: '4px 16px', cursor: 'pointer' }} onClick={() => navigate('/tracker?app=all&rag=risk')}>
                   <div style={{ color: '#faad14', fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>
                     {atRiskProjects.length}
                   </div>
@@ -235,6 +235,9 @@ const ExecutiveDashboard: React.FC = () => {
           <Col xs={24} md={8} key={app}>
             <Card
               size="small"
+              hoverable
+              style={{ borderTop: `3px solid ${APP_COLORS[app]}`, cursor: 'pointer' }}
+              onClick={() => navigate(`/tracker?app=${app.toLowerCase()}`)}
               title={
                 <Space>
                   {APP_ICONS[app]}
@@ -242,7 +245,6 @@ const ExecutiveDashboard: React.FC = () => {
                   <Tag color={APP_COLORS[app]} style={{ fontSize: 10 }}>{total} total</Tag>
                 </Space>
               }
-              style={{ borderTop: `3px solid ${APP_COLORS[app]}` }}
             >
               <Row gutter={8}>
                 <Col span={8}>
@@ -281,7 +283,7 @@ const ExecutiveDashboard: React.FC = () => {
       {/* Global Health Summary Cards */}
       <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
         <Col xs={8} lg={4}>
-          <Card size="small">
+          <Card size="small" hoverable style={{ cursor: 'pointer' }} onClick={() => navigate('/tracker?app=all&rag=GREEN')}>
             <Statistic
               title={<Text type="secondary" style={{ fontSize: 11 }}>On Track</Text>}
               value={ragSummary.GREEN}
@@ -291,7 +293,7 @@ const ExecutiveDashboard: React.FC = () => {
           </Card>
         </Col>
         <Col xs={8} lg={4}>
-          <Card size="small">
+          <Card size="small" hoverable style={{ cursor: 'pointer' }} onClick={() => navigate('/tracker?app=all&rag=AMBER')}>
             <Statistic
               title={<Text type="secondary" style={{ fontSize: 11 }}>At Risk</Text>}
               value={ragSummary.AMBER}
@@ -301,7 +303,7 @@ const ExecutiveDashboard: React.FC = () => {
           </Card>
         </Col>
         <Col xs={8} lg={4}>
-          <Card size="small">
+          <Card size="small" hoverable style={{ cursor: 'pointer' }} onClick={() => navigate('/tracker?app=all&rag=RED')}>
             <Statistic
               title={<Text type="secondary" style={{ fontSize: 11 }}>Critical</Text>}
               value={ragSummary.RED}
@@ -311,7 +313,7 @@ const ExecutiveDashboard: React.FC = () => {
           </Card>
         </Col>
         <Col xs={8} lg={4}>
-          <Card size="small">
+          <Card size="small" hoverable style={{ cursor: 'pointer' }} onClick={() => navigate('/tracker?app=all')}>
             <Statistic
               title={<Text type="secondary" style={{ fontSize: 11 }}>Avg Progress</Text>}
               value={avgDeployment}
@@ -322,7 +324,7 @@ const ExecutiveDashboard: React.FC = () => {
           </Card>
         </Col>
         <Col xs={8} lg={4}>
-          <Card size="small">
+          <Card size="small" hoverable style={{ cursor: 'pointer' }} onClick={() => navigate('/tracker?app=all')}>
             <Statistic
               title={<Text type="secondary" style={{ fontSize: 11 }}>Test Pass Rate</Text>}
               value={testSummary.rate}
@@ -332,7 +334,7 @@ const ExecutiveDashboard: React.FC = () => {
           </Card>
         </Col>
         <Col xs={8} lg={4}>
-          <Card size="small">
+          <Card size="small" hoverable style={{ cursor: 'pointer' }} onClick={() => navigate('/tracker?app=all')}>
             <Statistic
               title={<Text type="secondary" style={{ fontSize: 11 }}>Applications</Text>}
               value={appBreakdown.length}
@@ -372,7 +374,7 @@ const ExecutiveDashboard: React.FC = () => {
           <Card
             title={<Space><ProjectOutlined /> All Active Projects</Space>}
             size="small"
-            extra={<a onClick={() => navigate('/tracker')}>View All →</a>}
+            extra={<a onClick={() => navigate('/tracker?app=all')}>View All →</a>}
           >
             {activeProjects.length === 0 ? (
               <Empty description="No active projects" />

@@ -76,9 +76,13 @@ const WorkItemList: React.FC = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createForm] = Form.useForm();
 
-  // Filter work items by active application module
+  // Filter work items by active application module (or show all when ?app=all)
+  const appParam = searchParams.get('app');
+  const showAllApps = appParam === 'all';
   const APP_MAP: Record<string, string> = { sap: 'SAP', coupa: 'Coupa', commercial: 'Commercial' };
   const workItems = allWorkItems.filter((wi: any) => {
+    if (showAllApps) return true; // Executive dashboard cross-app view
+    if (appParam && APP_MAP[appParam]) return wi.application === APP_MAP[appParam];
     const appKey = APP_MAP[activeModule] || 'SAP';
     return wi.application === appKey || (!wi.application && activeModule === 'sap');
   });
@@ -150,6 +154,19 @@ const WorkItemList: React.FC = () => {
   }, [workItems]);
 
   const wiColumns = [
+    ...(showAllApps ? [{
+      title: 'App',
+      dataIndex: 'application',
+      key: 'application',
+      width: 100,
+      filters: [
+        { text: 'SAP', value: 'SAP' },
+        { text: 'Coupa', value: 'Coupa' },
+        { text: 'Commercial', value: 'Commercial' },
+      ],
+      onFilter: (v: any, r: any) => r.application === v,
+      render: (app: string) => <Tag color={app === 'SAP' ? '#1677ff' : app === 'Coupa' ? '#0070d2' : '#722ed1'}>{app}</Tag>,
+    }] : []),
     {
       title: 'Name',
       dataIndex: 'workItemName',

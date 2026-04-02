@@ -271,27 +271,27 @@ const CommercialDashboard: React.FC = () => {
       {/* Timeline + Category Breakdown */}
       <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
         <Col xs={24} lg={14}>
-          {/* Field Force / Sales Metrics placeholder */}
-          <Card title={<Space><TeamOutlined /> Field Force & Sales Metrics</Space>} size="small">
-            <Row gutter={[16, 16]}>
-              <Col xs={12} sm={6}>
-                <Statistic title="Territories" value="—" prefix={<GlobalOutlined />} valueStyle={{ fontSize: 18 }} />
-              </Col>
-              <Col xs={12} sm={6}>
-                <Statistic title="HCP Reach" value="—" prefix={<TeamOutlined />} valueStyle={{ fontSize: 18 }} />
-              </Col>
-              <Col xs={12} sm={6}>
-                <Statistic title="TRx Volume" value="—" prefix={<FundOutlined />} valueStyle={{ fontSize: 18 }} />
-              </Col>
-              <Col xs={12} sm={6}>
-                <Statistic title="Market Share" value="—" prefix={<DashboardOutlined />} valueStyle={{ fontSize: 18 }} />
-              </Col>
-            </Row>
-            <Alert
-              style={{ marginTop: 12 }}
-              message="Sales metrics will populate when connected to IQVIA/Veeva CRM data sources."
-              type="info" showIcon
-            />
+          {/* Phase Distribution */}
+          <Card title={<Space><DashboardOutlined /> Phase Distribution</Space>} size="small">
+            {displayItems.length === 0 ? (
+              <Empty description="No active initiatives" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            ) : (
+              <Row gutter={[16, 8]}>
+                {['Planning', 'Pre-Launch', 'Execution', 'Monitoring', 'Close-Out'].map((phase) => {
+                  const count = displayItems.filter((wi: any) => (wi.currentPhase || 'Planning') === phase).length;
+                  const pct = displayItems.length > 0 ? Math.round((count / displayItems.length) * 100) : 0;
+                  return (
+                    <Col xs={12} sm={8} lg={4} key={phase}>
+                      <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                        <Text style={{ fontSize: 11, color: '#8c8c8c' }}>{phase}</Text>
+                        <div style={{ fontSize: 20, fontWeight: 600 }}>{count}</div>
+                        <Progress percent={pct} size="small" showInfo={false} style={{ width: '80%', margin: '0 auto' }} />
+                      </div>
+                    </Col>
+                  );
+                })}
+              </Row>
+            )}
           </Card>
         </Col>
         <Col xs={24} lg={10}>

@@ -7,7 +7,7 @@ import {
   ShoppingCartOutlined, ApiOutlined, CloudServerOutlined, CheckCircleOutlined,
   ClockCircleOutlined, WarningOutlined, RocketOutlined, SettingOutlined,
   DatabaseOutlined, SyncOutlined, SafetyCertificateOutlined, TeamOutlined,
-  DashboardOutlined
+  DashboardOutlined, ProjectOutlined, ToolOutlined, SwapOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useWorkItems } from '../../hooks/useData';
@@ -20,28 +20,26 @@ const { Title, Text } = Typography;
 const RAG_COLORS: Record<string, string> = { GREEN: '#52c41a', AMBER: '#faad14', RED: '#ff4d4f' };
 
 /**
- * Coupa BSM Dashboard
+ * Coupa Project Management Dashboard
  *
- * Coupa is a cloud-based Business Spend Management (BSM) platform covering:
- * - Procurement (Procure-to-Pay / P2P)
- * - Invoicing & Payments
- * - Strategic Sourcing
- * - Contract Management
- * - Supplier Management
- * - Travel & Expense
- * - Supply Chain Design & Collaboration
+ * This dashboard tracks Coupa implementation PROJECTS — not Coupa's operational
+ * platform features. Coupa implementations follow a four-step methodology
+ * (Source: Coupa Compass, compass.coupa.com) with three delivery models:
+ * Direct Delivery, Expert Services, and Co-Delivery.
  *
- * Implementation typically follows: Design → Configure → Build → Test → Deploy → Optimize
+ * Project types tracked here:
+ * - Implementation: Core Coupa module deployments (greenfield/brownfield)
+ * - Integration: ERP connectors, cXML/API feeds, P-Card integration
+ * - Configuration: Approval workflows, business rules, content groups
+ * - Data Migration: Supplier data, catalogs, contracts, spend history
+ * - Supplier Enablement: Supplier onboarding programs & portal rollouts
+ * - Upgrade / Optimization: Post-go-live improvements, release upgrades
+ *
+ * Phases: Design → Configure → Build → Test → Deploy → Optimize
  * Environments: Sandbox (dev/config) → Staging (UAT) → Production
  *
- * Unlike SAP transports, Coupa changes are configuration-based:
- * - Lookup values, approval chains, content groups
- * - Integration connectors (ERP, P-Card, cXML, CSV loaders)
- * - Business rules & workflows
- * - Supplier enablement & onboarding
- * - Data migrations (suppliers, catalogs, contracts)
- *
- * Source: Coupa Compass implementation documentation, Coupa community best practices
+ * Source: Coupa Compass implementation documentation (2024),
+ * SAFe LPM for portfolio governance, PMI Pulse 2025
  */
 const CoupaDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -97,15 +95,25 @@ const CoupaDashboard: React.FC = () => {
     return dist;
   }, [displayItems]);
 
-  // Coupa implementation areas (typical modules to deploy)
-  const coupaAreas = [
-    { name: 'Procurement (P2P)', icon: <ShoppingCartOutlined />, color: '#1677ff' },
-    { name: 'Invoicing', icon: <DatabaseOutlined />, color: '#52c41a' },
-    { name: 'Sourcing', icon: <SyncOutlined />, color: '#fa8c16' },
-    { name: 'Contracts', icon: <SafetyCertificateOutlined />, color: '#722ed1' },
-    { name: 'Suppliers', icon: <TeamOutlined />, color: '#13c2c2' },
-    { name: 'Integrations', icon: <ApiOutlined />, color: '#eb2f96' },
+  // Coupa project types (matching MODULE_DEFINITIONS workItemTypes)
+  const coupaProjectTypes = [
+    { name: 'Implementation', icon: <ProjectOutlined />, color: '#1677ff', desc: 'Core Coupa module deployments' },
+    { name: 'Integration', icon: <ApiOutlined />, color: '#52c41a', desc: 'ERP, cXML, API connectors' },
+    { name: 'Configuration', icon: <SettingOutlined />, color: '#fa8c16', desc: 'Workflows, rules, approvals' },
+    { name: 'Data Migration', icon: <DatabaseOutlined />, color: '#722ed1', desc: 'Suppliers, catalogs, contracts' },
+    { name: 'Supplier Enablement', icon: <TeamOutlined />, color: '#13c2c2', desc: 'Onboarding & portal rollouts' },
+    { name: 'Optimization', icon: <ToolOutlined />, color: '#eb2f96', desc: 'Post-go-live improvements' },
   ];
+
+  // Phase distribution
+  const phaseItems = useMemo(() => {
+    const phaseLookup: Record<string, number> = {};
+    for (const wi of displayItems) {
+      const p = wi.currentPhase || 'Design';
+      phaseLookup[p] = (phaseLookup[p] || 0) + 1;
+    }
+    return phaseLookup;
+  }, [displayItems]);
 
   return (
     <div>
@@ -117,10 +125,10 @@ const CoupaDashboard: React.FC = () => {
         <Row align="middle" justify="space-between">
           <Col>
             <Title level={3} style={{ color: '#fff', margin: 0 }}>
-              <ShoppingCartOutlined /> Coupa BSM Command Center
+              <ShoppingCartOutlined /> Coupa Project Command Center
             </Title>
             <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, marginTop: 4, display: 'block' }}>
-              Business Spend Management — <strong>{user?.name || 'User'}</strong>
+              Implementation &amp; Deployment Management — <strong>{user?.name || 'User'}</strong>
               {user?.roles && user.roles.length > 0 && <Tag color="gold" style={{ marginLeft: 8 }}>{user.roles[0]}</Tag>}
             </Text>
           </Col>
@@ -145,16 +153,25 @@ const CoupaDashboard: React.FC = () => {
         </Row>
       </Card>
 
-      {/* Coupa Module Areas */}
+      {/* Project Types */}
       <Row gutter={[12, 12]}>
-        {coupaAreas.map((area) => (
-          <Col xs={12} sm={8} lg={4} key={area.name}>
-            <Card size="small" hoverable style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 24, color: area.color, marginBottom: 4 }}>{area.icon}</div>
-              <Text style={{ fontSize: 11 }}>{area.name}</Text>
-            </Card>
-          </Col>
-        ))}
+        {coupaProjectTypes.map((area) => {
+          const count = displayItems.filter((wi: any) => wi.workItemType === area.name).length;
+          return (
+            <Col xs={12} sm={8} lg={4} key={area.name}>
+              <Tooltip title={area.desc}>
+                <Card
+                  size="small" hoverable style={{ textAlign: 'center', cursor: 'pointer' }}
+                  onClick={() => navigate(`/tracker/${area.name}`)}
+                >
+                  <div style={{ fontSize: 24, color: area.color, marginBottom: 4 }}>{area.icon}</div>
+                  <Text style={{ fontSize: 11 }}>{area.name}</Text>
+                  {count > 0 && <Tag color={area.color} style={{ marginLeft: 4, fontSize: 10 }}>{count}</Tag>}
+                </Card>
+              </Tooltip>
+            </Col>
+          );
+        })}
       </Row>
 
       {/* Deployment Pipeline: Sandbox → Staging → Production */}
@@ -291,50 +308,30 @@ const CoupaDashboard: React.FC = () => {
         </Col>
       </Row>
 
-      {/* Integration Status Card */}
+      {/* Phase Distribution */}
       <Card
-        title={<Space><ApiOutlined /> Integration Status</Space>}
+        title={<Space><DashboardOutlined /> Phase Distribution</Space>}
         size="small" style={{ marginTop: 12 }}
       >
-        <Row gutter={[16, 16]}>
-          <Col xs={12} sm={6}>
-            <Statistic
-              title="ERP Connectors"
-              value="—"
-              prefix={<DatabaseOutlined />}
-              valueStyle={{ fontSize: 18, color: '#1677ff' }}
-            />
-          </Col>
-          <Col xs={12} sm={6}>
-            <Statistic
-              title="cXML/CSV Feeds"
-              value="—"
-              prefix={<SyncOutlined />}
-              valueStyle={{ fontSize: 18, color: '#52c41a' }}
-            />
-          </Col>
-          <Col xs={12} sm={6}>
-            <Statistic
-              title="Supplier APIs"
-              value="—"
-              prefix={<ApiOutlined />}
-              valueStyle={{ fontSize: 18, color: '#fa8c16' }}
-            />
-          </Col>
-          <Col xs={12} sm={6}>
-            <Statistic
-              title="SSO / Auth"
-              value="—"
-              prefix={<SafetyCertificateOutlined />}
-              valueStyle={{ fontSize: 18, color: '#722ed1' }}
-            />
-          </Col>
-        </Row>
-        <Alert
-          style={{ marginTop: 12 }}
-          message="Integration monitoring will activate when Coupa API credentials are configured in Settings."
-          type="info" showIcon
-        />
+        {displayItems.length === 0 ? (
+          <Empty description="No active deliverables" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        ) : (
+          <Row gutter={[16, 8]}>
+            {['Design', 'Configure', 'Build', 'Test', 'Deploy', 'Optimize'].map((phase) => {
+              const count = phaseItems[phase] || 0;
+              const pct = displayItems.length > 0 ? Math.round((count / displayItems.length) * 100) : 0;
+              return (
+                <Col xs={12} sm={8} lg={4} key={phase}>
+                  <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                    <Text style={{ fontSize: 11, color: '#8c8c8c' }}>{phase}</Text>
+                    <div style={{ fontSize: 20, fontWeight: 600 }}>{count}</div>
+                    <Progress percent={pct} size="small" showInfo={false} style={{ width: '80%', margin: '0 auto' }} />
+                  </div>
+                </Col>
+              );
+            })}
+          </Row>
+        )}
       </Card>
     </div>
   );
