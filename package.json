@@ -19,6 +19,7 @@
   },
   "scripts": {
     "start": "cds-serve",
+    "setup": "cds deploy --to sqlite:db.sqlite",
     "dev": "cds watch",
     "build": "cds build --production",
     "test": "jest --forceExit --detectOpenHandles",
