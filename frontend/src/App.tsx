@@ -1,8 +1,9 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { ModuleProvider } from './contexts/ModuleContext';
 import AppShell from './components/layout/AppShell';
-import HomeDashboard from './components/dashboard/HomeDashboard';
+import DashboardRouter from './components/dashboard/DashboardRouter';
 import TransportPipeline from './components/pipeline/TransportPipeline';
 import WorkItemList from './components/workitems/WorkItemList';
 import WorkItemDetail from './components/workitems/WorkItemDetail';
@@ -15,9 +16,10 @@ const App: React.FC = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <ModuleProvider>
         <AppShell>
           <Routes>
-            <Route path="/" element={<HomeDashboard />} />
+            <Route path="/" element={<DashboardRouter />} />
             <Route path="/pipeline" element={<TransportPipeline />} />
             <Route path="/tracker" element={<WorkItemList />} />
             <Route path="/tracker/:type" element={<WorkItemList />} />
@@ -31,6 +33,7 @@ const App: React.FC = () => {
             <Route path="/admin" element={<AdminPage />} />
           </Routes>
         </AppShell>
+        </ModuleProvider>
       </AuthProvider>
     </BrowserRouter>
   );

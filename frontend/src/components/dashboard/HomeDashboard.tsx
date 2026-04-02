@@ -172,13 +172,11 @@ const HomeDashboard: React.FC = () => {
             <Space size="large">
               {bannerKpi('Total Transports', transports.length, '#fff', () => navigate('/tracker/tr-search'))}
               {bannerKpi('Active Items', activeProjects.length, '#fff', () => navigate('/tracker'))}
-              {needAttention > 0 && (
-                <Badge count={needAttention} overflowCount={99} offset={[-4, 0]}>
-                  {bannerKpi('Need Attention', needAttention, '#faad14', () => {
-                    document.getElementById('pending-items')?.scrollIntoView({ behavior: 'smooth' });
-                  })}
-                </Badge>
-              )}
+              {needAttention > 0 &&
+                bannerKpi('Need Attention', needAttention, '#faad14', () => {
+                  document.getElementById('pending-items')?.scrollIntoView({ behavior: 'smooth' });
+                })
+              }
             </Space>
           </Col>
         </Row>

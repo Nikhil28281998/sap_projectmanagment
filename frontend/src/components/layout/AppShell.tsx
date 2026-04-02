@@ -11,7 +11,9 @@ import {
 } from '@ant-design/icons';
 import { useNotifications, useRefreshTransports } from '../../hooks/useData';
 import { useAuth } from '../../contexts/AuthContext';
+import { useModule } from '../../contexts/ModuleContext';
 import AIChatDrawer from './AIChatDrawer';
+import NotificationDrawer from './NotificationDrawer';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -20,14 +22,22 @@ interface AppShellProps {
   children: React.ReactNode;
 }
 
+const MODULE_ICONS: Record<string, React.ReactNode> = {
+  sap: <AppstoreOutlined />,
+  coupa: <AppstoreOutlined style={{ color: '#0070d2' }} />,
+  commercial: <AppstoreOutlined style={{ color: '#722ed1' }} />,
+};
+
 const AppShell: React.FC<AppShellProps> = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { data: notifications = [] } = useNotifications();
   const refreshMutation = useRefreshTransports();
   const { user, canWrite, canConfigure } = useAuth();
+  const { activeModule, setActiveModule, moduleDef, allModules } = useModule();
 
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
 
@@ -114,9 +124,31 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
           <AppstoreOutlined style={{ fontSize: 24, color: '#1677ff' }} />
           {!collapsed && (
             <Text strong style={{ marginLeft: 8, fontSize: 14 }}>
-              SAP Project Mgmt
+              Command Center
             </Text>
           )}
+        </div>
+        {/* Module Switcher */}
+        <div style={{ padding: collapsed ? '8px 4px' : '8px 16px', borderBottom: '1px solid #f0f0f0' }}>
+          {allModules.map((m) => (
+            <Tooltip key={m.key} title={collapsed ? m.name : undefined} placement="right">
+              <div
+                onClick={() => { setActiveModule(m.key); navigate('/'); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: collapsed ? '6px' : '6px 8px', marginBottom: 2,
+                  borderRadius: 6, cursor: 'pointer', fontSize: 12,
+                  background: activeModule === m.key ? `${m.color}12` : 'transparent',
+                  border: activeModule === m.key ? `1px solid ${m.color}40` : '1px solid transparent',
+                  transition: 'all 0.2s',
+                  justifyContent: collapsed ? 'center' : 'flex-start',
+                }}
+              >
+                <span style={{ fontSize: 16 }}>{m.icon}</span>
+                {!collapsed && <Text style={{ fontSize: 12, color: activeModule === m.key ? m.color : undefined }}>{m.shortName}</Text>}
+              </div>
+            </Tooltip>
+          ))}
         </div>
         <Menu
           mode="inline"
@@ -146,7 +178,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
           }}
         >
           <Text strong style={{ fontSize: 14, color: '#1f4e79' }}>
-            SAP Project Management
+            Project Command Center
           </Text>
 
           <Space>
@@ -160,7 +192,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
               </Tooltip>
             )}
             <Badge count={unreadCount} size="small">
-              <Button icon={<BellOutlined />} size="small" />
+              <Button icon={<BellOutlined />} size="small" onClick={() => setNotifOpen(true)} />
             </Badge>
             <Dropdown menu={{ items: userMenuItems, onClick: ({ key }) => { if (key === 'settings') navigate('/settings'); } }} trigger={['click']}>
               <Button size="small" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -179,6 +211,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
       </Layout>
 
       <AIChatDrawer open={chatOpen} onClose={() => setChatOpen(false)} />
+      <NotificationDrawer open={notifOpen} onClose={() => setNotifOpen(false)} />
 
       <Button
         type="primary"
