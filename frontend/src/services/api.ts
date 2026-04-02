@@ -12,10 +12,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     ...((options.headers as Record<string, string>) || {}),
   };
 
-  // Fetch CSRF token for mutations
+  // Fetch CSRF token for mutations (use GET — CAP rejects HEAD with 405)
   if (options.method && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(options.method)) {
     try {
-      const csrfRes = await fetch(url, { method: 'HEAD', headers: { 'X-CSRF-Token': 'Fetch' } });
+      const csrfRes = await fetch(`${BASE_URL}/`, { method: 'GET', headers: { 'X-CSRF-Token': 'Fetch' } });
       const token = csrfRes.headers.get('x-csrf-token');
       if (token) headers['X-CSRF-Token'] = token;
     } catch {
