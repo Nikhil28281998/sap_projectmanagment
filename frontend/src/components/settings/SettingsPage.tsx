@@ -6,9 +6,9 @@ import {
 import {
   SettingOutlined, SaveOutlined, RobotOutlined, SyncOutlined,
   ClockCircleOutlined, ThunderboltOutlined, CheckCircleOutlined,
-  CloseCircleOutlined, LinkOutlined, ApiOutlined
+  CloseCircleOutlined, LinkOutlined, ApiOutlined, CloudOutlined
 } from '@ant-design/icons';
-import { configApi, aiApi } from '../../services/api';
+import { configApi, aiApi, sharePointApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 const { Title, Text } = Typography;
@@ -30,6 +30,15 @@ const SettingsPage: React.FC = () => {
   const [aiApiKey, setAiApiKey] = useState('');
   const [aiSaving, setAiSaving] = useState(false);
   const { canConfigure, canWrite } = useAuth();
+
+  // SharePoint configuration state
+  const [spTenantId, setSpTenantId] = useState('');
+  const [spClientId, setSpClientId] = useState('');
+  const [spClientSecret, setSpClientSecret] = useState('');
+  const [spSiteUrl, setSpSiteUrl] = useState('');
+  const [spDriveId, setSpDriveId] = useState('');
+  const [spSaving, setSpSaving] = useState(false);
+  const [spResult, setSpResult] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
     loadConfigs();
@@ -277,6 +286,136 @@ const SettingsPage: React.FC = () => {
             </Button>
           </Form.Item>
         </Form>
+      </Card>
+
+      {/* SharePoint Live Integration Card */}
+      <Card
+        title={<Space><CloudOutlined /> SharePoint Live Integration</Space>}
+        size="small"
+        style={{ marginBottom: 16 }}
+      >
+        <Alert
+          type="info"
+          showIcon
+          icon={<CloudOutlined />}
+          style={{ marginBottom: 16 }}
+          message="Connect to Microsoft SharePoint"
+          description={
+            <Text style={{ fontSize: 12 }}>
+              Configure Microsoft Graph API credentials to browse and import SharePoint documents directly into the AI Document Analyzer.
+              Requires an <strong>Azure AD App Registration</strong> with <code>Files.Read.All</code> and <code>Sites.Read.All</code> permissions.
+              <br />
+              <a href="https://learn.microsoft.com/en-us/graph/auth-register-app-v2" target="_blank" rel="noopener noreferrer">
+                Azure AD App Registration Guide →
+              </a>
+            </Text>
+          }
+        />
+
+        <Row gutter={16}>
+          <Col span={12}>
+            <div style={{ marginBottom: 12 }}>
+              <Text strong style={{ display: 'block', marginBottom: 4 }}>Azure AD Tenant ID</Text>
+              <Input
+                value={spTenantId}
+                onChange={e => setSpTenantId(e.target.value)}
+                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                disabled={!canConfigure}
+              />
+            </div>
+          </Col>
+          <Col span={12}>
+            <div style={{ marginBottom: 12 }}>
+              <Text strong style={{ display: 'block', marginBottom: 4 }}>Client ID (App ID)</Text>
+              <Input
+                value={spClientId}
+                onChange={e => setSpClientId(e.target.value)}
+                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                disabled={!canConfigure}
+              />
+            </div>
+          </Col>
+        </Row>
+
+        <Row gutter={16}>
+          <Col span={12}>
+            <div style={{ marginBottom: 12 }}>
+              <Text strong style={{ display: 'block', marginBottom: 4 }}>Client Secret</Text>
+              <Input.Password
+                value={spClientSecret}
+                onChange={e => setSpClientSecret(e.target.value)}
+                placeholder="Enter client secret..."
+                disabled={!canConfigure}
+              />
+            </div>
+          </Col>
+          <Col span={12}>
+            <div style={{ marginBottom: 12 }}>
+              <Text strong style={{ display: 'block', marginBottom: 4 }}>SharePoint Site URL / ID</Text>
+              <Input
+                value={spSiteUrl}
+                onChange={e => setSpSiteUrl(e.target.value)}
+                placeholder="contoso.sharepoint.com,site-id,web-id"
+                disabled={!canConfigure}
+              />
+            </div>
+          </Col>
+        </Row>
+
+        <Row gutter={16}>
+          <Col span={12}>
+            <div style={{ marginBottom: 12 }}>
+              <Text strong style={{ display: 'block', marginBottom: 4 }}>Drive / Library ID</Text>
+              <Input
+                value={spDriveId}
+                onChange={e => setSpDriveId(e.target.value)}
+                placeholder="b!xxx... (from Graph Explorer)"
+                disabled={!canConfigure}
+              />
+            </div>
+          </Col>
+        </Row>
+
+        <Space style={{ marginTop: 8 }}>
+          <Button
+            type="primary"
+            icon={<SaveOutlined />}
+            loading={spSaving}
+            disabled={!canConfigure}
+            onClick={async () => {
+              setSpSaving(true);
+              setSpResult(null);
+              try {
+                const result = await sharePointApi.configure({
+                  tenantId: spTenantId,
+                  clientId: spClientId,
+                  clientSecret: spClientSecret,
+                  siteUrl: spSiteUrl,
+                  driveId: spDriveId,
+                });
+                setSpResult(result);
+                if (result.success) message.success(result.message);
+                else message.error(result.message);
+              } catch (err: any) {
+                setSpResult({ success: false, message: err.message });
+              } finally {
+                setSpSaving(false);
+              }
+            }}
+          >
+            Save SharePoint Config
+          </Button>
+        </Space>
+
+        {spResult && (
+          <Alert
+            type={spResult.success ? 'success' : 'error'}
+            showIcon
+            style={{ marginTop: 12 }}
+            message={spResult.success ? 'SharePoint Configured' : 'Configuration Error'}
+            description={spResult.message}
+          />
+        )}
       </Card>
     </div>
   );

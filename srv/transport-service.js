@@ -53,6 +53,14 @@ class TransportService extends cds.ApplicationService {
     this.on('generateNotifications', this._onGenerateNotifications.bind(this));
     this.on('autoDetectPhase', this._onAutoDetectPhase.bind(this));
     this.on('autoLinkTickets', this._onAutoLinkTickets.bind(this));
+    // New feature handlers
+    this.on('refineProposals', this._onRefineProposals.bind(this));
+    this.on('configureSharePoint', this._onConfigureSharePoint.bind(this));
+    this.on('listSharePointDocuments', this._onListSharePointDocuments.bind(this));
+    this.on('fetchSharePointDocument', this._onFetchSharePointDocument.bind(this));
+    this.on('generateWeeklyDigest', this._onGenerateWeeklyDigest.bind(this));
+    this.on('getWeeklyDigests', this._onGetWeeklyDigests.bind(this));
+    this.on('analyzeProjectRisks', this._onAnalyzeProjectRisks.bind(this));
 
     await super.init();
   }
@@ -1311,6 +1319,535 @@ Scope: ${scope || 'single'} (${scope === 'multi' ? 'all projects summary' : scop
     }
 
     return { success: true, linked, message: `Auto-linked ${linked} transport(s) based on ticket patterns (${snowPrefix}*, ${incPrefix}*, ${vendorPrefix}*)` };
+  }
+
+  // ════════════════════════════════════════════════════════
+  //  AI REFINE PROPOSALS — "Discuss with AI" before creating
+  // ════════════════════════════════════════════════════════
+
+  async _onRefineProposals(req) {
+    const { proposals, instruction, application } = req.data;
+    if (!proposals || !instruction?.trim()) {
+      return { success: false, proposals: '[]', message: 'Proposals and instruction are required.', provider: '' };
+    }
+
+    try {
+      const ai = await AIClient.create(this.db, this._e);
+      if (!ai.enabled) {
+        return { success: false, proposals, message: 'AI is not configured. Go to Settings → AI Integration.', provider: '' };
+      }
+
+      const appTypes = {
+        SAP: 'Project, Enhancement, Break-fix, Support, Hypercare, Upgrade',
+        Coupa: 'Implementation, Integration, Configuration, Data Migration, Upgrade, Support, Optimization, Supplier Enablement',
+        Commercial: 'Product Launch, Campaign, Compliance Initiative, Market Access, Field Force, MLR Review, Veeva Implementation, Analytics Project',
+      }[application] || 'Project, Enhancement, Support';
+
+      const systemPrompt = `You are an expert project management AI assistant. The user has a list of proposed work items that were previously extracted from a document. They want to REFINE these proposals based on their instruction.
+
+APPLICATION: ${application}
+Valid work item types: ${appTypes}
+
+CURRENT PROPOSALS (JSON):
+${proposals}
+
+USER INSTRUCTION: The user wants you to modify the proposals based on their specific request below. Common refinements include:
+- Changing priorities, types, phases, or complexity
+- Splitting one item into multiple items
+- Merging items together
+- Adding more details to notes
+- Changing names or owners
+- Removing certain items
+- Adding new items
+
+You MUST respond with ONLY valid JSON — no markdown code fences.
+Return ONLY a JSON array of proposal objects with the same structure:
+[
+  {
+    "workItemName": "...",
+    "workItemType": "...",
+    "projectCode": "...",
+    "priority": "P1|P2|P3",
+    "complexity": "Low|Medium|High|Critical",
+    "currentPhase": "...",
+    "businessOwner": "...",
+    "notes": "...",
+    "estimatedGoLive": "YYYY-MM-DD or empty",
+    "confidence": "high|medium|low"
+  }
+]
+
+Apply the user's instruction precisely. Preserve all fields that weren't asked to change.`;
+
+      let response = await ai._call(systemPrompt, instruction, 4000);
+
+      // Strip code fences
+      response = response.trim();
+      if (response.startsWith('```')) {
+        response = response.replace(/^[\s]*```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+      }
+
+      // Parse
+      let parsed;
+      try {
+        parsed = JSON.parse(response);
+        if (!Array.isArray(parsed)) parsed = parsed.proposals || [];
+      } catch {
+        return { success: false, proposals, message: 'AI returned invalid JSON. Try a simpler instruction.', provider: ai.provider };
+      }
+
+      return {
+        success: true,
+        proposals: JSON.stringify(parsed),
+        message: `Refined ${parsed.length} proposal(s) based on your instruction.`,
+        provider: ai.provider,
+      };
+    } catch (err) {
+      return { success: false, proposals, message: `Refinement failed: ${err.message}`, provider: '' };
+    }
+  }
+
+  // ════════════════════════════════════════════════════════
+  //  SHAREPOINT LIVE INTEGRATION — Microsoft Graph API
+  // ════════════════════════════════════════════════════════
+
+  async _onConfigureSharePoint(req) {
+    const { tenantId, clientId, clientSecret, siteUrl, driveId } = req.data;
+    const { AppConfig } = this._e;
+
+    try {
+      const configs = [
+        { configKey: 'SHAREPOINT_TENANT_ID', configValue: tenantId, description: 'Azure AD Tenant ID' },
+        { configKey: 'SHAREPOINT_CLIENT_ID', configValue: clientId, description: 'Azure AD App Client ID' },
+        { configKey: 'SHAREPOINT_CLIENT_SECRET', configValue: clientSecret ? '***configured***' : '', description: 'Azure AD Client Secret (masked)' },
+        { configKey: 'SHAREPOINT_SITE_URL', configValue: siteUrl, description: 'SharePoint Site URL' },
+        { configKey: 'SHAREPOINT_DRIVE_ID', configValue: driveId, description: 'SharePoint Drive/Library ID' },
+      ];
+
+      for (const cfg of configs) {
+        const existing = await SELECT.one.from(AppConfig).where({ configKey: cfg.configKey });
+        if (existing) {
+          // Don't overwrite the real secret with the masked value
+          if (cfg.configKey === 'SHAREPOINT_CLIENT_SECRET' && clientSecret) {
+            await UPDATE(AppConfig).set({ configValue: clientSecret, description: cfg.description }).where({ configKey: cfg.configKey });
+          } else if (cfg.configKey !== 'SHAREPOINT_CLIENT_SECRET') {
+            await UPDATE(AppConfig).set({ configValue: cfg.configValue, description: cfg.description }).where({ configKey: cfg.configKey });
+          }
+        } else {
+          const val = cfg.configKey === 'SHAREPOINT_CLIENT_SECRET' ? (clientSecret || '') : cfg.configValue;
+          await INSERT.into(AppConfig).entries({ configKey: cfg.configKey, configValue: val, description: cfg.description });
+        }
+      }
+
+      // Test connectivity if all fields provided
+      if (tenantId && clientId && siteUrl) {
+        return { success: true, message: 'SharePoint configuration saved. Use "Browse Documents" to test connectivity.' };
+      }
+      return { success: true, message: 'SharePoint configuration saved (partial — some fields missing).' };
+    } catch (err) {
+      return { success: false, message: `Configuration failed: ${err.message}` };
+    }
+  }
+
+  async _onListSharePointDocuments(req) {
+    const { folderPath } = req.data;
+    const { AppConfig } = this._e;
+
+    try {
+      // Load SharePoint config from DB
+      const cfgRows = await SELECT.from(AppConfig).where({
+        configKey: { in: ['SHAREPOINT_TENANT_ID', 'SHAREPOINT_CLIENT_ID', 'SHAREPOINT_CLIENT_SECRET', 'SHAREPOINT_SITE_URL', 'SHAREPOINT_DRIVE_ID'] }
+      });
+      const cfg = {};
+      for (const r of cfgRows) cfg[r.configKey] = r.configValue;
+
+      if (!cfg.SHAREPOINT_TENANT_ID || !cfg.SHAREPOINT_CLIENT_ID) {
+        // Return mock data for demo if not configured
+        const mockDocs = [
+          { id: 'mock-1', name: 'Q1 2026 SAP FICO Upgrade Plan.docx', type: 'file', size: 245000, lastModified: '2026-01-15T10:30:00Z', webUrl: '#', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
+          { id: 'mock-2', name: 'Coupa Integration Requirements.xlsx', type: 'file', size: 128000, lastModified: '2026-01-20T14:00:00Z', webUrl: '#', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
+          { id: 'mock-3', name: 'Veeva CRM Implementation Timeline.pdf', type: 'file', size: 520000, lastModified: '2026-01-22T09:15:00Z', webUrl: '#', mimeType: 'application/pdf' },
+          { id: 'mock-4', name: 'SAP S4HANA Migration Checklist.docx', type: 'file', size: 98000, lastModified: '2026-01-25T16:45:00Z', webUrl: '#', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
+          { id: 'mock-5', name: 'Commercial Ops Weekly Status.msg', type: 'file', size: 34000, lastModified: '2026-01-28T08:00:00Z', webUrl: '#', mimeType: 'application/vnd.ms-outlook' },
+          { id: 'mock-6', name: 'Project Documents', type: 'folder', size: 0, lastModified: '2026-01-20T12:00:00Z', webUrl: '#', mimeType: 'folder' },
+        ];
+        return { success: true, documents: JSON.stringify(mockDocs), message: 'Showing demo documents (SharePoint not configured). Go to Settings → SharePoint to connect.' };
+      }
+
+      // Real Graph API call
+      const { SharePointClient } = require('./lib/sharepoint-client');
+      const sp = new SharePointClient();
+      sp.tenantId = cfg.SHAREPOINT_TENANT_ID;
+      sp.clientId = cfg.SHAREPOINT_CLIENT_ID;
+      sp.clientSecret = cfg.SHAREPOINT_CLIENT_SECRET;
+      sp.useMock = false;
+
+      await sp._ensureToken();
+
+      const siteUrl = cfg.SHAREPOINT_SITE_URL || '';
+      const driveId = cfg.SHAREPOINT_DRIVE_ID || '';
+      const path = folderPath ? `/root:/${folderPath}:/children` : '/root/children';
+      const url = `https://graph.microsoft.com/v1.0/sites/${siteUrl}/drives/${driveId}${path}`;
+
+      const response = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${sp.accessToken}`, 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Graph API ${response.status}: ${await response.text()}`);
+      }
+
+      const data = await response.json();
+      const documents = (data.value || []).map(item => ({
+        id: item.id,
+        name: item.name,
+        type: item.folder ? 'folder' : 'file',
+        size: item.size || 0,
+        lastModified: item.lastModifiedDateTime,
+        webUrl: item.webUrl,
+        mimeType: item.file?.mimeType || (item.folder ? 'folder' : 'unknown'),
+      }));
+
+      return { success: true, documents: JSON.stringify(documents), message: `Found ${documents.length} items` };
+    } catch (err) {
+      return { success: false, documents: '[]', message: `SharePoint error: ${err.message}` };
+    }
+  }
+
+  async _onFetchSharePointDocument(req) {
+    const { documentId, fileName } = req.data;
+
+    try {
+      // In demo mode, return sample content for testing
+      const { AppConfig } = this._e;
+      const tenantCfg = await SELECT.one.from(AppConfig).where({ configKey: 'SHAREPOINT_TENANT_ID' });
+
+      if (!tenantCfg?.configValue) {
+        // Demo mode — return mock content based on document name
+        const ext = (fileName || '').toLowerCase();
+        let content = '';
+        if (ext.includes('fico') || ext.includes('sap')) {
+          content = `Subject: Q1 2026 SAP FICO Upgrade Planning\n\nTeam,\n\nPlease review the attached scope for the FICO module upgrade to S/4HANA 2023. Key items:\n\n1. Chart of Accounts migration (P1 - Critical)\n2. Asset Accounting reconfiguration\n3. New GL parallel ledger setup\n4. AP/AR process harmonization\n5. Cost Center hierarchy restructuring\n\nTimeline: Go-live targeted for Apr 15, 2026\nBusiness Owner: Sarah Mitchell\nLead: David Chen\n\nThis needs immediate attention as we have regulatory deadlines.\n\nBest regards,\nProject Office`;
+        } else if (ext.includes('coupa')) {
+          content = `Project Brief: Coupa Procurement Integration\n\nObjective: Integrate Coupa with SAP S/4HANA for procurement-to-pay automation\n\nPhase 1: Supplier portal configuration (Feb 2026)\nPhase 2: PO integration with SAP MM (Mar 2026)\nPhase 3: Invoice matching automation (Apr 2026)\n\nKey stakeholders: Mike Johnson (Procurement), Lisa Wong (IT)\nPriority: P2\nComplexity: High`;
+        } else if (ext.includes('veeva') || ext.includes('commercial')) {
+          content = `Veeva CRM Implementation - Commercial Operations\n\nChange Control #VCC-2026-001\n\nDescription: New Veeva CRM module deployment for Field Force automation\n\nImpacted Systems: Veeva CRM, Veeva Align, PromoMats\nRegulatory: FDA 21 CFR Part 11 compliance required\n\nDeliverables:\n- Territory alignment configuration\n- Sample management workflow\n- KOL engagement tracking\n- Compliant content distribution\n\nBusiness Owner: Jennifer Adams\nTarget Go-Live: May 2026\nPriority: P1`;
+        } else {
+          content = `Project Document: ${fileName}\n\nThis is a placeholder document for demo purposes. In production, the actual file content would be fetched from SharePoint via Microsoft Graph API.\n\nConnect your SharePoint in Settings to enable live document browsing.`;
+        }
+        return { success: true, content, fileName: fileName || 'document.txt', message: 'Demo content (SharePoint not configured)' };
+      }
+
+      // Real Graph API fetch
+      const cfgRows = await SELECT.from(AppConfig).where({
+        configKey: { in: ['SHAREPOINT_TENANT_ID', 'SHAREPOINT_CLIENT_ID', 'SHAREPOINT_CLIENT_SECRET', 'SHAREPOINT_SITE_URL', 'SHAREPOINT_DRIVE_ID'] }
+      });
+      const cfg = {};
+      for (const r of cfgRows) cfg[r.configKey] = r.configValue;
+
+      const { SharePointClient } = require('./lib/sharepoint-client');
+      const sp = new SharePointClient();
+      sp.tenantId = cfg.SHAREPOINT_TENANT_ID;
+      sp.clientId = cfg.SHAREPOINT_CLIENT_ID;
+      sp.clientSecret = cfg.SHAREPOINT_CLIENT_SECRET;
+      sp.useMock = false;
+      await sp._ensureToken();
+
+      const driveId = cfg.SHAREPOINT_DRIVE_ID || '';
+      const url = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${documentId}/content`;
+
+      const response = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${sp.accessToken}` }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Graph API ${response.status}`);
+      }
+
+      const content = await response.text();
+      return { success: true, content, fileName: fileName || 'document', message: 'Document fetched' };
+    } catch (err) {
+      return { success: false, content: '', fileName: '', message: `Fetch failed: ${err.message}` };
+    }
+  }
+
+  // ════════════════════════════════════════════════════════
+  //  AI WEEKLY DIGEST — Generate & Save (no auto-email)
+  // ════════════════════════════════════════════════════════
+
+  async _onGenerateWeeklyDigest(req) {
+    const { application } = req.data;
+    const appFilter = application && application !== 'ALL' ? application : null;
+
+    try {
+      const ai = await AIClient.create(this.db, this._e);
+      if (!ai.enabled) {
+        return { success: false, digestId: '', digestHtml: '', message: 'AI is not configured. Go to Settings → AI Integration.', provider: '' };
+      }
+
+      const { WorkItems, TransportWorkItems, Milestones, WeeklyDigests } = this._e;
+
+      // Gather project data
+      const wiFilter = appFilter ? { status: 'Active', application: appFilter } : { status: 'Active' };
+      const activeWIs = await SELECT.from(WorkItems).where(wiFilter);
+      const allTRs = await SELECT.from(TransportWorkItems);
+      const allMilestones = await SELECT.from(Milestones);
+
+      const now = new Date();
+      const weekNum = Math.ceil((now - new Date(now.getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000));
+      const fy = now.getMonth() >= 9 ? now.getFullYear() + 1 : now.getFullYear();
+      const weekLabel = `WK${String(weekNum).padStart(2, '0')} FY${fy}`;
+
+      // Build context for AI
+      const projectSummaries = activeWIs.map(wi => {
+        const trs = allTRs.filter(t => t.workItem_ID === wi.ID);
+        const ms = allMilestones.filter(m => m.workItem_ID === wi.ID);
+        const overdue = ms.filter(m => m.status === 'Pending' && m.milestoneDate && new Date(m.milestoneDate) < now);
+        return `• ${wi.workItemName} [${wi.application}] — ${wi.workItemType} — Phase: ${wi.currentPhase || 'N/A'}, RAG: ${wi.overallRAG || 'N/A'}, Priority: ${wi.priority || 'N/A'}, Go-Live: ${wi.goLiveDate || 'TBD'}, Deploy: ${wi.deploymentPct || 0}%, Tests: ${wi.testCompletionPct || 0}% (${wi.testPassed || 0}/${wi.testTotal || 0} passed, ${wi.testFailed || 0} failed), TRs: ${trs.length}, Overdue milestones: ${overdue.length}, Owner: ${wi.businessOwner || 'N/A'}`;
+      }).join('\n');
+
+      const redProjects = activeWIs.filter(wi => wi.overallRAG === 'RED');
+      const amberProjects = activeWIs.filter(wi => wi.overallRAG === 'AMBER');
+      const approachingGoLive = activeWIs.filter(wi => {
+        if (!wi.goLiveDate) return false;
+        const days = Math.ceil((new Date(wi.goLiveDate) - now) / 86400000);
+        return days > 0 && days <= 30;
+      });
+
+      const systemPrompt = `You are a Senior IT Program Manager creating a weekly executive digest for leadership.
+
+OUTPUT: Generate an Outlook-compatible HTML digest AND a plain-text summary.
+
+You MUST respond with ONLY valid JSON:
+{
+  "digestHtml": "<full HTML email digest>",
+  "digestText": "plain text summary (for quick reading)",
+  "highlights": ["highlight 1", "highlight 2", ...],
+  "riskCount": <number of risks identified>
+}
+
+HTML STYLING RULES:
+- Use inline CSS everywhere (Outlook ignores <style> blocks)
+- Font: Calibri, Arial, sans-serif; font-size: 14px
+- Tables: border-collapse:collapse, 1px solid #d6d6d6, header bg #1f4e79 white text
+- Use 🟢🟡🔴 emojis for RAG status
+- Professional, concise, executive-level language
+
+DIGEST STRUCTURE:
+1. Header: "${weekLabel} — Project Command Center Weekly Digest" with date
+2. Executive Summary: 2-3 sentences on overall portfolio health
+3. Key Metrics: Projects Active / RED / AMBER / Approaching Go-Live / Test Completion Avg
+4. Attention Required: Table of RED/AMBER projects with owner, issue, action needed
+5. Go-Live Watch: Projects going live within 30 days
+6. Wins This Week: Positive progress highlights
+7. Risk Register: Top risks across the portfolio
+8. Upcoming Milestones: Next 2 weeks
+
+Be data-driven. NEVER invent data — use ONLY what's provided.`;
+
+      const userMessage = `Week: ${weekLabel}
+Date: ${now.toISOString().split('T')[0]}
+Application Filter: ${appFilter || 'ALL'}
+Total Active Projects: ${activeWIs.length}
+RED Projects: ${redProjects.length}
+AMBER Projects: ${amberProjects.length}
+Approaching Go-Live (30 days): ${approachingGoLive.length}
+
+PROJECT DETAILS:
+${projectSummaries || '(No active projects)'}`;
+
+      let response = await ai._call(systemPrompt, userMessage, 6000);
+
+      // Strip code fences
+      response = response.trim();
+      if (response.startsWith('```')) {
+        response = response.replace(/^[\s]*```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+      }
+
+      let parsed;
+      try {
+        parsed = JSON.parse(response);
+      } catch {
+        return { success: false, digestId: '', digestHtml: '', message: 'AI returned invalid digest format.', provider: ai.provider };
+      }
+
+      // Save to database
+      const newId = cds.utils.uuid();
+      await INSERT.into(WeeklyDigests).entries({
+        ID: newId,
+        weekLabel,
+        application: appFilter || 'ALL',
+        digestHtml: parsed.digestHtml || '',
+        digestText: parsed.digestText || '',
+        projectCount: activeWIs.length,
+        riskCount: parsed.riskCount || 0,
+        highlights: JSON.stringify(parsed.highlights || []),
+        generatedBy: req.user?.id || 'anonymous',
+        aiProvider: ai.provider,
+      });
+
+      return {
+        success: true,
+        digestId: newId,
+        digestHtml: parsed.digestHtml || '',
+        message: `Weekly digest "${weekLabel}" generated and saved. ${activeWIs.length} projects analyzed.`,
+        provider: ai.provider,
+      };
+    } catch (err) {
+      return { success: false, digestId: '', digestHtml: '', message: `Digest generation failed: ${err.message}`, provider: '' };
+    }
+  }
+
+  async _onGetWeeklyDigests(req) {
+    const { WeeklyDigests } = this._e;
+    const digests = await SELECT.from(WeeklyDigests).orderBy('createdAt desc').limit(20);
+    return digests;
+  }
+
+  // ════════════════════════════════════════════════════════
+  //  SMART AI RISK NOTIFICATIONS
+  // ════════════════════════════════════════════════════════
+
+  async _onAnalyzeProjectRisks(req) {
+    const { application } = req.data;
+
+    try {
+      const ai = await AIClient.create(this.db, this._e);
+      if (!ai.enabled) {
+        return { success: false, risks: '[]', generated: 0, message: 'AI is not configured.', provider: '' };
+      }
+
+      const { WorkItems, TransportWorkItems, Milestones, Notifications } = this._e;
+      const now = new Date();
+
+      const wiFilter = application && application !== 'ALL'
+        ? { status: 'Active', application }
+        : { status: 'Active' };
+      const activeWIs = await SELECT.from(WorkItems).where(wiFilter);
+      const allTRs = await SELECT.from(TransportWorkItems);
+      const allMilestones = await SELECT.from(Milestones);
+
+      // Build rich project context for AI risk analysis
+      const projectData = activeWIs.map(wi => {
+        const trs = allTRs.filter(t => t.workItem_ID === wi.ID);
+        const ms = allMilestones.filter(m => m.workItem_ID === wi.ID);
+        const overdue = ms.filter(m => m.status === 'Pending' && m.milestoneDate && new Date(m.milestoneDate) < now);
+        const daysToGoLive = wi.goLiveDate ? Math.ceil((new Date(wi.goLiveDate) - now) / 86400000) : null;
+        const stuckTRs = trs.filter(t => {
+          if (t.currentSystem === 'PRD') return false;
+          return (now - new Date(t.createdDate)) / 86400000 > 5;
+        });
+        const failRate = wi.testTotal > 0 ? (wi.testFailed / wi.testTotal * 100).toFixed(1) : '0';
+
+        return {
+          name: wi.workItemName,
+          app: wi.application,
+          type: wi.workItemType,
+          phase: wi.currentPhase,
+          rag: wi.overallRAG,
+          priority: wi.priority,
+          daysToGoLive,
+          deployPct: wi.deploymentPct || 0,
+          testTotal: wi.testTotal || 0,
+          testPassed: wi.testPassed || 0,
+          testFailed: wi.testFailed || 0,
+          testFailRate: failRate,
+          testCompletionPct: wi.testCompletionPct || 0,
+          totalTRs: trs.length,
+          stuckTRs: stuckTRs.length,
+          overdueMilestones: overdue.length,
+          owner: wi.businessOwner,
+        };
+      });
+
+      const systemPrompt = `You are an AI Risk Analyst for enterprise IT project portfolios. Analyze the project data and identify PREDICTIVE risks — not just current issues, but FUTURE problems based on patterns.
+
+RISK CATEGORIES to look for:
+1. SCHEDULE_RISK — Projects likely to miss go-live dates (low deployment % with approaching deadlines)
+2. QUALITY_RISK — Test failure trends suggesting systemic quality issues
+3. RESOURCE_RISK — Multiple projects in critical phases competing for resources
+4. DEPLOYMENT_RISK — Stuck transports or low deployment progress near go-live
+5. INTEGRATION_RISK — Cross-system or cross-app dependencies at risk
+6. COMPLIANCE_RISK — Regulatory/compliance items (especially for Commercial/Veeva) at risk
+
+Respond with ONLY valid JSON — no markdown code fences:
+{
+  "risks": [
+    {
+      "severity": "CRITICAL|HIGH|MEDIUM",
+      "category": "SCHEDULE_RISK|QUALITY_RISK|RESOURCE_RISK|DEPLOYMENT_RISK|INTEGRATION_RISK|COMPLIANCE_RISK",
+      "projectName": "affected project name",
+      "title": "short risk title (max 80 chars)",
+      "description": "detailed risk description with data points (max 300 chars)",
+      "recommendation": "actionable recommendation (max 200 chars)",
+      "probability": "HIGH|MEDIUM|LOW",
+      "impact": "HIGH|MEDIUM|LOW"
+    }
+  ]
+}
+
+RULES:
+- Only flag REAL risks backed by the data — never hallucinate
+- Sort by severity (CRITICAL first)
+- Maximum 10 risks
+- Be specific — cite numbers, dates, percentages from the data
+- For each risk, include concrete data evidence`;
+
+      const userMessage = `Today: ${now.toISOString().split('T')[0]}
+Application filter: ${application || 'ALL'}
+Active projects: ${projectData.length}
+
+PROJECT DATA:
+${JSON.stringify(projectData, null, 2)}`;
+
+      let response = await ai._call(systemPrompt, userMessage, 4000);
+
+      // Strip code fences
+      response = response.trim();
+      if (response.startsWith('```')) {
+        response = response.replace(/^[\s]*```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+      }
+
+      let parsed;
+      try {
+        parsed = JSON.parse(response);
+      } catch {
+        return { success: false, risks: '[]', generated: 0, message: 'AI returned invalid risk analysis.', provider: ai.provider };
+      }
+
+      // Save as notifications
+      const risks = parsed.risks || [];
+      let generated = 0;
+
+      for (const risk of risks) {
+        // Check for duplicate notification
+        const existing = await SELECT.one.from(Notifications)
+          .where({ type: `AI_RISK_${risk.category}`, isRead: false })
+          .and('message like', `%${risk.projectName?.substring(0, 30)}%`);
+
+        if (!existing) {
+          const severity = risk.severity === 'CRITICAL' ? '🔴' : risk.severity === 'HIGH' ? '🟠' : '🟡';
+          await INSERT.into(Notifications).entries({
+            userEmail: req.user?.id || 'system',
+            type: `AI_RISK_${risk.category}`,
+            message: `${severity} [${risk.category.replace(/_/g, ' ')}] ${risk.title} — ${risk.description}`,
+            trNumber: null,
+            isRead: false,
+          });
+          generated++;
+        }
+      }
+
+      return {
+        success: true,
+        risks: JSON.stringify(risks),
+        generated,
+        message: `AI identified ${risks.length} risk(s), created ${generated} new notification(s).`,
+        provider: ai.provider,
+      };
+    } catch (err) {
+      return { success: false, risks: '[]', generated: 0, message: `Risk analysis failed: ${err.message}`, provider: '' };
+    }
   }
 }
 

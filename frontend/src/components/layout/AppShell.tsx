@@ -9,7 +9,7 @@ import {
   BellOutlined, ReloadOutlined, WarningOutlined,
   AppstoreOutlined, RobotOutlined, TeamOutlined,
   ShoppingCartOutlined, MedicineBoxOutlined, ApartmentOutlined,
-  FundProjectionScreenOutlined
+  FundProjectionScreenOutlined, CalendarOutlined
 } from '@ant-design/icons';
 import { useNotifications, useRefreshTransports } from '../../hooks/useData';
 import { useAuth } from '../../contexts/AuthContext';
@@ -116,6 +116,11 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
       key: '/report',
       icon: <FileTextOutlined />,
       label: 'Weekly Report',
+    },
+    {
+      key: '/digest',
+      icon: <CalendarOutlined />,
+      label: 'AI Weekly Digest',
     },
     {
       key: 'ai-agent',

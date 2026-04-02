@@ -11,6 +11,7 @@ import WorkItemList from './components/workitems/WorkItemList';
 import WorkItemDetail from './components/workitems/WorkItemDetail';
 import UnassignedTRs from './components/workitems/UnassignedTRs';
 import ReportBuilder from './components/tools/ReportBuilder';
+import WeeklyDigestPage from './components/tools/WeeklyDigestPage';
 import SettingsPage from './components/settings/SettingsPage';
 import AdminPage from './components/admin/AdminPage';
 
@@ -33,6 +34,7 @@ const App: React.FC = () => {
             <Route path="/workitem/:id" element={<WorkItemDetail />} />
             <Route path="/unassigned" element={<UnassignedTRs />} />
             <Route path="/report" element={<ReportBuilder />} />
+            <Route path="/digest" element={<WeeklyDigestPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/admin" element={<AdminPage />} />
           </Routes>

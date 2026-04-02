@@ -10,8 +10,9 @@ import {
   CodeOutlined, EyeOutlined, UndoOutlined, FormatPainterOutlined,
   FileAddOutlined, CheckCircleOutlined, InboxOutlined,
   MailOutlined, MedicineBoxOutlined, CloudOutlined, FileSearchOutlined,
+  EditOutlined, FolderOpenOutlined, CloudDownloadOutlined,
 } from '@ant-design/icons';
-import { aiApi, templateApi, workItemApi } from '../../services/api';
+import { aiApi, templateApi, workItemApi, sharePointApi } from '../../services/api';
 import { useModule, MODULE_DEFINITIONS, ModuleKey } from '../../contexts/ModuleContext';
 
 const { Text, Paragraph } = Typography;
@@ -99,6 +100,18 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [analysisSummary, setAnalysisSummary] = useState('');
   const [creating, setCreating] = useState(false);
+
+  // Refine proposals state
+  const [refineInput, setRefineInput] = useState('');
+  const [refining, setRefining] = useState(false);
+  const [refineHistory, setRefineHistory] = useState<string[]>([]);
+
+  // SharePoint browse state
+  const [spBrowseOpen, setSpBrowseOpen] = useState(false);
+  const [spDocuments, setSpDocuments] = useState<any[]>([]);
+  const [spLoading, setSpLoading] = useState(false);
+  const [spFolder, setSpFolder] = useState('');
+  const [spFetching, setSpFetching] = useState<string | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -239,6 +252,90 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
       antMessage.error(`Creation failed: ${err.message}`);
     } finally {
       setCreating(false);
+    }
+  };
+
+  // ─── AI Refine Proposals ("Discuss with AI") ───
+  const handleRefineProposals = async () => {
+    if (!refineInput.trim() || refining) return;
+    setRefining(true);
+    try {
+      const result = await aiApi.refineProposals(
+        JSON.stringify(proposals),
+        refineInput.trim(),
+        docApp
+      );
+      if (result.success) {
+        const parsed: Proposal[] = JSON.parse(result.proposals).map((p: Proposal) => ({ ...p, selected: true }));
+        setProposals(parsed);
+        setRefineHistory(prev => [...prev, refineInput.trim()]);
+        setRefineInput('');
+        antMessage.success(result.message);
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `✏️ Proposals refined: "${refineInput.trim()}"\n\n${result.message}`,
+          timestamp: new Date(),
+          provider: result.provider,
+        }]);
+      } else {
+        antMessage.error(result.message || 'Refinement failed');
+      }
+    } catch (err: any) {
+      antMessage.error(`Refinement failed: ${err.message}`);
+    } finally {
+      setRefining(false);
+    }
+  };
+
+  // ─── SharePoint Browse & Fetch ───
+  const handleBrowseSharePoint = async (folder?: string) => {
+    setSpLoading(true);
+    try {
+      const result = await sharePointApi.listDocuments(folder || '');
+      if (result.success) {
+        const docs = JSON.parse(result.documents);
+        setSpDocuments(docs);
+        setSpFolder(folder || '');
+        setSpBrowseOpen(true);
+        if (result.message.includes('demo')) {
+          antMessage.info(result.message);
+        }
+      } else {
+        antMessage.error(result.message);
+      }
+    } catch (err: any) {
+      antMessage.error(`SharePoint browse failed: ${err.message}`);
+    } finally {
+      setSpLoading(false);
+    }
+  };
+
+  const handleFetchSpDocument = async (doc: any) => {
+    setSpFetching(doc.id);
+    try {
+      const result = await sharePointApi.fetchDocument(doc.id, doc.name);
+      if (result.success) {
+        setDocContent(result.content);
+        setDocFileName(result.fileName || doc.name);
+        // Auto-detect doc type
+        const name = (doc.name || '').toLowerCase();
+        if (name.includes('veeva') || name.includes('change control')) setDocType('veeva');
+        else if (name.includes('email') || name.includes('.msg') || name.includes('.eml')) setDocType('email');
+        else setDocType('sharepoint');
+        // Auto-detect app
+        if (name.includes('sap') || name.includes('fico') || name.includes('s4hana')) setDocApp('SAP');
+        else if (name.includes('coupa') || name.includes('procurement')) setDocApp('Coupa');
+        else if (name.includes('veeva') || name.includes('commercial') || name.includes('pharma')) setDocApp('Commercial');
+        setSpBrowseOpen(false);
+        setDocModalOpen(true);
+        antMessage.success(`Loaded: ${doc.name}`);
+      } else {
+        antMessage.error(result.message);
+      }
+    } catch (err: any) {
+      antMessage.error(`Fetch failed: ${err.message}`);
+    } finally {
+      setSpFetching(null);
     }
   };
 
@@ -466,6 +563,16 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
             Shift+Enter for new line • AI queries your live project data
           </Text>
           <Space size={4}>
+            <Button
+              type="link"
+              size="small"
+              icon={<CloudOutlined />}
+              onClick={() => handleBrowseSharePoint()}
+              loading={spLoading}
+              style={{ fontSize: 10, padding: 0 }}
+            >
+              SharePoint
+            </Button>
             <Upload
               accept=".txt,.html,.htm,.eml,.msg,.csv,.xlsx,.doc,.docx,.pdf"
               showUploadList={false}
@@ -664,6 +771,43 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
               >
                 Create {proposals.filter(p => p.selected).length} Selected Work Item(s)
               </Button>
+
+              {/* ── AI Refine Proposals ("Discuss with AI") ── */}
+              <Divider style={{ margin: '8px 0' }}>
+                <Space>
+                  <EditOutlined />
+                  <Text strong style={{ fontSize: 12 }}>Discuss with AI to Refine</Text>
+                </Space>
+              </Divider>
+              {refineHistory.length > 0 && (
+                <div style={{ marginBottom: 8 }}>
+                  {refineHistory.map((h, i) => (
+                    <Tag key={i} color="purple" style={{ fontSize: 10, marginBottom: 2 }}>✏️ {h}</Tag>
+                  ))}
+                </div>
+              )}
+              <Space.Compact style={{ width: '100%' }}>
+                <Input
+                  value={refineInput}
+                  onChange={e => setRefineInput(e.target.value)}
+                  onPressEnter={handleRefineProposals}
+                  placeholder='e.g. "Change P2 items to P1", "Split item 2 into sub-tasks", "Add testing phase details"...'
+                  disabled={refining}
+                  style={{ fontSize: 12 }}
+                />
+                <Button
+                  type="primary"
+                  icon={<RobotOutlined />}
+                  onClick={handleRefineProposals}
+                  loading={refining}
+                  disabled={!refineInput.trim()}
+                >
+                  Refine
+                </Button>
+              </Space.Compact>
+              <Text type="secondary" style={{ fontSize: 10, display: 'block', marginTop: 4 }}>
+                Tell the AI how to change these proposals — adjust priorities, split items, add details, merge items, etc.
+              </Text>
             </>
           )}
         </Space>
@@ -866,6 +1010,85 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
           )}
         </Space>
       </Modal>
+      {/* SharePoint Browse Modal */}
+      <Modal
+        title={
+          <Space>
+            <CloudOutlined style={{ color: '#1677ff' }} />
+            <span>SharePoint Document Browser</span>
+            <Tag color="blue">Live</Tag>
+          </Space>
+        }
+        open={spBrowseOpen}
+        onCancel={() => setSpBrowseOpen(false)}
+        footer={null}
+        width={640}
+        styles={{ body: { maxHeight: '60vh', overflow: 'auto' } }}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <Alert
+            message="Browse SharePoint documents and import them directly for AI analysis."
+            type="info"
+            showIcon
+            style={{ fontSize: 12 }}
+          />
+          {spFolder && (
+            <Button size="small" icon={<FolderOpenOutlined />} onClick={() => handleBrowseSharePoint('')}>
+              ← Back to root
+            </Button>
+          )}
+          {spDocuments.length === 0 ? (
+            <Empty description="No documents found" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {spDocuments.map((doc: any) => {
+                const isFolder = doc.type === 'folder';
+                const ext = (doc.name || '').split('.').pop()?.toLowerCase() || '';
+                const sizeKB = doc.size ? `${Math.round(doc.size / 1024)} KB` : '';
+                return (
+                  <Card
+                    key={doc.id}
+                    size="small"
+                    hoverable
+                    onClick={() => isFolder ? handleBrowseSharePoint(doc.name) : handleFetchSpDocument(doc)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Space>
+                        {isFolder ? <FolderOpenOutlined style={{ color: '#faad14', fontSize: 18 }} /> : <FileTextOutlined style={{ color: '#1677ff', fontSize: 18 }} />}
+                        <div>
+                          <Text strong style={{ fontSize: 13 }}>{doc.name}</Text>
+                          <div>
+                            {!isFolder && <Tag style={{ fontSize: 10 }}>{ext.toUpperCase()}</Tag>}
+                            {sizeKB && <Text type="secondary" style={{ fontSize: 10 }}>{sizeKB}</Text>}
+                            {doc.lastModified && (
+                              <Text type="secondary" style={{ fontSize: 10, marginLeft: 8 }}>
+                                Modified: {new Date(doc.lastModified).toLocaleDateString()}
+                              </Text>
+                            )}
+                          </div>
+                        </div>
+                      </Space>
+                      {!isFolder && (
+                        <Button
+                          type="primary"
+                          size="small"
+                          icon={<CloudDownloadOutlined />}
+                          loading={spFetching === doc.id}
+                          onClick={(e) => { e.stopPropagation(); handleFetchSpDocument(doc); }}
+                        >
+                          Import
+                        </Button>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </Space>
+      </Modal>
+
     </Drawer>
   );
 };

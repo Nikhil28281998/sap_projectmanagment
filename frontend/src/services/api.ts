@@ -168,6 +168,11 @@ export const aiApi = {
       method: 'POST',
       body: JSON.stringify({ emailContent, templateName, scope }),
     }),
+  refineProposals: (proposals: string, instruction: string, application: string) =>
+    request<{ success: boolean; proposals: string; message: string; provider: string }>('/refineProposals', {
+      method: 'POST',
+      body: JSON.stringify({ proposals, instruction, application }),
+    }),
 };
 
 // ─── Methodologies ───
@@ -185,6 +190,40 @@ export const notificationApi = {
     }),
   generate: () =>
     request<{ success: boolean; generated: number; message: string }>('/generateNotifications', { method: 'POST' }),
+  analyzeRisks: (application: string) =>
+    request<{ success: boolean; risks: string; generated: number; message: string; provider: string }>('/analyzeProjectRisks', {
+      method: 'POST',
+      body: JSON.stringify({ application }),
+    }),
+};
+
+// ─── SharePoint Live Integration ───
+export const sharePointApi = {
+  configure: (data: { tenantId: string; clientId: string; clientSecret: string; siteUrl: string; driveId: string }) =>
+    request<{ success: boolean; message: string }>('/configureSharePoint', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  listDocuments: (folderPath?: string) =>
+    request<{ success: boolean; documents: string; message: string }>('/listSharePointDocuments', {
+      method: 'POST',
+      body: JSON.stringify({ folderPath: folderPath || '' }),
+    }),
+  fetchDocument: (documentId: string, fileName: string) =>
+    request<{ success: boolean; content: string; fileName: string; message: string }>('/fetchSharePointDocument', {
+      method: 'POST',
+      body: JSON.stringify({ documentId, fileName }),
+    }),
+};
+
+// ─── Weekly Digest ───
+export const digestApi = {
+  generate: (application: string) =>
+    request<{ success: boolean; digestId: string; digestHtml: string; message: string; provider: string }>('/generateWeeklyDigest', {
+      method: 'POST',
+      body: JSON.stringify({ application }),
+    }),
+  getAll: () => request<{ value: any[] }>('/Digests?$orderby=createdAt desc&$top=20'),
 };
 
 // ─── Report Templates ───

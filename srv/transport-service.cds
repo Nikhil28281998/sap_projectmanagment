@@ -60,6 +60,12 @@ service TransportService {
     { grant: 'WRITE', to: ['Admin', 'Manager'] }
   ]) as projection on db.ReportTemplates;
 
+  // ── Weekly Digests ──
+  entity Digests @(restrict: [
+    { grant: 'READ',  to: ['Admin', 'Manager', 'Developer', 'Executive'] },
+    { grant: 'WRITE', to: ['Admin', 'Manager'] }
+  ]) as projection on db.WeeklyDigests;
+
   // ── Actions (with role-level restrictions) ──
 
   // Categorize a single transport (Manager/Admin)
@@ -257,4 +263,59 @@ service TransportService {
   // Auto-link SNOW/INC/CS tickets from TR descriptions (Admin/Manager)
   @requires: ['Admin', 'Manager']
   action autoLinkTickets() returns { success: Boolean; linked: Integer; message: String };
+
+  // ─── AI Refine Proposals (Discuss with AI to tweak proposals before creation) ───
+  @requires: ['Admin', 'Manager']
+  action refineProposals(
+    proposals    : LargeString,
+    instruction  : String,
+    application  : String
+  ) returns { success: Boolean; proposals: LargeString; message: String; provider: String };
+
+  // ─── SharePoint Live Integration (Microsoft Graph API) ───
+  @requires: ['Admin', 'Manager']
+  action configureSharePoint(
+    tenantId     : String,
+    clientId     : String,
+    clientSecret : String,
+    siteUrl      : String,
+    driveId      : String
+  ) returns { success: Boolean; message: String };
+
+  @requires: ['Admin', 'Manager']
+  action listSharePointDocuments(
+    folderPath : String
+  ) returns { success: Boolean; documents: LargeString; message: String };
+
+  @requires: ['Admin', 'Manager']
+  action fetchSharePointDocument(
+    documentId : String,
+    fileName   : String
+  ) returns { success: Boolean; content: LargeString; fileName: String; message: String };
+
+  // ─── AI Weekly Digest (save only — no auto-email) ───
+  @requires: ['Admin', 'Manager']
+  action generateWeeklyDigest(
+    application : String
+  ) returns { success: Boolean; digestId: String; digestHtml: LargeString; message: String; provider: String };
+
+  function getWeeklyDigests() returns array of {
+    ID           : String;
+    weekLabel    : String;
+    application  : String;
+    digestHtml   : LargeString;
+    digestText   : LargeString;
+    projectCount : Integer;
+    riskCount    : Integer;
+    highlights   : LargeString;
+    generatedBy  : String;
+    aiProvider   : String;
+    createdAt    : Timestamp;
+  };
+
+  // ─── Smart AI Risk Notifications ───
+  @requires: ['Admin', 'Manager']
+  action analyzeProjectRisks(
+    application : String
+  ) returns { success: Boolean; risks: LargeString; generated: Integer; message: String; provider: String };
 }
