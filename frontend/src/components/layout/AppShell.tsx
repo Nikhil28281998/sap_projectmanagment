@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  Layout, Menu, Button, Badge, Space, Typography, Tooltip, Avatar, Dropdown, Tag
+  Layout, Menu, Button, Badge, Space, Typography, Tooltip, Avatar, Dropdown, Tag, Select
 } from 'antd';
 import {
   HomeOutlined, DashboardOutlined, ProjectOutlined,
@@ -9,7 +9,7 @@ import {
   BellOutlined, ReloadOutlined, WarningOutlined,
   AppstoreOutlined, RobotOutlined, TeamOutlined,
   ShoppingCartOutlined, MedicineBoxOutlined, ApartmentOutlined,
-  FundProjectionScreenOutlined, CalendarOutlined, LogoutOutlined
+  FundProjectionScreenOutlined, LogoutOutlined, SwapOutlined
 } from '@ant-design/icons';
 import { useNotifications, useRefreshTransports } from '../../hooks/useData';
 import { useAuth } from '../../contexts/AuthContext';
@@ -20,17 +20,13 @@ import NotificationDrawer from './NotificationDrawer';
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
 
-interface AppShellProps {
-  children: React.ReactNode;
-}
-
 const APP_ICONS: Record<ModuleKey, React.ReactNode> = {
   sap: <ApartmentOutlined />,
   coupa: <ShoppingCartOutlined />,
   commercial: <MedicineBoxOutlined />,
 };
 
-const AppShell: React.FC<AppShellProps> = ({ children }) => {
+const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -53,47 +49,31 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
     : user?.isExecutive ? { color: '#87d068', text: 'Executive' }
     : { color: '#108ee9', text: 'Developer' };
 
-  // Build available app sub-items based on user's allowedApps
-  const appSubItems = useMemo(() => {
+  // Determine which apps the user can access
+  const availableApps = useMemo(() => {
     const appKeys: ModuleKey[] = ['sap', 'coupa', 'commercial'];
-    return appKeys
-      .filter((k) => allowedApps.includes(k.charAt(0).toUpperCase() + k.slice(1)) || allowedApps.includes(k.toUpperCase()) || allowedApps.includes(MODULE_DEFINITIONS[k].shortName))
-      .map((k) => ({
-        key: `app-${k}`,
-        icon: APP_ICONS[k],
-        label: (
-          <span>
-            {MODULE_DEFINITIONS[k].name}
-            {activeModule === k && <Tag color={MODULE_DEFINITIONS[k].color} style={{ marginLeft: 6, fontSize: 10, lineHeight: '16px', padding: '0 4px' }}>Active</Tag>}
-          </span>
-        ),
-      }));
-  }, [allowedApps, activeModule]);
+    return appKeys.filter((k) =>
+      allowedApps.includes(k.charAt(0).toUpperCase() + k.slice(1)) ||
+      allowedApps.includes(k.toUpperCase()) ||
+      allowedApps.includes(MODULE_DEFINITIONS[k].shortName)
+    );
+  }, [allowedApps]);
 
-  // Dynamic menu: show/hide items based on active application
+  const hasMultipleApps = availableApps.length > 1;
   const isSAP = activeModule === 'sap';
 
+  // Build menu items — no more Applications submenu (moved to sidebar header)
   const menuItems: any[] = [
-    // ── Applications submenu ──
-    {
-      key: 'applications',
-      icon: <AppstoreOutlined />,
-      label: 'Applications',
-      children: appSubItems.length > 0 ? appSubItems : [
-        { key: 'app-sap', icon: APP_ICONS.sap, label: 'SAP PM' },
-      ],
-    },
-    { type: 'divider' as const },
     {
       key: '/',
       icon: <HomeOutlined />,
-      label: 'Home Dashboard',
+      label: 'Dashboard',
     },
     // Executive Dashboard — for Admin/Executive roles
     ...(canSeeExecutive ? [{
       key: '/executive',
       icon: <FundProjectionScreenOutlined />,
-      label: 'Executive Dashboard',
+      label: 'Executive View',
     }] : []),
     // Transport Pipeline — only for SAP
     ...(isSAP ? [{
@@ -113,19 +93,9 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
       label: 'Unassigned TRs',
     }] : []),
     {
-      key: '/report',
+      key: '/reports',
       icon: <FileTextOutlined />,
-      label: 'Weekly Report',
-    },
-    {
-      key: '/digest',
-      icon: <CalendarOutlined />,
-      label: 'AI Weekly Digest',
-    },
-    {
-      key: 'ai-agent',
-      icon: <RobotOutlined />,
-      label: 'AI Assistant',
+      label: 'Reports',
     },
   ];
 
@@ -154,17 +124,12 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
   ];
 
   const handleMenuClick = ({ key }: { key: string }) => {
-    if (key === 'ai-agent') {
-      setChatOpen(true);
-    } else if (key.startsWith('app-')) {
-      const appKey = key.replace('app-', '') as ModuleKey;
-      setActiveModule(appKey);
-      navigate('/');
-    } else if (key === 'applications') {
-      // parent submenu click, do nothing
-    } else {
-      navigate(key);
-    }
+    navigate(key);
+  };
+
+  const handleAppSwitch = (appKey: ModuleKey) => {
+    setActiveModule(appKey);
+    // Stay on current page — just switch context (data re-filters automatically)
   };
 
   return (
@@ -174,7 +139,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
         collapsed={collapsed}
         onCollapse={setCollapsed}
         theme="light"
-        width={240}
+        width={220}
         style={{
           overflow: 'auto',
           height: '100vh',
@@ -185,29 +150,66 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
           borderRight: '1px solid #f0f0f0',
         }}
       >
-        <div style={{ padding: '16px', textAlign: 'center', borderBottom: '1px solid #f0f0f0' }}>
-          <AppstoreOutlined style={{ fontSize: 24, color: moduleDef.color }} />
-          {!collapsed && (
-            <Text strong style={{ marginLeft: 8, fontSize: 14 }}>
-              Command Center
-            </Text>
+        {/* Sidebar header — logo + app switcher */}
+        <div style={{ padding: collapsed ? '12px 8px' : '12px 16px', borderBottom: '1px solid #f0f0f0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: hasMultipleApps && !collapsed ? 8 : 0 }}>
+            <AppstoreOutlined style={{ fontSize: 22, color: moduleDef.color, flexShrink: 0 }} />
+            {!collapsed && (
+              <Text strong style={{ fontSize: 13, lineHeight: 1.2 }}>
+                Command Center
+              </Text>
+            )}
+          </div>
+          {/* App switcher — only show for multi-app users */}
+          {hasMultipleApps && !collapsed && (
+            <Select
+              value={activeModule}
+              onChange={handleAppSwitch}
+              style={{ width: '100%' }}
+              size="small"
+              suffixIcon={<SwapOutlined />}
+              options={availableApps.map((k) => ({
+                value: k,
+                label: (
+                  <Space size={4}>
+                    {APP_ICONS[k]}
+                    <span style={{ fontSize: 12 }}>{MODULE_DEFINITIONS[k].shortName}</span>
+                  </Space>
+                ),
+              }))}
+            />
+          )}
+          {hasMultipleApps && collapsed && (
+            <Tooltip title={`Switch app (current: ${moduleDef.shortName})`} placement="right">
+              <Button
+                size="small"
+                type="text"
+                icon={<SwapOutlined />}
+                style={{ width: '100%', marginTop: 4 }}
+                onClick={() => {
+                  // Cycle through apps
+                  const idx = availableApps.indexOf(activeModule);
+                  const next = availableApps[(idx + 1) % availableApps.length];
+                  handleAppSwitch(next);
+                }}
+              />
+            </Tooltip>
           )}
         </div>
         <Menu
           mode="inline"
-          selectedKeys={[location.pathname, `app-${activeModule}`]}
-          defaultOpenKeys={['applications']}
+          selectedKeys={[location.pathname]}
           items={menuItems}
           onClick={handleMenuClick}
           style={{ borderRight: 0 }}
         />
       </Sider>
 
-      <Layout style={{ marginLeft: collapsed ? 80 : 240, transition: 'margin-left 0.2s' }}>
+      <Layout style={{ marginLeft: collapsed ? 80 : 220, transition: 'margin-left 0.2s' }}>
         <Header
           style={{
             background: '#fff',
-            padding: '0 24px',
+            padding: '0 20px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -222,7 +224,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
             <Tag color={moduleDef.color} style={{ fontSize: 11 }}>{moduleDef.icon} {moduleDef.shortName}</Tag>
           </Space>
 
-          <Space>
+          <Space size={8}>
             {canWrite && (
               <Tooltip title="Refresh All Data">
                 <Button
@@ -246,7 +248,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
           </Space>
         </Header>
 
-        <Content style={{ margin: '16px', minHeight: 'calc(100vh - 80px)' }}>
+        <Content style={{ margin: '12px 16px', minHeight: 'calc(100vh - 72px)' }}>
           {children}
         </Content>
       </Layout>
@@ -254,23 +256,25 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
       <AIChatDrawer open={chatOpen} onClose={() => setChatOpen(false)} />
       <NotificationDrawer open={notifOpen} onClose={() => setNotifOpen(false)} />
 
-      <Button
-        type="primary"
-        shape="circle"
-        size="large"
-        icon={<RobotOutlined />}
-        onClick={() => setChatOpen(true)}
-        style={{
-          position: 'fixed',
-          bottom: 24,
-          right: 24,
-          width: 56,
-          height: 56,
-          fontSize: 24,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-          zIndex: 1000,
-        }}
-      />
+      <Tooltip title="AI Assistant" placement="left">
+        <Button
+          type="primary"
+          shape="circle"
+          size="large"
+          icon={<RobotOutlined />}
+          onClick={() => setChatOpen(true)}
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            width: 52,
+            height: 52,
+            fontSize: 22,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+            zIndex: 1000,
+          }}
+        />
+      </Tooltip>
     </Layout>
   );
 };

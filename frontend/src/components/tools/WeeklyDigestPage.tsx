@@ -35,7 +35,7 @@ const APP_OPTIONS = [
   { value: 'Commercial', label: '💊 Commercial Project Management' },
 ];
 
-const WeeklyDigestPage: React.FC = () => {
+const WeeklyDigestPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const { activeModule } = useModule();
   const [generating, setGenerating] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -99,19 +99,22 @@ const WeeklyDigestPage: React.FC = () => {
 
   return (
     <div>
-      <Title level={3}>
-        <CalendarOutlined style={{ marginRight: 8 }} />
-        AI Weekly Digest
-      </Title>
-
-      <Alert
-        message="AI-powered weekly summaries of your project portfolio"
-        description="Generate a concise executive digest covering active projects, risks, go-live timelines, and highlights. Digests are saved for reference — no emails are sent automatically."
-        type="info"
-        showIcon
-        icon={<RobotOutlined />}
-        style={{ marginBottom: 16 }}
-      />
+      {!embedded && (
+        <>
+          <Title level={3}>
+            <CalendarOutlined style={{ marginRight: 8 }} />
+            AI Weekly Digest
+          </Title>
+          <Alert
+            message="AI-powered weekly summaries of your project portfolio"
+            description="Generate a concise executive digest covering active projects, risks, go-live timelines, and highlights. Digests are saved for reference — no emails are sent automatically."
+            type="info"
+            showIcon
+            icon={<RobotOutlined />}
+            style={{ marginBottom: 16 }}
+          />
+        </>
+      )}
 
       {/* Controls */}
       <Card size="small" style={{ marginBottom: 16 }}>

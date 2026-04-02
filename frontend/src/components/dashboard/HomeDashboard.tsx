@@ -185,8 +185,8 @@ const HomeDashboard: React.FC = () => {
         </Row>
       </Card>
 
-      {/* ── Summary Cards (no Weekly Report) ── */}
-      <Row gutter={[12, 12]}>
+      {/* ── Summary Cards ── */}
+      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
         <Col xs={12} sm={8} lg={5}>
           <Card hoverable onClick={() => navigate('/tracker/Project')} size="small">
             <Statistic title="Projects" value={summaryLoading ? '-' : (summary?.activeProjects ?? workItems.filter((w: any) => w.workItemType === 'Project').length)}
@@ -220,7 +220,7 @@ const HomeDashboard: React.FC = () => {
       </Row>
 
       {/* ── Transport Pipeline (clickable, inline results) ── */}
-      <Card title={<Space><CloudServerOutlined /> Transport Pipeline</Space>} size="small" style={{ marginTop: 16 }}
+      <Card title={<Space><CloudServerOutlined /> Transport Pipeline</Space>} size="small" style={{ marginTop: 12 }}
         extra={pipelineFilter && <a onClick={() => setPipelineFilter(null)}>Clear filter</a>}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 0' }}>
           {pipelineBox('DEV', pipeline.dev, '#e6f4ff', '#91caff', '#1677ff', '#1677ff')}
@@ -284,7 +284,7 @@ const HomeDashboard: React.FC = () => {
       </Card>
 
       {/* ── Test Status + Upcoming Go-Lives ── */}
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
         <Col xs={24} lg={14}>
           <Card title={<Space><ExperimentOutlined /> Test Status (All Active Items)</Space>} size="small">
             <Row gutter={16} align="middle">
@@ -358,7 +358,7 @@ const HomeDashboard: React.FC = () => {
       </Row>
 
       {/* ── Active Work Items ── */}
-      <Card title={<Space><ProjectOutlined /> Active Work Items</Space>} style={{ marginTop: 16 }} size="small"
+      <Card title={<Space><ProjectOutlined /> Active Work Items</Space>} style={{ marginTop: 12 }} size="small"
         extra={<a onClick={() => navigate('/tracker')}>View All →</a>}>
         {wiLoading ? <Skeleton active /> : activeProjects.length === 0 ? (
           <Empty description="No active items" />
@@ -409,7 +409,7 @@ const HomeDashboard: React.FC = () => {
       {/* ── Pending Items (clickable) ── */}
       <div id="pending-items">
         {pendingItems.length > 0 && (
-          <Card title={<Space><WarningOutlined /> Pending Items ({pendingItems.length})</Space>} style={{ marginTop: 16 }} size="small">
+          <Card title={<Space><WarningOutlined /> Pending Items ({pendingItems.length})</Space>} style={{ marginTop: 12 }} size="small">
             <List
               size="small"
               dataSource={pendingItems}
@@ -432,7 +432,7 @@ const HomeDashboard: React.FC = () => {
 
       {/* ── Recently Deployed to PRD ── */}
       {completedPrd.length > 0 && (
-        <Card title={<Space><CheckCircleOutlined style={{ color: '#52c41a' }} /> Recently Deployed to PRD</Space>} style={{ marginTop: 16 }} size="small">
+        <Card title={<Space><CheckCircleOutlined style={{ color: '#52c41a' }} /> Recently Deployed to PRD</Space>} style={{ marginTop: 12 }} size="small">
           <List size="small" dataSource={completedPrd.slice(0, 5)}
             renderItem={(tr: any) => (
               <List.Item style={{ padding: '4px 0' }}>

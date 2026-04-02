@@ -21,7 +21,7 @@ import { exportSingleProjectExcel, exportAllProjectsExcel } from '../../utils/ex
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
-const ReportBuilder: React.FC = () => {
+const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const generateReport = useGenerateReport();
   const { data: workItems = [] } = useWorkItems();
   const { data: customTemplates = [] } = useReportTemplates();
@@ -499,13 +499,17 @@ const ReportBuilder: React.FC = () => {
 
   return (
     <div>
-      <Title level={3}>
-        <FileTextOutlined style={{ marginRight: 8 }} />
-        Weekly Report Builder
-      </Title>
-      <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-        Generate professional Outlook-ready reports from your project data. Choose a template, customize, and send.
-      </Text>
+      {!embedded && (
+        <>
+          <Title level={3}>
+            <FileTextOutlined style={{ marginRight: 8 }} />
+            Weekly Report Builder
+          </Title>
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            Generate professional Outlook-ready reports from your project data. Choose a template, customize, and send.
+          </Text>
+        </>
+      )}
 
       {generateReport.isPending && (
         <Card style={{ marginBottom: 16 }}>

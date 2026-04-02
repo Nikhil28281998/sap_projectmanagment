@@ -160,7 +160,7 @@ const CoupaDashboard: React.FC = () => {
       {/* Deployment Pipeline: Sandbox → Staging → Production */}
       <Card
         title={<Space><CloudServerOutlined /> Deployment Pipeline</Space>}
-        size="small" style={{ marginTop: 16 }}
+        size="small" style={{ marginTop: 12 }}
       >
         <div style={{ maxWidth: 700, margin: '0 auto', padding: '16px 0' }}>
           <Steps
@@ -192,7 +192,7 @@ const CoupaDashboard: React.FC = () => {
       </Card>
 
       {/* Active Items + Go-Lives */}
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
         <Col xs={24} lg={14}>
           <Card
             title={<Space><ShoppingCartOutlined /> Active Deliverables</Space>}
@@ -294,7 +294,7 @@ const CoupaDashboard: React.FC = () => {
       {/* Integration Status Card */}
       <Card
         title={<Space><ApiOutlined /> Integration Status</Space>}
-        size="small" style={{ marginTop: 16 }}
+        size="small" style={{ marginTop: 12 }}
       >
         <Row gutter={[16, 16]}>
           <Col xs={12} sm={6}>

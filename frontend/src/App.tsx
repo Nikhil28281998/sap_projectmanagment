@@ -15,6 +15,7 @@ const WorkItemDetail = lazy(() => import('./components/workitems/WorkItemDetail'
 const UnassignedTRs = lazy(() => import('./components/workitems/UnassignedTRs'));
 const ReportBuilder = lazy(() => import('./components/tools/ReportBuilder'));
 const WeeklyDigestPage = lazy(() => import('./components/tools/WeeklyDigestPage'));
+const ReportsPage = lazy(() => import('./components/tools/ReportsPage'));
 const SettingsPage = lazy(() => import('./components/settings/SettingsPage'));
 const AdminPage = lazy(() => import('./components/admin/AdminPage'));
 const MethodologyPage = lazy(() => import('./components/settings/MethodologyPage'));
@@ -52,8 +53,10 @@ const App: React.FC = () => {
             <Route path="/workitems/:type" element={<Navigate to="/tracker" replace />} />
             <Route path="/workitem/:id" element={<WorkItemDetail />} />
             <Route path="/unassigned" element={<UnassignedTRs />} />
-            <Route path="/report" element={<ReportBuilder />} />
-            <Route path="/digest" element={<WeeklyDigestPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            {/* Legacy report routes redirect to unified page */}
+            <Route path="/report" element={<Navigate to="/reports" replace />} />
+            <Route path="/digest" element={<Navigate to="/reports" replace />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/methodology" element={<MethodologyPage />} />

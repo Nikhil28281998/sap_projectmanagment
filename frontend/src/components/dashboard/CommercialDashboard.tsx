@@ -161,7 +161,7 @@ const CommercialDashboard: React.FC = () => {
       </Row>
 
       {/* Launch Readiness + Compliance */}
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
         <Col xs={24} lg={12}>
           <Card title={<Space><RocketOutlined /> Launch & Initiative Tracker</Space>} size="small">
             {displayItems.length === 0 ? (
@@ -269,7 +269,7 @@ const CommercialDashboard: React.FC = () => {
       </Row>
 
       {/* Timeline + Category Breakdown */}
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
         <Col xs={24} lg={14}>
           {/* Field Force / Sales Metrics placeholder */}
           <Card title={<Space><TeamOutlined /> Field Force & Sales Metrics</Space>} size="small">
