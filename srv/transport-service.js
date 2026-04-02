@@ -49,6 +49,8 @@ class TransportService extends cds.ApplicationService {
     this.on('dashboardSummary', this._onDashboardSummary.bind(this));
     this.on('pipelineSummary', this._onPipelineSummary.bind(this));
     this.on('generateNotifications', this._onGenerateNotifications.bind(this));
+    this.on('autoDetectPhase', this._onAutoDetectPhase.bind(this));
+    this.on('autoLinkTickets', this._onAutoLinkTickets.bind(this));
 
     await super.init();
   }
@@ -103,6 +105,11 @@ class TransportService extends cds.ApplicationService {
       newValue: workType,
       createdAt: new Date().toISOString()
     });
+
+    // Auto-detect phase for the linked work item
+    if (workItemId) {
+      try { await this._autoDetectPhaseInternal(workItemId); } catch { /* non-critical */ }
+    }
 
     return { success: true, message: `Transport ${trNumber} categorized as ${workType}` };
   }
@@ -994,6 +1001,144 @@ Scope: ${scope || 'single'} (${scope === 'multi' ? 'all projects summary' : scop
       stuckCount: stuckTRs.length,
       failedCount: failedTRs.length
     };
+  }
+
+  // ─── Auto-Detect Phase from TR State ───
+  async _onAutoDetectPhase(req) {
+    const { workItemId } = req.data;
+    return this._autoDetectPhaseInternal(workItemId, req);
+  }
+
+  async _autoDetectPhaseInternal(workItemId, req) {
+    const { TransportWorkItems, WorkItems } = this._e;
+
+    const wi = await SELECT.one.from(WorkItems).where({ ID: workItemId });
+    if (!wi) {
+      if (req) return req.reject(404, `Work item ${workItemId} not found`);
+      return { success: false, phase: '', message: 'Work item not found' };
+    }
+
+    const trs = await SELECT.from(TransportWorkItems).where({ workItem_ID: workItemId });
+    if (trs.length === 0) {
+      return { success: true, phase: wi.currentPhase || 'Planning', message: 'No transports linked — keeping current phase' };
+    }
+
+    const total = trs.length;
+    const devCount = trs.filter(t => t.currentSystem === 'DEV').length;
+    const qasCount = trs.filter(t => t.currentSystem === 'QAS').length;
+    const prdCount = trs.filter(t => t.currentSystem === 'PRD').length;
+
+    // Phase detection logic:
+    // All in DEV → Development
+    // Any in QAS and test data exists → Testing
+    // Any in QAS but no test data → QAS Deployment
+    // Mix of QAS + PRD, not all deployed → Testing / Go-Live prep
+    // All in PRD → Hypercare or Complete
+    let phase = 'Development';
+    if (prdCount === total) {
+      // All deployed
+      const hypercareEnd = wi.hypercareEndDate ? new Date(wi.hypercareEndDate) : null;
+      if (hypercareEnd && hypercareEnd > new Date()) {
+        phase = 'Hypercare';
+      } else if (hypercareEnd && hypercareEnd <= new Date()) {
+        phase = 'Complete';
+      } else {
+        phase = 'Hypercare';
+      }
+    } else if (prdCount > 0) {
+      // Some in PRD, some still in QAS/DEV
+      phase = 'Go-Live';
+    } else if (qasCount > 0) {
+      // Some/all in QAS
+      if (wi.testTotal > 0 && (wi.testPassed > 0 || wi.testFailed > 0)) {
+        phase = 'Testing';
+      } else {
+        phase = 'Testing';
+      }
+    } else if (devCount === total) {
+      // All still in DEV
+      if (wi.kickoffDate && new Date(wi.kickoffDate) > new Date()) {
+        phase = 'Planning';
+      } else {
+        phase = 'Development';
+      }
+    }
+
+    // Update the work item
+    await UPDATE(WorkItems).set({ currentPhase: phase }).where({ ID: workItemId });
+
+    return { success: true, phase, message: `Phase auto-detected as "${phase}" (DEV:${devCount} QAS:${qasCount} PRD:${prdCount})` };
+  }
+
+  // ─── Auto-Link SNOW/INC/CS Tickets from TR Descriptions ───
+  async _onAutoLinkTickets(req) {
+    const { TransportWorkItems, WorkItems, AppConfig } = this._e;
+
+    // Read configurable prefixes (or use defaults)
+    const configs = await SELECT.from(AppConfig);
+    const getConfig = (key, defaultVal) => {
+      const c = configs.find(c => c.configKey === key);
+      return c?.configValue || defaultVal;
+    };
+
+    const snowPrefix = getConfig('SNOW_TASK_PREFIX', 'SNOW');
+    const incPrefix = getConfig('INCIDENT_PREFIX', 'INC');
+    const vendorPrefix = getConfig('VENDOR_TICKET_PREFIX', 'CS');
+
+    // Build regex to find ticket references in TR descriptions
+    const ticketPattern = new RegExp(
+      `(${snowPrefix}\\d+|${incPrefix}\\d+|${vendorPrefix}\\d+)`,
+      'gi'
+    );
+
+    const allTRs = await SELECT.from(TransportWorkItems);
+    const allWIs = await SELECT.from(WorkItems);
+
+    // Build lookup: snowTicket → work item ID
+    const ticketToWI = {};
+    for (const wi of allWIs) {
+      if (wi.snowTicket) {
+        ticketToWI[wi.snowTicket.toUpperCase()] = wi.ID;
+      }
+    }
+
+    let linked = 0;
+    for (const tr of allTRs) {
+      if (tr.workItem_ID) continue; // Already assigned
+      const desc = tr.trDescription || '';
+      const matches = desc.match(ticketPattern);
+      if (!matches) continue;
+
+      for (const ticket of matches) {
+        const upper = ticket.toUpperCase();
+        // Check direct match to work item snowTicket
+        if (ticketToWI[upper]) {
+          await UPDATE(TransportWorkItems).set({
+            workItem_ID: ticketToWI[upper],
+            snowTicket: upper,
+            assignedBy: 'auto-link',
+            assignedDate: new Date().toISOString(),
+          }).where({ ID: tr.ID });
+          linked++;
+          break;
+        }
+        // Also check partial match (e.g., INC12345 matches WI with snowTicket INC12345)
+        for (const wi of allWIs) {
+          if (wi.snowTicket && upper.includes(wi.snowTicket.toUpperCase())) {
+            await UPDATE(TransportWorkItems).set({
+              workItem_ID: wi.ID,
+              snowTicket: upper,
+              assignedBy: 'auto-link',
+              assignedDate: new Date().toISOString(),
+            }).where({ ID: tr.ID });
+            linked++;
+            break;
+          }
+        }
+      }
+    }
+
+    return { success: true, linked, message: `Auto-linked ${linked} transport(s) based on ticket patterns (${snowPrefix}*, ${incPrefix}*, ${vendorPrefix}*)` };
   }
 }
 

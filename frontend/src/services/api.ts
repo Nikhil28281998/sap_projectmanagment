@@ -30,6 +30,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     throw new Error(error?.error?.message || `API Error: ${response.status}`);
   }
 
+  // Handle 204 No Content (DELETE responses)
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    return {} as T;
+  }
+
   return response.json();
 }
 
@@ -77,8 +82,12 @@ export const workItemApi = {
 // ─── Milestones ───
 export const milestoneApi = {
   getAll: () => request<{ value: any[] }>('/Milestones'),
+  create: (data: any) =>
+    request<any>('/Milestones', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: any) =>
     request<any>(`/Milestones(${id})`, { method: 'PATCH', body: JSON.stringify(data) }),
+  remove: (id: string) =>
+    request<any>(`/Milestones(${id})`, { method: 'DELETE' }),
 };
 
 // ─── Dashboard ───
@@ -86,6 +95,19 @@ export const dashboardApi = {
   getSummary: () => request<any>('/dashboardSummary'),
   getPipeline: () => request<any>('/pipelineSummary'),
   getHealth: () => request<any>('/health'),
+};
+
+// ─── Auto-Detection ───
+export const autoApi = {
+  detectPhase: (workItemId: string) =>
+    request<{ success: boolean; phase: string; message: string }>('/autoDetectPhase', {
+      method: 'POST',
+      body: JSON.stringify({ workItemId }),
+    }),
+  linkTickets: () =>
+    request<{ success: boolean; linked: number; message: string }>('/autoLinkTickets', {
+      method: 'POST',
+    }),
 };
 
 // ─── SharePoint Sync ───

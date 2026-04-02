@@ -6,10 +6,10 @@ import {
 import {
   TeamOutlined, SafetyCertificateOutlined, SettingOutlined,
   ReloadOutlined, BellOutlined, DatabaseOutlined, ApiOutlined,
-  CheckCircleOutlined, WarningOutlined
+  CheckCircleOutlined, WarningOutlined, LinkOutlined, SyncOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
-import { dashboardApi, notificationApi, syncApi } from '../../services/api';
+import { dashboardApi, notificationApi, syncApi, autoApi } from '../../services/api';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -34,6 +34,8 @@ const AdminPage: React.FC = () => {
   const [genResult, setGenResult] = useState<string | null>(null);
   const [healthData, setHealthData] = useState<any>(null);
   const [healthLoading, setHealthLoading] = useState(false);
+  const [linkLoading, setLinkLoading] = useState(false);
+  const [linkResult, setLinkResult] = useState<string | null>(null);
 
   if (!canConfigure) {
     return (
@@ -173,6 +175,36 @@ const AdminPage: React.FC = () => {
             </Text>
           </Space>
           {genResult && <Alert message={genResult} type="info" showIcon closable />}
+
+          <Divider dashed style={{ margin: '8px 0' }} />
+
+          <Space>
+            <Button
+              icon={<LinkOutlined />}
+              loading={linkLoading}
+              onClick={async () => {
+                setLinkLoading(true);
+                try {
+                  const result = await autoApi.linkTickets();
+                  setLinkResult(result.message);
+                  message.success(result.message);
+                } catch (err: any) {
+                  setLinkResult(`Failed: ${err.message}`);
+                  message.error(err.message);
+                } finally {
+                  setLinkLoading(false);
+                }
+              }}
+              type="primary"
+              ghost
+            >
+              Auto-Link Tickets (SNOW/INC/CS)
+            </Button>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Scan TR descriptions for SNOW*/INC*/CS* patterns and auto-assign to matching work items
+            </Text>
+          </Space>
+          {linkResult && <Alert message={linkResult} type="info" showIcon closable style={{ marginTop: 4 }} />}
 
           <Divider dashed style={{ margin: '8px 0' }} />
 

@@ -23,7 +23,7 @@ service TransportService {
   // ── Milestones ──
   entity Milestones @(restrict: [
     { grant: 'READ',  to: ['Admin', 'Manager', 'Developer', 'Executive'] },
-    { grant: 'WRITE', to: ['Admin', 'Manager'] }
+    { grant: ['CREATE', 'WRITE', 'DELETE'], to: ['Admin', 'Manager'] }
   ]) as projection on db.Milestones;
 
   // ── Notifications ──
@@ -229,4 +229,14 @@ service TransportService {
     generated: Integer;
     message  : String;
   };
+
+  // Auto-detect phase for a work item based on its transport states (Admin/Manager)
+  @requires: ['Admin', 'Manager']
+  action autoDetectPhase(
+    workItemId : String
+  ) returns { success: Boolean; phase: String; message: String };
+
+  // Auto-link SNOW/INC/CS tickets from TR descriptions (Admin/Manager)
+  @requires: ['Admin', 'Manager']
+  action autoLinkTickets() returns { success: Boolean; linked: Integer; message: String };
 }

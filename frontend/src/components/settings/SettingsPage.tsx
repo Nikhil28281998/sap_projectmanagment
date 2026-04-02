@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Card, Form, Input, InputNumber, Switch, Button, Select, Typography,
-  Divider, Space, message, Alert,
+  Divider, Space, message, Alert, Row, Col,
 } from 'antd';
 import {
   SettingOutlined, SaveOutlined, RobotOutlined, SyncOutlined,
@@ -98,6 +98,9 @@ const SettingsPage: React.FC = () => {
             USE_MOCK_SHAREPOINT: true,
             TR_PREFIX: 'DEVK9',
             STUCK_THRESHOLD_DAYS: 5,
+            SNOW_TASK_PREFIX: 'SNOW',
+            INCIDENT_PREFIX: 'INC',
+            VENDOR_TICKET_PREFIX: 'CS',
           }}
         >
           <Divider orientation="left">
@@ -232,6 +235,41 @@ const SettingsPage: React.FC = () => {
             tooltip="Expected prefix for transport request numbers (e.g., DEVK9)">
             <Input style={{ width: 200 }} placeholder="DEVK9" />
           </Form.Item>
+
+          <Divider orientation="left">
+            <Space><SettingOutlined /> Ticket Prefixes (Auto-Link)</Space>
+          </Divider>
+
+          <Alert type="info" showIcon style={{ marginBottom: 16 }}
+            message="Auto-Link Ticket Patterns"
+            description={
+              <Text style={{ fontSize: 12 }}>
+                Configure the prefixes used to auto-detect ticket numbers in TR descriptions.
+                The app scans each transport description for these patterns and auto-links them to matching work items.
+              </Text>
+            }
+          />
+
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item label="ServiceNow Task Prefix" name="SNOW_TASK_PREFIX"
+                tooltip="Prefix for ServiceNow regular tasks (e.g., SNOW, SCTASK)">
+                <Input placeholder="SNOW" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="Incident Prefix" name="INCIDENT_PREFIX"
+                tooltip="Prefix for incident tickets (e.g., INC)">
+                <Input placeholder="INC" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="Vendor Ticket Prefix" name="VENDOR_TICKET_PREFIX"
+                tooltip="Prefix for vendor/CS tickets (e.g., CS)">
+                <Input placeholder="CS" />
+              </Form.Item>
+            </Col>
+          </Row>
 
           <Form.Item>
             <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={loading}>
