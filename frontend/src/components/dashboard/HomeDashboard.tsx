@@ -1,14 +1,18 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
-  Row, Col, Card, Statistic, Progress, Tag, List, Typography, Space, Skeleton, Alert, Empty
+  Row, Col, Card, Statistic, Progress, Tag, List, Typography, Space, Skeleton, Alert, Empty,
+  Timeline, Badge, Tooltip, Divider, Avatar
 } from 'antd';
 import {
   ProjectOutlined, CodeOutlined, BugOutlined, RocketOutlined,
   WarningOutlined, CheckCircleOutlined, ClockCircleOutlined,
-  FileTextOutlined
+  FileTextOutlined, SafetyCertificateOutlined, ThunderboltOutlined,
+  ExperimentOutlined, DashboardOutlined, CloudServerOutlined,
+  ArrowRightOutlined, UserOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardSummary, useWorkItems, useTransports } from '../../hooks/useData';
+import { useAuth } from '../../contexts/AuthContext';
 import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
 
 const { Title, Text } = Typography;
@@ -18,6 +22,7 @@ const RAG_ICONS: Record<string, string> = { GREEN: '🟢', AMBER: '🟡', RED: '
 
 const HomeDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { data: summary, isLoading: summaryLoading, error: summaryError } = useDashboardSummary();
   const { data: workItems = [], isLoading: wiLoading } = useWorkItems();
   const { data: transports = [], isLoading: trLoading } = useTransports();
@@ -30,6 +35,48 @@ const HomeDashboard: React.FC = () => {
     return days > 5;
   });
   const failedTRs = transports.filter((tr: any) => tr.importRC >= 8);
+
+  // ── Transport Pipeline stats ──
+  const pipeline = useMemo(() => {
+    const dev = transports.filter((t: any) => t.currentSystem === 'DEV').length;
+    const qas = transports.filter((t: any) => t.currentSystem === 'QAS').length;
+    const prd = transports.filter((t: any) => t.currentSystem === 'PRD').length;
+    const total = transports.length || 1;
+    return { dev, qas, prd, total };
+  }, [transports]);
+
+  // ── Test Status summary ──
+  const testSummary = useMemo(() => {
+    const projects = workItems.filter((w: any) => w.workItemType === 'Project');
+    let passed = 0, failed = 0, notRun = 0;
+    for (const p of projects) {
+      const pTRs = transports.filter((t: any) => t.workItem_ID === p.ID);
+      for (const tr of pTRs) {
+        if (tr.testStatus === 'Passed') passed++;
+        else if (tr.testStatus === 'Failed') failed++;
+        else notRun++;
+      }
+    }
+    const total = passed + failed + notRun || 1;
+    return { passed, failed, notRun, passRate: Math.round((passed / total) * 100) };
+  }, [workItems, transports]);
+
+  // ── Upcoming go-lives (within 30 days) ──
+  const upcomingGoLives = useMemo(() => {
+    return workItems
+      .filter((wi: any) => wi.goLiveDate && wi.status === 'Active')
+      .map((wi: any) => ({ ...wi, daysLeft: daysFromNow(wi.goLiveDate) }))
+      .filter((wi: any) => {
+        const match = wi.daysLeft.match?.(/(-?\d+)/);
+        const days = match ? parseInt(match[1]) : 999;
+        return days >= 0 && days <= 30;
+      })
+      .sort((a: any, b: any) => {
+        const da = parseInt(a.daysLeft.match?.(/(-?\d+)/)?.[1] || '999');
+        const db = parseInt(b.daysLeft.match?.(/(-?\d+)/)?.[1] || '999');
+        return da - db;
+      });
+  }, [workItems]);
 
   // Pending items: stuck + unassigned + failed
   const pendingItems = [
@@ -55,9 +102,52 @@ const HomeDashboard: React.FC = () => {
 
   return (
     <div>
-      <Title level={3} style={{ marginBottom: 16 }}>
-        <RocketOutlined /> Project Management Command Center
-      </Title>
+      {/* ── Welcome Banner ── */}
+      <Card
+        style={{
+          marginBottom: 16,
+          background: 'linear-gradient(135deg, #1677ff 0%, #0958d9 100%)',
+          border: 'none',
+        }}
+        styles={{ body: { padding: '16px 24px' } }}
+      >
+        <Row align="middle" justify="space-between">
+          <Col>
+            <Title level={3} style={{ color: '#fff', margin: 0 }}>
+              <DashboardOutlined /> Project Management Command Center
+            </Title>
+            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, marginTop: 4, display: 'block' }}>
+              Welcome back, <strong>{user?.name || 'User'}</strong>
+              {user?.roles && user.roles.length > 0 && (
+                <Tag color="gold" style={{ marginLeft: 8 }}>{user.roles[0]}</Tag>
+              )}
+            </Text>
+          </Col>
+          <Col>
+            <Space size="large">
+              <Statistic
+                title={<span style={{ color: 'rgba(255,255,255,0.65)' }}>Total Transports</span>}
+                value={transports.length}
+                valueStyle={{ color: '#fff', fontSize: 24 }}
+              />
+              <Statistic
+                title={<span style={{ color: 'rgba(255,255,255,0.65)' }}>Active Projects</span>}
+                value={activeProjects.length}
+                valueStyle={{ color: '#fff', fontSize: 24 }}
+              />
+              {stuckTRs.length > 0 && (
+                <Badge count={stuckTRs.length} overflowCount={99}>
+                  <Statistic
+                    title={<span style={{ color: 'rgba(255,255,255,0.65)' }}>Need Attention</span>}
+                    value={stuckTRs.length + failedTRs.length}
+                    valueStyle={{ color: '#faad14', fontSize: 24 }}
+                  />
+                </Badge>
+              )}
+            </Space>
+          </Col>
+        </Row>
+      </Card>
 
       {/* ── Summary Cards ── */}
       <Row gutter={[16, 16]}>
@@ -120,6 +210,116 @@ const HomeDashboard: React.FC = () => {
               valueStyle={{ fontSize: 16 }}
             />
           </Card>
+        </Col>
+      </Row>
+
+      {/* ── Transport Pipeline + Test Status ── */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col xs={24} lg={14}>
+          <Card title={<><CloudServerOutlined /> Transport Pipeline</>} size="small">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 0' }}>
+              {/* DEV */}
+              <div style={{ textAlign: 'center', flex: 1 }}>
+                <div style={{
+                  background: '#e6f4ff', borderRadius: 8, padding: '12px 8px',
+                  border: '2px solid #91caff',
+                }}>
+                  <Text strong style={{ fontSize: 24, color: '#1677ff' }}>{pipeline.dev}</Text>
+                  <br />
+                  <Text type="secondary">DEV</Text>
+                </div>
+              </div>
+              <ArrowRightOutlined style={{ fontSize: 18, color: '#bbb' }} />
+              {/* QAS */}
+              <div style={{ textAlign: 'center', flex: 1 }}>
+                <div style={{
+                  background: '#fff7e6', borderRadius: 8, padding: '12px 8px',
+                  border: '2px solid #ffd591',
+                }}>
+                  <Text strong style={{ fontSize: 24, color: '#fa8c16' }}>{pipeline.qas}</Text>
+                  <br />
+                  <Text type="secondary">QAS</Text>
+                </div>
+              </div>
+              <ArrowRightOutlined style={{ fontSize: 18, color: '#bbb' }} />
+              {/* PRD */}
+              <div style={{ textAlign: 'center', flex: 1 }}>
+                <div style={{
+                  background: '#f6ffed', borderRadius: 8, padding: '12px 8px',
+                  border: '2px solid #b7eb8f',
+                }}>
+                  <Text strong style={{ fontSize: 24, color: '#52c41a' }}>{pipeline.prd}</Text>
+                  <br />
+                  <Text type="secondary">PRD</Text>
+                </div>
+              </div>
+            </div>
+            <div style={{ textAlign: 'center', marginTop: 8 }}>
+              <Progress
+                percent={Math.round((pipeline.prd / pipeline.total) * 100)}
+                strokeColor={{ '0%': '#1677ff', '100%': '#52c41a' }}
+                format={(pct) => `${pct}% deployed`}
+                style={{ maxWidth: 400, margin: '0 auto' }}
+              />
+            </div>
+            {failedTRs.length > 0 && (
+              <Alert
+                type="error"
+                showIcon
+                message={`${failedTRs.length} transport(s) with failed imports (RC ≥ 8)`}
+                style={{ marginTop: 8 }}
+              />
+            )}
+          </Card>
+        </Col>
+        <Col xs={24} lg={10}>
+          <Card title={<><ExperimentOutlined /> Test Status</>} size="small">
+            <Row gutter={16}>
+              <Col span={8} style={{ textAlign: 'center' }}>
+                <Progress
+                  type="circle"
+                  percent={testSummary.passRate}
+                  size={70}
+                  strokeColor={testSummary.passRate >= 80 ? '#52c41a' : testSummary.passRate >= 50 ? '#faad14' : '#ff4d4f'}
+                />
+                <br />
+                <Text type="secondary" style={{ fontSize: 11 }}>Pass Rate</Text>
+              </Col>
+              <Col span={16}>
+                <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Text><CheckCircleOutlined style={{ color: '#52c41a' }} /> Passed</Text>
+                    <Text strong>{testSummary.passed}</Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Text><WarningOutlined style={{ color: '#ff4d4f' }} /> Failed</Text>
+                    <Text strong style={{ color: testSummary.failed > 0 ? '#ff4d4f' : undefined }}>{testSummary.failed}</Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Text><ClockCircleOutlined style={{ color: '#bbb' }} /> Not Run</Text>
+                    <Text strong>{testSummary.notRun}</Text>
+                  </div>
+                </Space>
+              </Col>
+            </Row>
+          </Card>
+          {/* Upcoming Go-Lives */}
+          {upcomingGoLives.length > 0 && (
+            <Card title={<><RocketOutlined /> Upcoming Go-Lives</>} size="small" style={{ marginTop: 16 }}>
+              <Timeline
+                items={upcomingGoLives.slice(0, 5).map((wi: any) => ({
+                  color: wi.daysLeft.includes('0d') ? 'red' : wi.daysLeft.match?.(/[1-7]d/) ? 'orange' : 'blue',
+                  children: (
+                    <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/workitem/${wi.ID}`)}>
+                      <Text strong>{wi.workItemName}</Text>
+                      <br />
+                      <Text type="secondary">{wi.goLiveDate} — <Tag color="blue">{wi.daysLeft}</Tag></Text>
+                    </div>
+                  ),
+                }))}
+              />
+            </Card>
+          )}
         </Col>
       </Row>
 

@@ -5,6 +5,8 @@ const { SharePointClient } = require('./lib/sharepoint-client');
 const { ReportGenerator } = require('./lib/report-generator');
 const { parseTestStatuses, testRAGImpact, getMethodologyList } = require('./lib/test-status-parser');
 const { AIClient } = require('./lib/ai-client');
+const { encrypt, decrypt, maskKey } = require('./lib/crypto-utils');
+const { OutlookClient } = require('./lib/outlook-client');
 
 class TransportService extends cds.ApplicationService {
 
@@ -42,9 +44,11 @@ class TransportService extends cds.ApplicationService {
     this.on('saveReportTemplate', this._onSaveReportTemplate.bind(this));
     this.on('deleteReportTemplate', this._onDeleteReportTemplate.bind(this));
     this.on('getMethodologies', this._onGetMethodologies.bind(this));
+    this.on('currentUser', this._onCurrentUser.bind(this));
     this.on('health', this._onHealth.bind(this));
     this.on('dashboardSummary', this._onDashboardSummary.bind(this));
     this.on('pipelineSummary', this._onPipelineSummary.bind(this));
+    this.on('generateNotifications', this._onGenerateNotifications.bind(this));
 
     await super.init();
   }
@@ -489,13 +493,14 @@ class TransportService extends cds.ApplicationService {
         await INSERT.into(AppConfig).entries({ configKey: 'AI_PROVIDER', configValue: provider, description: 'AI provider: claude or chatgpt' });
       }
 
-      // Save API key for the chosen provider
+      // Encrypt and save API key for the chosen provider
       const keyConfigName = provider === 'chatgpt' ? 'OPENAI_API_KEY' : provider === 'gemini' ? 'GEMINI_API_KEY' : provider === 'openrouter' ? 'OPENROUTER_API_KEY' : 'CLAUDE_API_KEY';
+      const encryptedKey = encrypt(apiKey);
       const existingKey = await SELECT.one.from(AppConfig).where({ configKey: keyConfigName });
       if (existingKey) {
-        await UPDATE(AppConfig).set({ configValue: apiKey }).where({ configKey: keyConfigName });
+        await UPDATE(AppConfig).set({ configValue: encryptedKey }).where({ configKey: keyConfigName });
       } else {
-        await INSERT.into(AppConfig).entries({ configKey: keyConfigName, configValue: apiKey, description: `${provider} API key` });
+        await INSERT.into(AppConfig).entries({ configKey: keyConfigName, configValue: encryptedKey, description: `${provider} API key (encrypted)` });
       }
 
       // Enable AI
@@ -746,6 +751,124 @@ Scope: ${scope || 'single'} (${scope === 'multi' ? 'all projects summary' : scop
   // ─── Get Methodology Templates ───
   async _onGetMethodologies(req) {
     return getMethodologyList();
+  }
+
+  // ─── Current User Info (/me endpoint) ───
+  async _onCurrentUser(req) {
+    const user = req.user;
+    const roles = [];
+    if (user.is('Admin')) roles.push('Admin');
+    if (user.is('Manager')) roles.push('Manager');
+    if (user.is('Developer')) roles.push('Developer');
+    if (user.is('Executive')) roles.push('Executive');
+
+    return {
+      email: user.id,
+      name: user.id.split('@')[0], // Simple name extraction; overridden by IdP in prod
+      roles,
+      isAdmin: user.is('Admin'),
+      isManager: user.is('Manager'),
+      isDeveloper: user.is('Developer'),
+      isExecutive: user.is('Executive')
+    };
+  }
+
+  // ─── Auto-Generate Notifications ───
+  async _onGenerateNotifications(req) {
+    const { TransportWorkItems, WorkItems, Notifications } = this._e;
+    const now = new Date();
+    let generated = 0;
+
+    try {
+      const allTRs = await SELECT.from(TransportWorkItems);
+      const allWIs = await SELECT.from(WorkItems).where({ status: 'Active' });
+
+      // 1. Stuck transports (>5 days in same non-PRD system)
+      for (const tr of allTRs) {
+        if (tr.currentSystem === 'PRD') continue;
+        const daysInSystem = (now - new Date(tr.createdDate)) / 86400000;
+        if (daysInSystem > 5) {
+          const existing = await SELECT.one.from(Notifications)
+            .where({ trNumber: tr.trNumber, type: 'STUCK_TR', isRead: false });
+          if (!existing) {
+            await INSERT.into(Notifications).entries({
+              userEmail: tr.ownerFullName || tr.trOwner || 'system',
+              type: 'STUCK_TR',
+              message: `Transport ${tr.trNumber} stuck in ${tr.currentSystem} for ${Math.round(daysInSystem)} days — "${tr.trDescription}"`,
+              trNumber: tr.trNumber,
+              isRead: false
+            });
+            generated++;
+          }
+        }
+      }
+
+      // 2. Failed imports (RC >= 8)
+      for (const tr of allTRs) {
+        if (tr.importRC >= 8) {
+          const existing = await SELECT.one.from(Notifications)
+            .where({ trNumber: tr.trNumber, type: 'FAILED_IMPORT', isRead: false });
+          if (!existing) {
+            await INSERT.into(Notifications).entries({
+              userEmail: tr.ownerFullName || tr.trOwner || 'system',
+              type: 'FAILED_IMPORT',
+              message: `Transport ${tr.trNumber} FAILED import in ${tr.currentSystem} (RC=${tr.importRC}) — "${tr.trDescription}"`,
+              trNumber: tr.trNumber,
+              isRead: false
+            });
+            generated++;
+          }
+        }
+      }
+
+      // 3. Go-live approaching (within 14 days)
+      for (const wi of allWIs) {
+        if (!wi.goLiveDate) continue;
+        const daysUntil = Math.ceil((new Date(wi.goLiveDate) - now) / 86400000);
+        if (daysUntil > 0 && daysUntil <= 14) {
+          const existing = await SELECT.one.from(Notifications)
+            .where({ type: 'GOLIVE_APPROACHING', isRead: false })
+            .and(`message like '%${wi.workItemName}%'`);
+          if (!existing) {
+            await INSERT.into(Notifications).entries({
+              userEmail: wi.businessOwner || wi.leadDeveloper || 'system',
+              type: 'GOLIVE_APPROACHING',
+              message: `🚀 "${wi.workItemName}" go-live in ${daysUntil} day${daysUntil === 1 ? '' : 's'} (${wi.goLiveDate}) — Deploy: ${wi.deploymentPct || 0}%, Tests: ${wi.testCompletionPct || 0}%`,
+              trNumber: null,
+              isRead: false
+            });
+            generated++;
+          }
+        }
+      }
+
+      // 4. Test failures > 10% for active projects
+      for (const wi of allWIs) {
+        if (wi.testTotal > 0 && wi.testFailed > 0) {
+          const failRate = wi.testFailed / wi.testTotal;
+          if (failRate > 0.10) {
+            const existing = await SELECT.one.from(Notifications)
+              .where({ type: 'TEST_FAILURES', isRead: false })
+              .and(`message like '%${wi.workItemName}%'`);
+            if (!existing) {
+              await INSERT.into(Notifications).entries({
+                userEmail: wi.qaLead || wi.leadDeveloper || 'system',
+                type: 'TEST_FAILURES',
+                message: `⚠️ "${wi.workItemName}" has ${wi.testFailed}/${wi.testTotal} test failures (${Math.round(failRate * 100)}%) — UAT: ${wi.uatStatus}`,
+                trNumber: null,
+                isRead: false
+              });
+              generated++;
+            }
+          }
+        }
+      }
+
+      return { success: true, generated, message: `Generated ${generated} new notifications` };
+    } catch (err) {
+      console.error('Notification generation failed:', err.message);
+      return { success: false, generated: 0, message: `Failed: ${err.message}` };
+    }
   }
 
   // ─── Health Check ───

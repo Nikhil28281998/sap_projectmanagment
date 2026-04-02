@@ -1,6 +1,7 @@
 using { sap.pm as db } from '../db/schema';
 
 // ─── Transport Service — Main API for the app ───
+// Roles: Admin > Manager > Developer | Executive (read-only dashboards/reports)
 @path: '/api/v1/transport'
 @requires: 'authenticated-user'
 service TransportService {
@@ -8,60 +9,61 @@ service TransportService {
   // ── Transports ──
   @readonly
   entity Transports @(restrict: [
-    { grant: 'READ', to: ['Developer', 'Manager', 'Executive'] }
+    { grant: 'READ', to: ['Admin', 'Manager', 'Developer', 'Executive'] }
   ]) as projection on db.TransportWorkItems {
     *, workItem.workItemName as projectName
   };
 
   // ── Work Items (Projects, Enhancements, etc.) ──
   entity WorkItems @(restrict: [
-    { grant: 'READ',  to: ['Developer', 'Manager', 'Executive'] },
-    { grant: 'WRITE', to: ['Manager'] }
+    { grant: 'READ',  to: ['Admin', 'Manager', 'Developer', 'Executive'] },
+    { grant: 'WRITE', to: ['Admin', 'Manager'] }
   ]) as projection on db.WorkItems;
 
   // ── Milestones ──
   entity Milestones @(restrict: [
-    { grant: 'READ',  to: ['Developer', 'Manager', 'Executive'] },
-    { grant: 'WRITE', to: ['Manager'] }
+    { grant: 'READ',  to: ['Admin', 'Manager', 'Developer', 'Executive'] },
+    { grant: 'WRITE', to: ['Admin', 'Manager'] }
   ]) as projection on db.Milestones;
 
   // ── Notifications ──
   entity Notifications @(restrict: [
-    { grant: '*', to: ['Developer', 'Manager', 'Executive'] }
+    { grant: '*', to: ['Admin', 'Manager', 'Developer', 'Executive'] }
   ]) as projection on db.Notifications;
 
   // ── User Preferences ──
   entity UserPreferences @(restrict: [
-    { grant: '*', to: ['Developer', 'Manager', 'Executive'] }
+    { grant: '*', to: ['Admin', 'Manager', 'Developer', 'Executive'] }
   ]) as projection on db.UserPreferences;
 
   // ── Sync Log (read-only for debugging) ──
   @readonly
   entity SyncLogs @(restrict: [
-    { grant: 'READ', to: ['Manager'] }
+    { grant: 'READ', to: ['Admin', 'Manager'] }
   ]) as projection on db.SyncLog;
 
   // ── Activity Log (read-only audit trail) ──
   @readonly
   entity ActivityLogs @(restrict: [
-    { grant: 'READ', to: ['Manager'] }
+    { grant: 'READ', to: ['Admin', 'Manager'] }
   ]) as projection on db.ActivityLog;
 
   // ── App Config ──
   entity AppConfigs @(restrict: [
-    { grant: 'READ',  to: ['Developer', 'Manager', 'Executive'] },
-    { grant: 'WRITE', to: ['Manager'] }
+    { grant: 'READ',  to: ['Admin', 'Manager', 'Developer', 'Executive'] },
+    { grant: 'WRITE', to: ['Admin'] }
   ]) as projection on db.AppConfig;
 
   // ── Report Templates ──
   entity ReportTemplates @(restrict: [
-    { grant: 'READ',  to: ['Developer', 'Manager', 'Executive'] },
-    { grant: 'WRITE', to: ['Manager'] }
+    { grant: 'READ',  to: ['Admin', 'Manager', 'Developer', 'Executive'] },
+    { grant: 'WRITE', to: ['Admin', 'Manager'] }
   ]) as projection on db.ReportTemplates;
 
-  // ── Actions ──
+  // ── Actions (with role-level restrictions) ──
 
-  // Categorize a single transport (Manager only)
+  // Categorize a single transport (Manager/Admin)
+  @requires: ['Admin', 'Manager']
   action categorizeTransport(
     trNumber  : String,
     workType  : String,
@@ -69,6 +71,7 @@ service TransportService {
   ) returns { success: Boolean; message: String };
 
   // Bulk categorize multiple transports
+  @requires: ['Admin', 'Manager']
   action bulkCategorize(
     items: array of {
       trNumber  : String;
@@ -78,26 +81,30 @@ service TransportService {
   ) returns { success: Boolean; count: Integer; message: String };
 
   // Update Veeva CC number on a transport
+  @requires: ['Admin', 'Manager']
   action updateVeevaCC(
     trNumber     : String,
     veevaCCNumber: String
   ) returns { success: Boolean; message: String };
 
-  // Trigger RFC data refresh
+  // Trigger RFC data refresh (Admin/Manager)
+  @requires: ['Admin', 'Manager']
   action refreshTransportData() returns {
     success       : Boolean;
     recordsFetched: Integer;
     message       : String;
   };
 
-  // Trigger SharePoint sync
+  // Trigger SharePoint sync (Admin/Manager)
+  @requires: ['Admin', 'Manager']
   action refreshSharePointData() returns {
     success       : Boolean;
     recordsSynced : Integer;
     message       : String;
   };
 
-  // Generate weekly report data (structured JSON for template rendering)
+  // Generate weekly report data (Manager/Executive/Admin)
+  @requires: ['Admin', 'Manager', 'Executive']
   action generateWeeklyReport(
     workItemId : String
   ) returns {
@@ -106,7 +113,8 @@ service TransportService {
     message : String;
   };
 
-  // Update test status counts for a work item
+  // Update test status counts for a work item (Manager/Admin)
+  @requires: ['Admin', 'Manager']
   action updateTestStatus(
     workItemId : String,
     testTotal  : Integer,
@@ -117,28 +125,31 @@ service TransportService {
     testSkipped: Integer
   ) returns { success: Boolean; message: String; testCompletionPct: Decimal; uatStatus: String; ragImpact: String };
 
-  // Test AI connection
+  // Test AI connection (any authenticated user)
   action testAIConnection() returns { success: Boolean; message: String; provider: String };
 
-  // Save AI provider configuration
+  // Save AI provider configuration (Admin only)
+  @requires: 'Admin'
   action saveAIConfig(
     provider : String,
     apiKey   : String
   ) returns { success: Boolean; message: String };
 
-  // Chat with the AI agent — asks questions about project data
+  // Chat with the AI agent — any authenticated user
   action chatWithAgent(
     question : String
   ) returns { success: Boolean; answer: LargeString; provider: String };
 
-  // Generate a report template from sample email content (AI-powered)
+  // Generate a report template from sample email content (Manager/Admin)
+  @requires: ['Admin', 'Manager']
   action generateTemplateFromEmail(
     emailContent : LargeString,
     templateName : String,
     scope        : String
   ) returns { success: Boolean; templateHtml: LargeString; message: String; provider: String };
 
-  // Save a report template (create or update)
+  // Save a report template (Manager/Admin)
+  @requires: ['Admin', 'Manager']
   action saveReportTemplate(
     id           : String,
     templateName : String,
@@ -149,17 +160,35 @@ service TransportService {
     isDefault    : Boolean
   ) returns { success: Boolean; templateId: String; message: String };
 
-  // Delete a report template
+  // Delete a report template (Manager/Admin)
+  @requires: ['Admin', 'Manager']
   action deleteReportTemplate(
     id : String
   ) returns { success: Boolean; message: String };
 
-  // Get methodology templates
+  // Get methodology templates (any authenticated user)
   function getMethodologies() returns array of {
     methodologyKey : String;
     name           : String;
     description    : String;
     phaseCount     : Integer;
+    phases         : array of {
+      name                : String;
+      order               : Integer;
+      typicalDurationDays : Integer;
+      hasTests            : Boolean;
+    };
+  };
+
+  // Get current user info — /me endpoint
+  function currentUser() returns {
+    email : String;
+    name  : String;
+    roles : array of String;
+    isAdmin    : Boolean;
+    isManager  : Boolean;
+    isDeveloper: Boolean;
+    isExecutive: Boolean;
   };
 
   // Health check
@@ -191,5 +220,13 @@ service TransportService {
     queueCount: Integer;
     stuckCount: Integer;
     failedCount: Integer;
+  };
+
+  // Auto-generate notifications for stuck/failed/go-live items (Admin/Manager)
+  @requires: ['Admin', 'Manager']
+  action generateNotifications() returns {
+    success  : Boolean;
+    generated: Integer;
+    message  : String;
   };
 }

@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  Layout, Menu, Button, Badge, Space, Typography, Tooltip
+  Layout, Menu, Button, Badge, Space, Typography, Tooltip, Avatar, Dropdown, Tag
 } from 'antd';
 import {
-  MenuOutlined, HomeOutlined, DashboardOutlined, ProjectOutlined,
-  ToolOutlined, SettingOutlined, SearchOutlined, FileTextOutlined,
-  BellOutlined, UserOutlined, ReloadOutlined,
-  AppstoreOutlined, RobotOutlined
+  HomeOutlined, DashboardOutlined, ProjectOutlined,
+  ToolOutlined, SettingOutlined, FileTextOutlined,
+  BellOutlined, ReloadOutlined,
+  AppstoreOutlined, RobotOutlined, TeamOutlined
 } from '@ant-design/icons';
 import { useNotifications, useRefreshTransports } from '../../hooks/useData';
+import { useAuth } from '../../contexts/AuthContext';
 import AIChatDrawer from './AIChatDrawer';
 
 const { Header, Sider, Content } = Layout;
@@ -26,10 +27,16 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
   const location = useLocation();
   const { data: notifications = [] } = useNotifications();
   const refreshMutation = useRefreshTransports();
+  const { user, canWrite, canConfigure } = useAuth();
 
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
 
-  const menuItems = [
+  const roleBadge = user?.isAdmin ? { color: '#f50', text: 'Admin' }
+    : user?.isManager ? { color: '#2db7f5', text: 'Manager' }
+    : user?.isExecutive ? { color: '#87d068', text: 'Executive' }
+    : { color: '#108ee9', text: 'Developer' };
+
+  const menuItems: any[] = [
     {
       key: '/',
       icon: <HomeOutlined />,
@@ -55,16 +62,21 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
         { key: '/workitems/Upgrade', label: 'Upgrades' },
         { key: '/workitems/Support', label: 'Retailer Support' },
         { key: '/workitems/Hypercare', label: 'Hypercare' },
-        { key: '/unassigned', label: '⚠ Unassigned' },
+        ...(canWrite ? [{ key: '/unassigned', label: '⚠ Unassigned' }] : []),
       ],
+    },
+    {
+      key: '/report',
+      icon: <FileTextOutlined />,
+      label: 'Weekly Report',
     },
     {
       key: 'tools',
       icon: <ToolOutlined />,
       label: 'Tools',
       children: [
-        { key: '/report', label: 'Weekly Report' },
         { key: '/search', label: 'TR Search' },
+        { key: '/methodologies', label: 'Methodologies' },
       ],
     },
     {
@@ -72,11 +84,29 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
       icon: <RobotOutlined />,
       label: 'AI Assistant',
     },
-    {
+  ];
+
+  if (canWrite) {
+    menuItems.push({
       key: '/settings',
       icon: <SettingOutlined />,
       label: 'Settings',
-    },
+    });
+  }
+
+  if (canConfigure) {
+    menuItems.push({
+      key: '/admin',
+      icon: <TeamOutlined />,
+      label: 'Admin',
+    });
+  }
+
+  const userMenuItems = [
+    { key: 'role', label: <Tag color={roleBadge.color}>{roleBadge.text}</Tag>, disabled: true },
+    { key: 'email', label: <Text type="secondary" style={{ fontSize: 12 }}>{user?.email}</Text>, disabled: true },
+    { type: 'divider' as const },
+    { key: 'settings', label: 'Settings', icon: <SettingOutlined /> },
   ];
 
   return (
@@ -121,7 +151,6 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
       </Sider>
 
       <Layout style={{ marginLeft: collapsed ? 80 : 240, transition: 'margin-left 0.2s' }}>
-        {/* Header Bar */}
         <Header
           style={{
             background: '#fff',
@@ -138,30 +167,36 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
           </Text>
 
           <Space>
-            <Tooltip title="Refresh All Data">
-              <Button
-                icon={<ReloadOutlined spin={refreshMutation.isPending} />}
-                onClick={() => refreshMutation.mutate()}
-                size="small"
-              />
-            </Tooltip>
+            {canWrite && (
+              <Tooltip title="Refresh All Data">
+                <Button
+                  icon={<ReloadOutlined spin={refreshMutation.isPending} />}
+                  onClick={() => refreshMutation.mutate()}
+                  size="small"
+                />
+              </Tooltip>
+            )}
             <Badge count={unreadCount} size="small">
               <Button icon={<BellOutlined />} size="small" />
             </Badge>
-            <Button icon={<UserOutlined />} size="small" />
+            <Dropdown menu={{ items: userMenuItems, onClick: ({ key }) => { if (key === 'settings') navigate('/settings'); } }} trigger={['click']}>
+              <Button size="small" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Avatar size={20} style={{ backgroundColor: roleBadge.color, fontSize: 10 }}>
+                  {(user?.name || 'U')[0].toUpperCase()}
+                </Avatar>
+                <span style={{ fontSize: 12 }}>{user?.name || 'User'}</span>
+              </Button>
+            </Dropdown>
           </Space>
         </Header>
 
-        {/* Main Content */}
         <Content style={{ margin: '16px', minHeight: 'calc(100vh - 80px)' }}>
           {children}
         </Content>
       </Layout>
 
-      {/* AI Chat Drawer */}
       <AIChatDrawer open={chatOpen} onClose={() => setChatOpen(false)} />
 
-      {/* Floating AI Button */}
       <Button
         type="primary"
         shape="circle"

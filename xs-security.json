@@ -3,27 +3,36 @@
   "tenant-mode": "dedicated",
   "scopes": [
     {
-      "name": "$XSAPPNAME.Executive",
-      "description": "Executive read-only access — dashboards and reports"
+      "name": "$XSAPPNAME.Admin",
+      "description": "Full admin access — user management, all configuration, all data"
     },
     {
       "name": "$XSAPPNAME.Manager",
-      "description": "Full access — categorization, configuration, all tools"
+      "description": "Project management — categorization, reports, tools"
     },
     {
       "name": "$XSAPPNAME.Developer",
       "description": "Developer access — own TRs, pipeline, search"
+    },
+    {
+      "name": "$XSAPPNAME.Executive",
+      "description": "Executive read-only access — dashboards and reports"
     }
   ],
   "role-templates": [
     {
-      "name": "Executive",
-      "description": "Leadership dashboard access",
-      "scope-references": ["$XSAPPNAME.Executive"]
+      "name": "Admin",
+      "description": "Full admin access — inherits all other roles",
+      "scope-references": [
+        "$XSAPPNAME.Admin",
+        "$XSAPPNAME.Manager",
+        "$XSAPPNAME.Executive",
+        "$XSAPPNAME.Developer"
+      ]
     },
     {
       "name": "Manager",
-      "description": "Full application access",
+      "description": "Project management access",
       "scope-references": [
         "$XSAPPNAME.Manager",
         "$XSAPPNAME.Executive",
@@ -34,14 +43,19 @@
       "name": "Developer",
       "description": "Developer self-service access",
       "scope-references": ["$XSAPPNAME.Developer"]
+    },
+    {
+      "name": "Executive",
+      "description": "Leadership dashboard access",
+      "scope-references": ["$XSAPPNAME.Executive"]
     }
   ],
   "role-collections": [
     {
-      "name": "SAP-PM-Executive",
-      "description": "Maps to Okta group: IT-Leadership",
+      "name": "SAP-PM-Admin",
+      "description": "Maps to Okta group: IT-SAPAdmins",
       "role-template-references": [
-        { "role-template-name": "Executive", "app-id": "$XSAPPNAME" }
+        { "role-template-name": "Admin", "app-id": "$XSAPPNAME" }
       ]
     },
     {
@@ -56,6 +70,13 @@
       "description": "Maps to Okta group: IT-SAPDevelopers",
       "role-template-references": [
         { "role-template-name": "Developer", "app-id": "$XSAPPNAME" }
+      ]
+    },
+    {
+      "name": "SAP-PM-Executive",
+      "description": "Maps to Okta group: IT-Leadership",
+      "role-template-references": [
+        { "role-template-name": "Executive", "app-id": "$XSAPPNAME" }
       ]
     }
   ],

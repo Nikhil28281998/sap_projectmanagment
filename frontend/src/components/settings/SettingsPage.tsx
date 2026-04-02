@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Card, Form, Input, InputNumber, Switch, Button, Select, Typography,
-  Divider, Space, message, Tag, Alert, Radio,
+  Divider, Space, message, Alert,
 } from 'antd';
 import {
   SettingOutlined, SaveOutlined, RobotOutlined, SyncOutlined,
@@ -9,19 +9,27 @@ import {
   CloseCircleOutlined, LinkOutlined, ApiOutlined
 } from '@ant-design/icons';
 import { configApi, aiApi } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 const { Title, Text } = Typography;
+const { Option } = Select;
+
+const AI_PROVIDERS = [
+  { value: 'openrouter', label: 'OpenRouter (Multi-model, FREE)', hint: 'sk-or-v1-...', url: 'https://openrouter.ai/keys' },
+  { value: 'gemini',     label: 'Gemini (Google, FREE)',          hint: 'AIzaSy...',     url: 'https://aistudio.google.com/apikey' },
+  { value: 'claude',     label: 'Claude (Anthropic)',             hint: 'sk-ant-api03-...', url: 'https://console.anthropic.com/settings/keys' },
+  { value: 'chatgpt',    label: 'ChatGPT (OpenAI)',              hint: 'sk-proj-...',   url: 'https://platform.openai.com/api-keys' },
+];
 
 const SettingsPage: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [configs, setConfigs] = useState<any[]>([]);
   const [aiTestResult, setAiTestResult] = useState<{ success: boolean; message: string; provider?: string } | null>(null);
   const [aiTesting, setAiTesting] = useState(false);
-  const [aiProvider, setAiProvider] = useState<'claude' | 'chatgpt' | 'gemini' | 'openrouter'>('openrouter');
+  const [aiProvider, setAiProvider] = useState<string>('openrouter');
   const [aiApiKey, setAiApiKey] = useState('');
   const [aiSaving, setAiSaving] = useState(false);
-  const [aiConnected, setAiConnected] = useState(false);
+  const { canConfigure, canWrite } = useAuth();
 
   useEffect(() => {
     loadConfigs();
@@ -31,21 +39,23 @@ const SettingsPage: React.FC = () => {
     try {
       const res = await configApi.getAll();
       const data = res.value || [];
-      setConfigs(data);
-      // Map configs to form values
       const formValues: any = {};
       data.forEach((c: any) => {
+        if (c.configKey === 'AI_PROVIDER') {
+          setAiProvider(c.configValue || 'openrouter');
+        }
+        const key = c.configKey || c.key;
         if (c.valueType === 'boolean') {
-          formValues[c.key] = c.value === 'true';
+          formValues[key] = c.configValue === 'true';
         } else if (c.valueType === 'number') {
-          formValues[c.key] = Number(c.value);
+          formValues[key] = Number(c.configValue);
         } else {
-          formValues[c.key] = c.value;
+          formValues[key] = c.configValue;
         }
       });
       form.setFieldsValue(formValues);
     } catch {
-      // Configs may not be loaded in dev mode
+      // Configs may not exist yet
     }
   };
 
@@ -67,6 +77,8 @@ const SettingsPage: React.FC = () => {
     }
   };
 
+  const selectedProvider = AI_PROVIDERS.find(p => p.value === aiProvider);
+
   return (
     <div>
       <Title level={3}>
@@ -74,7 +86,6 @@ const SettingsPage: React.FC = () => {
         Settings
       </Title>
 
-      {/* Application Settings */}
       <Card title="Application Settings" size="small" style={{ marginBottom: 16 }}>
         <Form
           form={form}
@@ -93,19 +104,13 @@ const SettingsPage: React.FC = () => {
             <Space><SyncOutlined /> Data Synchronization</Space>
           </Divider>
 
-          <Form.Item
-            label="Auto-Refresh Interval (minutes)"
-            name="REFRESH_INTERVAL_MINUTES"
-            tooltip="How often to automatically refresh data from SAP and SharePoint"
-          >
+          <Form.Item label="Auto-Refresh Interval (minutes)" name="REFRESH_INTERVAL_MINUTES"
+            tooltip="How often to automatically refresh data from SAP and SharePoint">
             <InputNumber min={5} max={120} style={{ width: 200 }} />
           </Form.Item>
 
-          <Form.Item
-            label="Stuck Transport Threshold (days)"
-            name="STUCK_THRESHOLD_DAYS"
-            tooltip="Number of days in the same system before a transport is considered stuck"
-          >
+          <Form.Item label="Stuck Transport Threshold (days)" name="STUCK_THRESHOLD_DAYS"
+            tooltip="Number of days in the same system before a transport is considered stuck">
             <InputNumber min={1} max={30} style={{ width: 200 }} />
           </Form.Item>
 
@@ -113,211 +118,128 @@ const SettingsPage: React.FC = () => {
             <Space><ClockCircleOutlined /> Connections</Space>
           </Divider>
 
-          <Form.Item
-            label="Use Mock RFC Data"
-            name="USE_MOCK_RFC"
-            valuePropName="checked"
-            tooltip="Use local mock data instead of live RFC calls to SAP"
-          >
+          <Form.Item label="Use Mock RFC Data" name="USE_MOCK_RFC" valuePropName="checked"
+            tooltip="Use local mock data instead of live RFC calls to SAP">
             <Switch checkedChildren="Mock" unCheckedChildren="Live" />
           </Form.Item>
 
-          <Form.Item
-            label="Use Mock SharePoint Data"
-            name="USE_MOCK_SHAREPOINT"
-            valuePropName="checked"
-            tooltip="Use local mock data instead of live Microsoft Graph API calls"
-          >
+          <Form.Item label="Use Mock SharePoint Data" name="USE_MOCK_SHAREPOINT" valuePropName="checked"
+            tooltip="Use local mock data instead of live Microsoft Graph API calls">
             <Switch checkedChildren="Mock" unCheckedChildren="Live" />
           </Form.Item>
 
           <Divider orientation="left">
-            <Space><RobotOutlined /> AI Integration — Connect Your Account</Space>
+            <Space><RobotOutlined /> AI Integration</Space>
           </Divider>
 
-          <Alert
-            type="info"
-            showIcon
-            icon={<ApiOutlined />}
-            style={{ marginBottom: 16 }}
+          <Alert type="info" showIcon icon={<ApiOutlined />} style={{ marginBottom: 16 }}
             message="Connect an AI Provider"
             description={
-              <div>
-                <p style={{ margin: '4px 0', fontSize: 12 }}>
-                  Connect your AI account to unlock: <strong>AI Chat Assistant</strong> (ask questions about your projects),
-                  <strong> Smart Email Reports</strong> (AI-polished weekly emails), and <strong>Test Risk Analysis</strong>.
-                </p>
-                <p style={{ margin: '4px 0', fontSize: 12, color: '#389e0d' }}>
-                  <strong>OpenRouter FREE</strong> — Access to free AI models (GPT, Claude, Llama). No credit card required.
-                  <strong> Gemini</strong> is also free — 15 requests/min.
-                </p>
-                <p style={{ margin: '4px 0', fontSize: 12 }}>
-                  Enterprise users: your IT admin provisions API keys billed to the org — no personal cost.
-                </p>
-              </div>
+              <Text style={{ fontSize: 12 }}>
+                Choose your AI provider from the dropdown below. Your company IT admin provisions the API key.
+                <strong> OpenRouter</strong> and <strong>Gemini</strong> have free tiers — no credit card needed.
+              </Text>
             }
           />
 
-          {/* Step 1: Choose Provider */}
-          <div style={{ marginBottom: 16 }}>
-            <Text strong style={{ display: 'block', marginBottom: 8 }}>Step 1: Choose AI Provider</Text>
-            <Radio.Group
+          {/* Single Dropdown for AI Provider */}
+          <Form.Item label="AI Provider">
+            <Select
               value={aiProvider}
-              onChange={e => { setAiProvider(e.target.value); setAiTestResult(null); setAiConnected(false); }}
-              optionType="button"
-              buttonStyle="solid"
+              onChange={(val) => { setAiProvider(val); setAiTestResult(null); }}
+              style={{ width: 400 }}
               size="large"
             >
-              <Radio.Button value="claude" style={{ height: 60, display: 'inline-flex', alignItems: 'center', padding: '0 24px' }}>
-                <Space direction="vertical" size={0} align="center">
-                  <span style={{ fontSize: 16, fontWeight: 600 }}>Claude</span>
-                  <span style={{ fontSize: 11, color: 'inherit', opacity: 0.8 }}>Anthropic</span>
-                </Space>
-              </Radio.Button>
-              <Radio.Button value="chatgpt" style={{ height: 60, display: 'inline-flex', alignItems: 'center', padding: '0 24px' }}>
-                <Space direction="vertical" size={0} align="center">
-                  <span style={{ fontSize: 16, fontWeight: 600 }}>ChatGPT</span>
-                  <span style={{ fontSize: 11, color: 'inherit', opacity: 0.8 }}>OpenAI</span>
-                </Space>
-              </Radio.Button>
-              <Radio.Button value="gemini" style={{ height: 60, display: 'inline-flex', alignItems: 'center', padding: '0 24px' }}>
-                <Space direction="vertical" size={0} align="center">
-                  <span style={{ fontSize: 16, fontWeight: 600 }}>Gemini</span>
-                  <span style={{ fontSize: 11, color: 'inherit', opacity: 0.8 }}>Google • FREE</span>
-                </Space>
-              </Radio.Button>
-              <Radio.Button value="openrouter" style={{ height: 60, display: 'inline-flex', alignItems: 'center', padding: '0 24px' }}>
-                <Space direction="vertical" size={0} align="center">
-                  <span style={{ fontSize: 16, fontWeight: 600 }}>OpenRouter ✨</span>
-                  <span style={{ fontSize: 11, color: 'inherit', opacity: 0.8 }}>Multi-model • FREE</span>
-                </Space>
-              </Radio.Button>
-            </Radio.Group>
-          </div>
+              {AI_PROVIDERS.map(p => (
+                <Option key={p.value} value={p.value}>{p.label}</Option>
+              ))}
+            </Select>
+          </Form.Item>
 
-          {/* Step 2: Enter API Key */}
-          <div style={{ marginBottom: 16 }}>
-            <Text strong style={{ display: 'block', marginBottom: 8 }}>Step 2: Enter API Key</Text>
-            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-              {aiProvider === 'claude'
-                ? <>Get your key from <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">console.anthropic.com</a> → API Keys → Create Key</>
-                : aiProvider === 'chatgpt'
-                ? <>Get your key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">platform.openai.com</a> → API Keys → Create new secret key</>
-                : aiProvider === 'openrouter'
-                ? <>Get your key from <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">openrouter.ai/keys</a> → Create Key (FREE models available, no credit card)</>                : <>Get your key from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com/apikey</a> → Create API Key (FREE, takes 10 seconds)</>
-              }
-            </Text>
+          {/* API Key Input */}
+          <Form.Item label={
+            <Space>
+              <span>API Key</span>
+              {selectedProvider && (
+                <a href={selectedProvider.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12 }}>
+                  Get key →
+                </a>
+              )}
+            </Space>
+          }>
             <Input.Password
               value={aiApiKey}
               onChange={e => setAiApiKey(e.target.value)}
-              placeholder={aiProvider === 'claude' ? 'sk-ant-api03-...' : aiProvider === 'chatgpt' ? 'sk-proj-...' : aiProvider === 'openrouter' ? 'sk-or-v1-...' : 'AIzaSy...'}
+              placeholder={selectedProvider?.hint || 'Enter API key...'}
               style={{ width: 420 }}
               addonBefore={<LinkOutlined />}
+              disabled={!canConfigure}
             />
-          </div>
+            {!canConfigure && (
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                Only Admin can change AI configuration.
+              </Text>
+            )}
+          </Form.Item>
 
-          {/* Step 3: Connect & Test */}
-          <div style={{ marginBottom: 16 }}>
-            <Text strong style={{ display: 'block', marginBottom: 8 }}>Step 3: Connect Account</Text>
-            <Space>
-              <Button
-                type="primary"
-                icon={<ThunderboltOutlined />}
-                loading={aiSaving}
-                disabled={!aiApiKey.trim()}
-                onClick={async () => {
-                  setAiSaving(true);
-                  setAiTestResult(null);
-                  try {
-                    // Save config
-                    const saveResult = await aiApi.saveConfig(aiProvider, aiApiKey);
-                    if (!saveResult.success) {
-                      setAiTestResult({ success: false, message: saveResult.message });
-                      return;
-                    }
-                    // Test connection
-                    setAiTesting(true);
-                    const testResult = await aiApi.testConnection();
-                    setAiTestResult(testResult);
-                    setAiConnected(testResult.success);
-                    if (testResult.success) {
-                      const providerName = aiProvider === 'claude' ? 'Claude' : aiProvider === 'chatgpt' ? 'ChatGPT' : aiProvider === 'openrouter' ? 'OpenRouter' : 'Gemini';
-                      message.success(`${providerName} connected successfully!`);
-                    }
-                  } catch (err: any) {
-                    setAiTestResult({ success: false, message: err.message || 'Connection failed' });
-                  } finally {
-                    setAiSaving(false);
-                    setAiTesting(false);
-                  }
-                }}
-              >
-                Connect & Test
-              </Button>
-              <Button
-                icon={<ThunderboltOutlined />}
-                loading={aiTesting && !aiSaving}
-                onClick={async () => {
+          {/* Connect & Test Buttons */}
+          <Space style={{ marginBottom: 16 }}>
+            <Button type="primary" icon={<ThunderboltOutlined />} loading={aiSaving}
+              disabled={!aiApiKey.trim() || !canConfigure}
+              onClick={async () => {
+                setAiSaving(true); setAiTestResult(null);
+                try {
+                  const saveResult = await aiApi.saveConfig(aiProvider, aiApiKey);
+                  if (!saveResult.success) { setAiTestResult({ success: false, message: saveResult.message }); return; }
                   setAiTesting(true);
-                  setAiTestResult(null);
-                  try {
-                    const result = await aiApi.testConnection();
-                    setAiTestResult(result);
-                    setAiConnected(result.success);
-                  } catch (err: any) {
-                    setAiTestResult({ success: false, message: err.message || 'Test failed' });
-                  } finally {
-                    setAiTesting(false);
+                  const testResult = await aiApi.testConnection();
+                  setAiTestResult(testResult);
+                  if (testResult.success) {
+                    const name = AI_PROVIDERS.find(p => p.value === aiProvider)?.label || aiProvider;
+                    message.success(`${name} connected successfully!`);
                   }
-                }}
-              >
-                Test Existing Connection
-              </Button>
-            </Space>
-          </div>
+                } catch (err: any) { setAiTestResult({ success: false, message: err.message || 'Connection failed' }); }
+                finally { setAiSaving(false); setAiTesting(false); }
+              }}>
+              Save & Test
+            </Button>
+            <Button icon={<ThunderboltOutlined />} loading={aiTesting && !aiSaving}
+              onClick={async () => {
+                setAiTesting(true); setAiTestResult(null);
+                try {
+                  const result = await aiApi.testConnection();
+                  setAiTestResult(result);
+                } catch (err: any) { setAiTestResult({ success: false, message: err.message || 'Test failed' }); }
+                finally { setAiTesting(false); }
+              }}>
+              Test Existing
+            </Button>
+          </Space>
 
-          {/* Connection Status */}
           {aiTestResult && (
-            <Alert
-              type={aiTestResult.success ? 'success' : 'error'}
-              showIcon
+            <Alert type={aiTestResult.success ? 'success' : 'error'} showIcon
               icon={aiTestResult.success ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
               style={{ marginBottom: 16 }}
               message={aiTestResult.success ? 'AI Connected' : 'Connection Failed'}
-              description={aiTestResult.message}
-            />
+              description={aiTestResult.message} />
           )}
-
-          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-            Once connected, click the <RobotOutlined /> button (bottom-right) or use the <strong>AI Assistant</strong> menu item 
-            to chat with the agent. It can answer questions like "Which projects are RED?" or "Draft a status email for PP project."
-          </Text>
 
           <Divider orientation="left">
             <Space><SettingOutlined /> Transport Settings</Space>
           </Divider>
 
-          <Form.Item
-            label="TR Number Prefix"
-            name="TR_PREFIX"
-            tooltip="Expected prefix for transport request numbers (e.g., DEVK9)"
-          >
+          <Form.Item label="TR Number Prefix" name="TR_PREFIX"
+            tooltip="Expected prefix for transport request numbers (e.g., DEVK9)">
             <Input style={{ width: 200 }} placeholder="DEVK9" />
           </Form.Item>
 
           <Form.Item>
-            <Button
-              type="primary"
-              htmlType="submit"
-              icon={<SaveOutlined />}
-              loading={loading}
-            >
+            <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={loading}>
               Save Settings
             </Button>
           </Form.Item>
         </Form>
       </Card>
-
     </div>
   );
 };

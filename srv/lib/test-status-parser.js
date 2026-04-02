@@ -178,6 +178,54 @@ const METHODOLOGY_TEMPLATES = {
       { name: 'Deploy',      order: 4, typicalDurationDays: 1,  hasTests: false },
       { name: 'Verify',      order: 5, typicalDurationDays: 1,  hasTests: false },
     ]
+  },
+  // ─── SAP-Specific Methodologies ───
+  'SAP Activate': {
+    name: 'SAP Activate',
+    description: 'SAP standard methodology for S/4HANA & cloud implementations',
+    phases: [
+      { name: 'Discover',    order: 1, typicalDurationDays: 14, hasTests: false },
+      { name: 'Prepare',     order: 2, typicalDurationDays: 21, hasTests: false },
+      { name: 'Explore',     order: 3, typicalDurationDays: 42, hasTests: false },
+      { name: 'Realize',     order: 4, typicalDurationDays: 56, hasTests: true  },
+      { name: 'Deploy',      order: 5, typicalDurationDays: 21, hasTests: true  },
+      { name: 'Run',         order: 6, typicalDurationDays: 14, hasTests: false },
+    ]
+  },
+  'ASAP': {
+    name: 'ASAP',
+    description: 'Accelerated SAP (classic on-premise ECC implementations)',
+    phases: [
+      { name: 'Project Preparation', order: 1, typicalDurationDays: 14, hasTests: false },
+      { name: 'Business Blueprint',  order: 2, typicalDurationDays: 42, hasTests: false },
+      { name: 'Realization',         order: 3, typicalDurationDays: 56, hasTests: true  },
+      { name: 'Final Preparation',   order: 4, typicalDurationDays: 21, hasTests: true  },
+      { name: 'Go-Live & Support',   order: 5, typicalDurationDays: 14, hasTests: false },
+    ]
+  },
+  'Fit-to-Standard': {
+    name: 'Fit-to-Standard',
+    description: 'SAP best-practice workshops — minimal customization, max standard',
+    phases: [
+      { name: 'Fit/Gap Workshops', order: 1, typicalDurationDays: 14, hasTests: false },
+      { name: 'Delta Design',     order: 2, typicalDurationDays: 14, hasTests: false },
+      { name: 'Configuration',    order: 3, typicalDurationDays: 28, hasTests: false },
+      { name: 'Testing',          order: 4, typicalDurationDays: 21, hasTests: true  },
+      { name: 'Data Migration',   order: 5, typicalDurationDays: 14, hasTests: true  },
+      { name: 'Go-Live',          order: 6, typicalDurationDays: 7,  hasTests: false },
+      { name: 'Hypercare',        order: 7, typicalDurationDays: 14, hasTests: false },
+    ]
+  },
+  'Rapid Deployment': {
+    name: 'Rapid Deployment',
+    description: 'SAP Rapid Deployment Solution — pre-configured, fast go-live',
+    phases: [
+      { name: 'Scope & Plan',    order: 1, typicalDurationDays: 5,  hasTests: false },
+      { name: 'Configure',       order: 2, typicalDurationDays: 14, hasTests: false },
+      { name: 'Verify',          order: 3, typicalDurationDays: 7,  hasTests: true  },
+      { name: 'Cut-over',        order: 4, typicalDurationDays: 3,  hasTests: false },
+      { name: 'Go-Live',         order: 5, typicalDurationDays: 2,  hasTests: false },
+    ]
   }
 };
 
@@ -197,7 +245,8 @@ function getMethodologyList() {
   return Object.keys(METHODOLOGY_TEMPLATES).map(k => ({
     methodologyKey: k,
     ...METHODOLOGY_TEMPLATES[k],
-    phaseCount: METHODOLOGY_TEMPLATES[k].phases.length
+    phaseCount: METHODOLOGY_TEMPLATES[k].phases.length,
+    phases: METHODOLOGY_TEMPLATES[k].phases
   }));
 }
 

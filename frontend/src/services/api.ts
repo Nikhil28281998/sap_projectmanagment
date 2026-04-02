@@ -33,6 +33,14 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json();
 }
 
+// ─── User / Auth ───
+export const userApi = {
+  me: () => request<{
+    email: string; name: string; roles: string[];
+    isAdmin: boolean; isManager: boolean; isDeveloper: boolean; isExecutive: boolean;
+  }>('/currentUser'),
+};
+
 // ─── Transports ───
 export const transportApi = {
   getAll: () => request<{ value: any[] }>('/Transports'),
@@ -127,8 +135,23 @@ export const aiApi = {
       method: 'POST',
       body: JSON.stringify({ emailContent, templateName, scope }),
     }),
-  getMethodologies: () =>
-    request<{ value: any[] }>('/getMethodologies'),
+};
+
+// ─── Methodologies ───
+export const methodologyApi = {
+  getAll: () => request<{ value: any[] }>('/getMethodologies'),
+};
+
+// ─── Notifications ───
+export const notificationApi = {
+  getAll: () => request<{ value: any[] }>('/Notifications?$orderby=createdAt desc&$top=50'),
+  markRead: (id: string) =>
+    request<any>(`/Notifications(${id})`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isRead: true }),
+    }),
+  generate: () =>
+    request<{ success: boolean; generated: number; message: string }>('/generateNotifications', { method: 'POST' }),
 };
 
 // ─── Report Templates ───
@@ -147,16 +170,6 @@ export const templateApi = {
     request<{ success: boolean; message: string }>('/deleteReportTemplate', {
       method: 'POST',
       body: JSON.stringify({ id }),
-    }),
-};
-
-// ─── Notifications ───
-export const notificationApi = {
-  getAll: () => request<{ value: any[] }>('/Notifications?$orderby=createdAt desc&$top=50'),
-  markRead: (id: string) =>
-    request<any>(`/Notifications(${id})`, {
-      method: 'PATCH',
-      body: JSON.stringify({ isRead: true }),
     }),
 };
 

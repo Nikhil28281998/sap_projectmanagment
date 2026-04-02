@@ -7,11 +7,10 @@
  *   - OpenRouter: FREE models via openrouter.ai — no credit card needed
  *   - Enterprise orgs: admin provisions keys billed to the org
  * 
- * The AI Agent uses whichever provider is configured to:
- *   1. Answer questions about project data (chat agent)
- *   2. Polish weekly reports into executive emails
- *   3. Analyze test results for risk insights
+ * API keys are stored encrypted (AES-256-GCM) and decrypted on read.
  */
+
+const { decrypt } = require('./crypto-utils');
 
 const PROVIDERS = {
   claude: {
@@ -75,7 +74,8 @@ class AIClient {
         const keyConfig = await SELECT.one.from(entities.AppConfig)
           .where({ configKey: keyConfigName });
         if (keyConfig?.configValue && !keyConfig.configValue.startsWith('YOUR_')) {
-          apiKey = keyConfig.configValue;
+          // Decrypt if encrypted (enc: prefix), pass-through if plain
+          apiKey = decrypt(keyConfig.configValue);
         }
       } catch { /* table may not exist yet */ }
     }

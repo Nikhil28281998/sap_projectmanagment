@@ -48,6 +48,15 @@
         "auth": {
           "kind": "mocked",
           "users": {
+            "admin@test.com": {
+              "password": "pass",
+              "roles": [
+                "Admin",
+                "Manager",
+                "Executive",
+                "Developer"
+              ]
+            },
             "manager@test.com": {
               "password": "pass",
               "roles": [

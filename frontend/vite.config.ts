@@ -19,7 +19,7 @@ export default defineConfig({
         configure: (proxy) => {
           proxy.on('proxyReq', (proxyReq) => {
             // Auto-inject mocked auth for development
-            const auth = Buffer.from('manager@test.com:pass').toString('base64');
+            const auth = Buffer.from('admin@test.com:pass').toString('base64');
             proxyReq.setHeader('Authorization', `Basic ${auth}`);
           });
         },

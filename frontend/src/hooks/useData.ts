@@ -1,5 +1,28 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { transportApi, dashboardApi, workItemApi, syncApi, reportApi, notificationApi, templateApi, aiApi } from '../services/api';
+import { transportApi, dashboardApi, workItemApi, syncApi, reportApi, notificationApi, templateApi, aiApi, userApi, methodologyApi } from '../services/api';
+
+// ─── Current User (Auth) ───
+export function useCurrentUser() {
+  return useQuery({
+    queryKey: ['currentUser'],
+    queryFn: userApi.me,
+    staleTime: 30 * 60 * 1000,  // 30 min — user info rarely changes
+    gcTime: 60 * 60 * 1000,
+    retry: 1,
+  });
+}
+
+// ─── Methodologies ───
+export function useMethodologies() {
+  return useQuery({
+    queryKey: ['methodologies'],
+    queryFn: async () => {
+      const res = await methodologyApi.getAll();
+      return res.value || res || [];
+    },
+    staleTime: 60 * 60 * 1000, // 1 hour — static data
+  });
+}
 
 // ─── Transport Queries ───
 export function useTransports() {

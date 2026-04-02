@@ -1,11 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Drawer, Input, Button, Typography, Space, Tag, Spin, Avatar, Empty,
-  Upload, Modal, Select, Switch, message as antMessage
+  Upload, Modal, Select, Switch, Tabs, Tooltip, message as antMessage
 } from 'antd';
 import {
   RobotOutlined, SendOutlined, UserOutlined, CloseOutlined,
-  BulbOutlined, UploadOutlined, FileTextOutlined, SaveOutlined
+  BulbOutlined, UploadOutlined, FileTextOutlined, SaveOutlined,
+  CodeOutlined, EyeOutlined, UndoOutlined, FormatPainterOutlined,
 } from '@ant-design/icons';
 import { aiApi, templateApi } from '../../services/api';
 
@@ -55,6 +56,8 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
   const [templateDefault, setTemplateDefault] = useState(false);
   const [generatingTemplate, setGeneratingTemplate] = useState(false);
   const [generatedHtml, setGeneratedHtml] = useState('');
+  const [originalHtml, setOriginalHtml] = useState('');
+  const [editorTab, setEditorTab] = useState<'code' | 'preview'>('code');
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -137,6 +140,8 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
       const result = await aiApi.generateTemplate(templateEmail, templateName, templateScope);
       if (result.success) {
         setGeneratedHtml(result.templateHtml);
+        setOriginalHtml(result.templateHtml);
+        setEditorTab('code');
         // Add a message in chat
         setMessages(prev => [...prev, {
           role: 'assistant',
@@ -170,6 +175,7 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
         antMessage.success(`Template saved! ${templateVisibility === 'public' ? 'Visible to all users.' : 'Private to you.'}`);
         setTemplateModalOpen(false);
         setGeneratedHtml('');
+        setOriginalHtml('');
         setTemplateEmail('');
         setTemplateName('');
         setMessages(prev => [...prev, {
@@ -342,7 +348,7 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
           </Space>
         }
         open={templateModalOpen}
-        onCancel={() => { setTemplateModalOpen(false); setGeneratedHtml(''); }}
+        onCancel={() => { setTemplateModalOpen(false); setGeneratedHtml(''); setOriginalHtml(''); }}
         footer={null}
         width={700}
         styles={{ body: { maxHeight: '70vh', overflow: 'auto' } }}
@@ -430,19 +436,91 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
 
           {generatedHtml && (
             <>
+              {/* ── Template Editor ── */}
               <div>
-                <Text strong style={{ display: 'block', marginBottom: 6 }}>Preview</Text>
-                <div
-                  dangerouslySetInnerHTML={{ __html: generatedHtml }}
-                  style={{
-                    border: '1px solid #d9d9d9',
-                    borderRadius: 6,
-                    padding: 16,
-                    maxHeight: 300,
-                    overflow: 'auto',
-                    background: '#fff',
-                  }}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <Text strong>Edit Generated Template</Text>
+                  <Space size="small">
+                    <Tooltip title="Reset to AI-generated original">
+                      <Button
+                        size="small"
+                        icon={<UndoOutlined />}
+                        onClick={() => setGeneratedHtml(originalHtml)}
+                        disabled={generatedHtml === originalHtml}
+                      >
+                        Reset
+                      </Button>
+                    </Tooltip>
+                    <Tooltip title="Auto-format HTML">
+                      <Button
+                        size="small"
+                        icon={<FormatPainterOutlined />}
+                        onClick={() => {
+                          try {
+                            // Simple HTML formatter — indent tags
+                            const formatted = generatedHtml
+                              .replace(/></g, '>\n<')
+                              .replace(/\n\s*\n/g, '\n');
+                            setGeneratedHtml(formatted);
+                          } catch { /* ignore */ }
+                        }}
+                      >
+                        Format
+                      </Button>
+                    </Tooltip>
+                  </Space>
+                </div>
+                <Tabs
+                  activeKey={editorTab}
+                  onChange={(k) => setEditorTab(k as 'code' | 'preview')}
+                  size="small"
+                  items={[
+                    {
+                      key: 'code',
+                      label: <span><CodeOutlined /> Code</span>,
+                      children: (
+                        <TextArea
+                          value={generatedHtml}
+                          onChange={(e) => setGeneratedHtml(e.target.value)}
+                          rows={14}
+                          style={{
+                            fontFamily: "'Cascadia Code', 'Fira Code', Consolas, monospace",
+                            fontSize: 12,
+                            lineHeight: 1.6,
+                            background: '#1e1e1e',
+                            color: '#d4d4d4',
+                            borderRadius: 6,
+                            padding: 12,
+                          }}
+                          spellCheck={false}
+                        />
+                      ),
+                    },
+                    {
+                      key: 'preview',
+                      label: <span><EyeOutlined /> Preview</span>,
+                      children: (
+                        <div
+                          dangerouslySetInnerHTML={{ __html: generatedHtml }}
+                          style={{
+                            border: '1px solid #d9d9d9',
+                            borderRadius: 6,
+                            padding: 16,
+                            minHeight: 200,
+                            maxHeight: 340,
+                            overflow: 'auto',
+                            background: '#fff',
+                          }}
+                        />
+                      ),
+                    },
+                  ]}
                 />
+                {generatedHtml !== originalHtml && (
+                  <Text type="warning" style={{ fontSize: 11, marginTop: 4, display: 'block' }}>
+                    ⚠ Template has been manually edited
+                  </Text>
+                )}
               </div>
               <Button
                 type="primary"
