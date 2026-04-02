@@ -21,10 +21,14 @@ const RAG_LABELS: Record<string, string> = { GREEN: 'On Track', AMBER: 'At Risk'
 
 const ExecutiveDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, allowedApps } = useAuth();
   const { allModules } = useModule();
-  const { data: workItems = [], isLoading } = useWorkItems();
+  const { data: allWorkItems = [], isLoading } = useWorkItems();
 
+  // Filter by allowed applications for this user
+  const workItems = allWorkItems.filter((wi: any) =>
+    !wi.application || allowedApps.includes(wi.application)
+  );
   const activeProjects = workItems.filter((wi: any) => wi.status === 'Active');
 
   // RAG distribution

@@ -24,8 +24,11 @@ const HomeDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: summary, isLoading: summaryLoading, error: summaryError } = useDashboardSummary();
-  const { data: workItems = [], isLoading: wiLoading } = useWorkItems();
+  const { data: allWorkItems = [], isLoading: wiLoading } = useWorkItems();
   const { data: transports = [], isLoading: trLoading } = useTransports();
+
+  // Filter to SAP-application items only
+  const workItems = allWorkItems.filter((wi: any) => wi.application === 'SAP' || !wi.application);
 
   // Pipeline inline filter state
   const [pipelineFilter, setPipelineFilter] = useState<string | null>(null);

@@ -189,6 +189,8 @@ service TransportService {
     isManager  : Boolean;
     isDeveloper: Boolean;
     isExecutive: Boolean;
+    isSuperAdmin : Boolean;
+    allowedApps  : array of String;
   };
 
   // Health check

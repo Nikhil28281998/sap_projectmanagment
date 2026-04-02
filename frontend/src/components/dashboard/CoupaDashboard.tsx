@@ -49,15 +49,10 @@ const CoupaDashboard: React.FC = () => {
   const { moduleDef } = useModule();
   const { data: workItems = [], isLoading } = useWorkItems();
 
-  // Filter work items for Coupa module types
-  const coupaTypes = moduleDef.workItemTypes;
-  const coupaItems = workItems.filter((wi: any) => coupaTypes.includes(wi.workItemType));
+  // Filter work items by application field
+  const coupaItems = workItems.filter((wi: any) => wi.application === 'Coupa');
   const activeItems = coupaItems.filter((wi: any) => wi.status === 'Active');
-  const allActiveItems = workItems.filter((wi: any) => wi.status === 'Active');
-
-  // Use all active items if no Coupa-specific items exist (demo mode)
-  const displayItems = activeItems.length > 0 ? activeItems : allActiveItems;
-  const isDemoMode = activeItems.length === 0 && allActiveItems.length > 0;
+  const displayItems = activeItems;
 
   // Category breakdown
   const categoryBreakdown = useMemo(() => {
@@ -149,14 +144,6 @@ const CoupaDashboard: React.FC = () => {
           </Col>
         </Row>
       </Card>
-
-      {isDemoMode && (
-        <Alert
-          message="Demo Mode"
-          description="Showing all work items. Create Coupa-specific items (Implementation, Integration, Configuration, etc.) to see filtered data."
-          type="info" showIcon closable style={{ marginBottom: 16 }}
-        />
-      )}
 
       {/* Coupa Module Areas */}
       <Row gutter={[12, 12]}>

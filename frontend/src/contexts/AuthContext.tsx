@@ -10,6 +10,8 @@ export interface UserInfo {
   isManager: boolean;
   isDeveloper: boolean;
   isExecutive: boolean;
+  isSuperAdmin: boolean;
+  allowedApps: string[];
 }
 
 interface AuthContextType {
@@ -20,6 +22,8 @@ interface AuthContextType {
   canWrite: boolean;       // Admin or Manager
   canConfigure: boolean;   // Admin only
   canViewReports: boolean; // Admin, Manager, Executive
+  isSuperAdmin: boolean;
+  allowedApps: string[];
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -30,6 +34,8 @@ const AuthContext = createContext<AuthContextType>({
   canWrite: false,
   canConfigure: false,
   canViewReports: false,
+  isSuperAdmin: false,
+  allowedApps: [],
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -48,6 +54,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     canWrite: hasRole('Admin') || hasRole('Manager'),
     canConfigure: hasRole('Admin'),
     canViewReports: hasAnyRole('Admin', 'Manager', 'Executive'),
+    isSuperAdmin: user?.isSuperAdmin ?? false,
+    allowedApps: user?.allowedApps ?? [],
   };
 
   if (isLoading) {

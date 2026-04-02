@@ -196,7 +196,7 @@ const WorkItemDetail: React.FC = () => {
   // Build methodology options from backend + empty
   const methodologyOptions = [
     { value: '', label: '— None —' },
-    ...(methodologies?.value || methodologies || []).map((m: any) => ({
+    ...(Array.isArray(methodologies) ? methodologies : (methodologies as any)?.value || []).map((m: any) => ({
       value: m.methodologyKey || m.name,
       label: m.name,
     })),

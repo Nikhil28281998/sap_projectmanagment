@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Layout, Menu, Button, Badge, Space, Typography, Tooltip, Avatar, Dropdown, Tag
@@ -7,11 +7,12 @@ import {
   HomeOutlined, DashboardOutlined, ProjectOutlined,
   SettingOutlined, FileTextOutlined,
   BellOutlined, ReloadOutlined, WarningOutlined,
-  AppstoreOutlined, RobotOutlined, TeamOutlined
+  AppstoreOutlined, RobotOutlined, TeamOutlined,
+  ShoppingCartOutlined, MedicineBoxOutlined, ApartmentOutlined
 } from '@ant-design/icons';
 import { useNotifications, useRefreshTransports } from '../../hooks/useData';
 import { useAuth } from '../../contexts/AuthContext';
-import { useModule } from '../../contexts/ModuleContext';
+import { useModule, MODULE_DEFINITIONS, ModuleKey } from '../../contexts/ModuleContext';
 import AIChatDrawer from './AIChatDrawer';
 import NotificationDrawer from './NotificationDrawer';
 
@@ -22,10 +23,10 @@ interface AppShellProps {
   children: React.ReactNode;
 }
 
-const MODULE_ICONS: Record<string, React.ReactNode> = {
-  sap: <AppstoreOutlined />,
-  coupa: <AppstoreOutlined style={{ color: '#0070d2' }} />,
-  commercial: <AppstoreOutlined style={{ color: '#722ed1' }} />,
+const APP_ICONS: Record<ModuleKey, React.ReactNode> = {
+  sap: <ApartmentOutlined />,
+  coupa: <ShoppingCartOutlined />,
+  commercial: <MedicineBoxOutlined />,
 };
 
 const AppShell: React.FC<AppShellProps> = ({ children }) => {
@@ -36,33 +37,66 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
   const location = useLocation();
   const { data: notifications = [] } = useNotifications();
   const refreshMutation = useRefreshTransports();
-  const { user, canWrite, canConfigure } = useAuth();
-  const { activeModule, setActiveModule, moduleDef, allModules } = useModule();
+  const { user, canWrite, canConfigure, allowedApps } = useAuth();
+  const { activeModule, setActiveModule, moduleDef } = useModule();
 
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
 
-  const roleBadge = user?.isAdmin ? { color: '#f50', text: 'Admin' }
+  const roleBadge = user?.isSuperAdmin ? { color: '#f50', text: 'Super Admin' }
+    : user?.isAdmin ? { color: '#f50', text: 'Admin' }
     : user?.isManager ? { color: '#2db7f5', text: 'Manager' }
     : user?.isExecutive ? { color: '#87d068', text: 'Executive' }
     : { color: '#108ee9', text: 'Developer' };
 
+  // Build available app sub-items based on user's allowedApps
+  const appSubItems = useMemo(() => {
+    const appKeys: ModuleKey[] = ['sap', 'coupa', 'commercial'];
+    return appKeys
+      .filter((k) => allowedApps.includes(k.charAt(0).toUpperCase() + k.slice(1)) || allowedApps.includes(k.toUpperCase()) || allowedApps.includes(MODULE_DEFINITIONS[k].shortName))
+      .map((k) => ({
+        key: `app-${k}`,
+        icon: APP_ICONS[k],
+        label: (
+          <span>
+            {MODULE_DEFINITIONS[k].name}
+            {activeModule === k && <Tag color={MODULE_DEFINITIONS[k].color} style={{ marginLeft: 6, fontSize: 10, lineHeight: '16px', padding: '0 4px' }}>Active</Tag>}
+          </span>
+        ),
+      }));
+  }, [allowedApps, activeModule]);
+
+  // Dynamic menu: show/hide items based on active application
+  const isSAP = activeModule === 'sap';
+
   const menuItems: any[] = [
+    // ── Applications submenu ──
+    {
+      key: 'applications',
+      icon: <AppstoreOutlined />,
+      label: 'Applications',
+      children: appSubItems.length > 0 ? appSubItems : [
+        { key: 'app-sap', icon: APP_ICONS.sap, label: 'SAP Operations' },
+      ],
+    },
+    { type: 'divider' as const },
     {
       key: '/',
       icon: <HomeOutlined />,
       label: 'Home Dashboard',
     },
-    {
+    // Transport Pipeline — only for SAP
+    ...(isSAP ? [{
       key: '/pipeline',
       icon: <DashboardOutlined />,
-      label: 'Transport Pipeline',
-    },
+      label: moduleDef.terminology.pipeline,
+    }] : []),
     {
       key: '/tracker',
       icon: <ProjectOutlined />,
       label: 'Tracker',
     },
-    ...(canWrite ? [{
+    // Unassigned TRs — only for SAP + canWrite
+    ...(isSAP && canWrite ? [{
       key: '/unassigned',
       icon: <WarningOutlined />,
       label: 'Unassigned TRs',
@@ -102,6 +136,20 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
     { key: 'settings', label: 'Settings', icon: <SettingOutlined /> },
   ];
 
+  const handleMenuClick = ({ key }: { key: string }) => {
+    if (key === 'ai-agent') {
+      setChatOpen(true);
+    } else if (key.startsWith('app-')) {
+      const appKey = key.replace('app-', '') as ModuleKey;
+      setActiveModule(appKey);
+      navigate('/');
+    } else if (key === 'applications') {
+      // parent submenu click, do nothing
+    } else {
+      navigate(key);
+    }
+  };
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider
@@ -121,46 +169,19 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
         }}
       >
         <div style={{ padding: '16px', textAlign: 'center', borderBottom: '1px solid #f0f0f0' }}>
-          <AppstoreOutlined style={{ fontSize: 24, color: '#1677ff' }} />
+          <AppstoreOutlined style={{ fontSize: 24, color: moduleDef.color }} />
           {!collapsed && (
             <Text strong style={{ marginLeft: 8, fontSize: 14 }}>
               Command Center
             </Text>
           )}
         </div>
-        {/* Module Switcher */}
-        <div style={{ padding: collapsed ? '8px 4px' : '8px 16px', borderBottom: '1px solid #f0f0f0' }}>
-          {allModules.map((m) => (
-            <Tooltip key={m.key} title={collapsed ? m.name : undefined} placement="right">
-              <div
-                onClick={() => { setActiveModule(m.key); navigate('/'); }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  padding: collapsed ? '6px' : '6px 8px', marginBottom: 2,
-                  borderRadius: 6, cursor: 'pointer', fontSize: 12,
-                  background: activeModule === m.key ? `${m.color}12` : 'transparent',
-                  border: activeModule === m.key ? `1px solid ${m.color}40` : '1px solid transparent',
-                  transition: 'all 0.2s',
-                  justifyContent: collapsed ? 'center' : 'flex-start',
-                }}
-              >
-                <span style={{ fontSize: 16 }}>{m.icon}</span>
-                {!collapsed && <Text style={{ fontSize: 12, color: activeModule === m.key ? m.color : undefined }}>{m.shortName}</Text>}
-              </div>
-            </Tooltip>
-          ))}
-        </div>
         <Menu
           mode="inline"
-          selectedKeys={[location.pathname]}
+          selectedKeys={[location.pathname, `app-${activeModule}`]}
+          defaultOpenKeys={['applications']}
           items={menuItems}
-          onClick={({ key }) => {
-            if (key === 'ai-agent') {
-              setChatOpen(true);
-            } else {
-              navigate(key);
-            }
-          }}
+          onClick={handleMenuClick}
           style={{ borderRight: 0 }}
         />
       </Sider>
@@ -177,9 +198,12 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
             height: 48,
           }}
         >
-          <Text strong style={{ fontSize: 14, color: '#1f4e79' }}>
-            Project Command Center
-          </Text>
+          <Space size={8}>
+            <Text strong style={{ fontSize: 14, color: '#1f4e79' }}>
+              Project Command Center
+            </Text>
+            <Tag color={moduleDef.color} style={{ fontSize: 11 }}>{moduleDef.icon} {moduleDef.shortName}</Tag>
+          </Space>
 
           <Space>
             {canWrite && (

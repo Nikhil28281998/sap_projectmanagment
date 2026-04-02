@@ -43,6 +43,7 @@ export const userApi = {
   me: () => request<{
     email: string; name: string; roles: string[];
     isAdmin: boolean; isManager: boolean; isDeveloper: boolean; isExecutive: boolean;
+    isSuperAdmin: boolean; allowedApps: string[];
   }>('/currentUser'),
 };
 

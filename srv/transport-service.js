@@ -764,19 +764,32 @@ Scope: ${scope || 'single'} (${scope === 'multi' ? 'all projects summary' : scop
   async _onCurrentUser(req) {
     const user = req.user;
     const roles = [];
+    if (user.is('SuperAdmin')) roles.push('SuperAdmin');
     if (user.is('Admin')) roles.push('Admin');
     if (user.is('Manager')) roles.push('Manager');
     if (user.is('Developer')) roles.push('Developer');
     if (user.is('Executive')) roles.push('Executive');
 
+    // Determine which applications the user can access
+    const allowedApps = [];
+    if (user.is('SuperAdmin') || user.is('SAP')) allowedApps.push('SAP');
+    if (user.is('SuperAdmin') || user.is('Coupa')) allowedApps.push('Coupa');
+    if (user.is('SuperAdmin') || user.is('Commercial')) allowedApps.push('Commercial');
+    // Backward compat: if no app roles assigned, grant all apps
+    if (allowedApps.length === 0) {
+      allowedApps.push('SAP', 'Coupa', 'Commercial');
+    }
+
     return {
       email: user.id,
       name: user.id.split('@')[0], // Simple name extraction; overridden by IdP in prod
       roles,
-      isAdmin: user.is('Admin'),
+      isAdmin: user.is('Admin') || user.is('SuperAdmin'),
       isManager: user.is('Manager'),
       isDeveloper: user.is('Developer'),
-      isExecutive: user.is('Executive')
+      isExecutive: user.is('Executive'),
+      isSuperAdmin: user.is('SuperAdmin'),
+      allowedApps,
     };
   }
 

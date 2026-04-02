@@ -28,6 +28,7 @@ entity WorkItems : cuid, managed {
   workItemName     : String(200) @title: 'Work Item Name';
   projectCode      : String(50) @title: 'Project Code';       // PRJ-FICO-2026-01
   workItemType     : String(20) @title: 'Type';               // Project/Enhancement/Break-fix/Support/Hypercare/Upgrade
+  application      : String(20) default 'SAP' @title: 'Application';  // SAP/Coupa/Commercial
   snowTicket       : String(20) @title: 'SNOW Ticket';
   veevaCCNumber    : String(30) @title: 'Veeva CC Number';
   // People (from SharePoint)

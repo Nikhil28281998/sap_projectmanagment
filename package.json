@@ -51,30 +51,54 @@
             "admin@test.com": {
               "password": "pass",
               "roles": [
+                "SuperAdmin",
                 "Admin",
                 "Manager",
                 "Executive",
-                "Developer"
+                "Developer",
+                "SAP",
+                "Coupa",
+                "Commercial"
               ]
             },
             "manager@test.com": {
               "password": "pass",
               "roles": [
                 "Manager",
-                "Executive",
-                "Developer"
+                "Developer",
+                "SAP"
               ]
             },
             "dev@test.com": {
               "password": "pass",
               "roles": [
-                "Developer"
+                "Developer",
+                "SAP"
               ]
             },
             "exec@test.com": {
               "password": "pass",
               "roles": [
-                "Executive"
+                "Executive",
+                "SAP",
+                "Coupa",
+                "Commercial"
+              ]
+            },
+            "coupa-mgr@test.com": {
+              "password": "pass",
+              "roles": [
+                "Manager",
+                "Developer",
+                "Coupa"
+              ]
+            },
+            "commercial-mgr@test.com": {
+              "password": "pass",
+              "roles": [
+                "Manager",
+                "Developer",
+                "Commercial"
               ]
             }
           }

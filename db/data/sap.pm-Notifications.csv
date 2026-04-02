@@ -9,3 +9,7 @@ d1000001-0001-4000-8000-000000000007;manager@test.com;GOLIVE_APPROACHING;FICO Ca
 d1000001-0001-4000-8000-000000000008;dev@test.com;STUCK_TR;Your transport DEVK900102 has been in DEV for 20 days;DEVK900102;false
 d1000001-0001-4000-8000-000000000009;dev@test.com;FAILED_IMPORT;Transport DEVK900106 failed import in QAS (RC=8);DEVK900106;false
 d1000001-0001-4000-8000-000000000010;manager@test.com;STUCK_TR;Transport DEVK900203 in QAS for 18 days with no work item assignment;DEVK900203;false
+d1000001-0001-4000-8000-000000000011;coupa-mgr@test.com;GOLIVE_APPROACHING;Vendor Master Data Migration go-live in 19 days (Apr 20) - only 20% complete;CPA-MDM-2026-04;false
+d1000001-0001-4000-8000-000000000012;coupa-mgr@test.com;FAILED_IMPORT;SAP-Coupa ERP Integration has 5 failed test cases - integration build at risk;CPA-INT-2026-02;false
+d1000001-0001-4000-8000-000000000013;commercial-mgr@test.com;GOLIVE_APPROACHING;Southeast Territory Realignment CRM cutover in 14 days (Apr 15);COM-FF-2026-05;false
+d1000001-0001-4000-8000-000000000014;commercial-mgr@test.com;GOLIVE_APPROACHING;Biosimilar Market Access Strategy at RED risk with only 8% progress;COM-MA-2026-04;false

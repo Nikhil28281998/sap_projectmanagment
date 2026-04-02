@@ -60,15 +60,10 @@ const CommercialDashboard: React.FC = () => {
   const { moduleDef } = useModule();
   const { data: workItems = [], isLoading } = useWorkItems();
 
-  // Filter work items for Commercial module types
-  const commercialTypes = moduleDef.workItemTypes;
-  const commercialItems = workItems.filter((wi: any) => commercialTypes.includes(wi.workItemType));
+  // Filter work items by application field
+  const commercialItems = workItems.filter((wi: any) => wi.application === 'Commercial');
   const activeItems = commercialItems.filter((wi: any) => wi.status === 'Active');
-  const allActiveItems = workItems.filter((wi: any) => wi.status === 'Active');
-
-  // Fallback to all items in demo mode
-  const displayItems = activeItems.length > 0 ? activeItems : allActiveItems;
-  const isDemoMode = activeItems.length === 0 && allActiveItems.length > 0;
+  const displayItems = activeItems;
 
   // RAG summary
   const ragSummary = useMemo(() => {
@@ -150,14 +145,6 @@ const CommercialDashboard: React.FC = () => {
           </Col>
         </Row>
       </Card>
-
-      {isDemoMode && (
-        <Alert
-          message="Demo Mode"
-          description="Showing all work items. Create Commercial-specific items (Product Launch, Campaign, Compliance, etc.) to see filtered data."
-          type="info" showIcon closable style={{ marginBottom: 16 }}
-        />
-      )}
 
       {/* Commercial Capability Areas */}
       <Row gutter={[12, 12]}>
