@@ -5,6 +5,7 @@ import { ModuleProvider } from './contexts/ModuleContext';
 import ErrorBoundary from './components/layout/ErrorBoundary';
 import AppShell from './components/layout/AppShell';
 import DashboardRouter from './components/dashboard/DashboardRouter';
+import ExecutiveDashboard from './components/dashboard/ExecutiveDashboard';
 import TransportPipeline from './components/pipeline/TransportPipeline';
 import WorkItemList from './components/workitems/WorkItemList';
 import WorkItemDetail from './components/workitems/WorkItemDetail';
@@ -22,6 +23,7 @@ const App: React.FC = () => {
         <AppShell>
           <Routes>
             <Route path="/" element={<DashboardRouter />} />
+            <Route path="/executive" element={<ExecutiveDashboard />} />
             <Route path="/pipeline" element={<TransportPipeline />} />
             <Route path="/tracker" element={<WorkItemList />} />
             <Route path="/tracker/:type" element={<WorkItemList />} />

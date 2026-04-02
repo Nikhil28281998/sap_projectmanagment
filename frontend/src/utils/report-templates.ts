@@ -368,18 +368,243 @@ export const TEMPLATES: TemplateInfo[] = [
     description: 'Per-project readiness checklist with test summary and outstanding items',
     scope: 'single',
   },
+  {
+    id: 'coupa-weekly',
+    name: 'Coupa Implementation Weekly',
+    description: 'Procurement-focused weekly update with module rollout status, integration health, supplier enablement progress, and spend visibility metrics',
+    scope: 'both',
+  },
+  {
+    id: 'commercial-weekly',
+    name: 'Commercial Ops Weekly',
+    description: 'Life Sciences commercial weekly with product launch timelines, campaign performance, compliance deadlines, and Veeva system updates',
+    scope: 'both',
+  },
+  {
+    id: 'steering-committee',
+    name: 'Steering Committee Deck',
+    description: 'Executive steering committee summary with cross-portfolio RAG, budget/timeline/resource highlights, key decisions needed',
+    scope: 'multi',
+  },
 ];
 
 export function getEmailSubject(template: string, project: ProjectData | null, data: ReportData): string {
-  const label = project ? project.name : 'SAP Portfolio';
+  const label = project ? project.name : 'Portfolio';
   switch (template) {
     case 'weekly-status':
       return `Weekly Status Update - ${label} - ${data.weekLabel}`;
     case 'executive-summary':
-      return `SAP Weekly Portfolio Status - ${data.weekLabel}`;
+      return `Weekly Portfolio Status - ${data.weekLabel}`;
     case 'golive-readiness':
       return `Go-Live Readiness - ${label} - ${data.date}`;
+    case 'coupa-weekly':
+      return `Coupa Implementation Weekly - ${label} - ${data.weekLabel}`;
+    case 'commercial-weekly':
+      return `Commercial Ops Weekly - ${label} - ${data.weekLabel}`;
+    case 'steering-committee':
+      return `Steering Committee Update - ${data.weekLabel}`;
     default:
-      return `SAP Status Update - ${data.weekLabel}`;
+      return `Project Status Update - ${data.weekLabel}`;
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Coupa Implementation Weekly Template
+// ═══════════════════════════════════════════════════════════════
+export function coupaWeeklyTemplate(data: ReportData, project: ProjectData | null): string {
+  const projects = project ? [project] : data.projects;
+  const SC = { ...S, headerBg: '#0070d2' }; // Coupa blue
+
+  const thC = (text: string) => `<th style="border:1px solid ${SC.borderColor}; padding:8px 12px; background-color:${SC.headerBg}; color:${SC.headerColor}; font-family:${SC.font}; font-size:13px; text-align:left; font-weight:bold">${text}</th>`;
+
+  const rows = projects.map((p, i) => {
+    const bg = i % 2 === 0 ? '' : `background-color:${SC.altRowBg};`;
+    return `<tr style="${bg}">
+      ${td(p.name)} ${td(p.type)} ${td(ragBadge(p.overallRAG))} ${td(p.currentPhase)}
+      ${td(`${p.deploymentPct}%`)} ${td(p.goLiveDate || 'TBD')} ${td(p.priority)}
+    </tr>`;
+  }).join('');
+
+  return `
+<div style="font-family:${SC.font}; max-width:800px; margin:0 auto">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${SC.headerBg}; padding:16px 24px; border-radius:4px 4px 0 0">
+    <tr>
+      <td><span style="font-size:18px; color:${SC.headerColor}; font-weight:bold; font-family:${SC.font}">🛒 Coupa Implementation Weekly</span></td>
+      <td align="right"><span style="font-size:12px; color:${SC.headerColor}; font-family:${SC.font}">${data.weekLabel} | ${data.date}</span></td>
+    </tr>
+  </table>
+
+  ${sectionHeader('Module Rollout Status')}
+  <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; margin-bottom:16px">
+    <tr>${thC('Workstream')} ${thC('Type')} ${thC('Status')} ${thC('Phase')} ${thC('Progress')} ${thC('Target Date')} ${thC('Priority')}</tr>
+    ${rows}
+  </table>
+
+  ${sectionHeader('Integration Health')}
+  <p style="font-family:${SC.font}; font-size:13px; color:#333">
+    <strong>Active Integrations:</strong> ${projects.filter(p => p.type === 'Integration').length} |
+    <strong>Total Deliverables:</strong> ${projects.length} |
+    <strong>Red/Amber Items:</strong> ${projects.filter(p => ['RED', 'AMBER'].includes(p.overallRAG)).length}
+  </p>
+
+  ${sectionHeader('Upcoming Go-Lives & Milestones')}
+  ${data.upcomingGoLives.length > 0 ? `<ul style="font-family:${SC.font}; font-size:13px">${data.upcomingGoLives.map(g => `<li><strong>${g.name}</strong> — ${g.goLiveDate} (${g.daysUntil} days)</li>`).join('')}</ul>` : '<p style="font-family:' + SC.font + '; font-size:13px; color:#666">No upcoming go-lives in the next 14 days.</p>'}
+
+  ${sectionHeader('Key Risks & Escalations')}
+  ${projects.filter(p => p.overallRAG === 'RED').length > 0
+    ? `<ul style="font-family:${SC.font}; font-size:13px">${projects.filter(p => p.overallRAG === 'RED').map(p => `<li>${ragBadge('RED')} <strong>${p.name}</strong> — Phase: ${p.currentPhase}, Deploy: ${p.deploymentPct}%</li>`).join('')}</ul>`
+    : `<p style="font-family:${SC.font}; font-size:13px; color:#27ae60">✅ No critical escalations this week.</p>`}
+
+  <p style="font-family:${SC.font}; font-size:11px; color:#999; margin-top:24px; border-top:1px solid #eee; padding-top:8px">
+    Generated by Project Command Center | Coupa PM Module | ${data.generatedAt}
+  </p>
+</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Commercial Ops Weekly Template (Life Sciences)
+// ═══════════════════════════════════════════════════════════════
+export function commercialWeeklyTemplate(data: ReportData, project: ProjectData | null): string {
+  const projects = project ? [project] : data.projects;
+  const SC = { ...S, headerBg: '#722ed1' }; // Commercial purple
+
+  const thP = (text: string) => `<th style="border:1px solid ${SC.borderColor}; padding:8px 12px; background-color:${SC.headerBg}; color:${SC.headerColor}; font-family:${SC.font}; font-size:13px; text-align:left; font-weight:bold">${text}</th>`;
+
+  const rows = projects.map((p, i) => {
+    const bg = i % 2 === 0 ? '' : `background-color:${SC.altRowBg};`;
+    return `<tr style="${bg}">
+      ${td(p.name)} ${td(p.type)} ${td(ragBadge(p.overallRAG))} ${td(p.currentPhase)}
+      ${td(`${p.deploymentPct}%`)} ${td(p.goLiveDate || 'TBD')} ${td(p.businessOwner || 'TBD')}
+    </tr>`;
+  }).join('');
+
+  // Group by type for the commercial categorization
+  const launches = projects.filter(p => p.type === 'Product Launch');
+  const campaigns = projects.filter(p => p.type === 'Campaign');
+  const compliance = projects.filter(p => p.type === 'Compliance Initiative');
+  const veevaItems = projects.filter(p => p.type === 'Veeva Implementation');
+
+  return `
+<div style="font-family:${SC.font}; max-width:800px; margin:0 auto">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${SC.headerBg}; padding:16px 24px; border-radius:4px 4px 0 0">
+    <tr>
+      <td><span style="font-size:18px; color:${SC.headerColor}; font-weight:bold; font-family:${SC.font}">💊 Commercial Operations Weekly</span></td>
+      <td align="right"><span style="font-size:12px; color:${SC.headerColor}; font-family:${SC.font}">${data.weekLabel} | ${data.date}</span></td>
+    </tr>
+  </table>
+
+  ${sectionHeader('Initiative Portfolio Overview')}
+  <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; margin-bottom:16px">
+    <tr>${thP('Initiative')} ${thP('Type')} ${thP('Status')} ${thP('Phase')} ${thP('Progress')} ${thP('Target Date')} ${thP('Business Owner')}</tr>
+    ${rows}
+  </table>
+
+  ${launches.length > 0 ? `
+  ${sectionHeader('🚀 Product Launches')}
+  <ul style="font-family:${SC.font}; font-size:13px">${launches.map(p => `<li>${ragBadge(p.overallRAG)} <strong>${p.name}</strong> — Phase: ${p.currentPhase} | Target: ${p.goLiveDate || 'TBD'}</li>`).join('')}</ul>` : ''}
+
+  ${compliance.length > 0 ? `
+  ${sectionHeader('⚖️ Compliance & Regulatory')}
+  <ul style="font-family:${SC.font}; font-size:13px">${compliance.map(p => `<li>${ragBadge(p.overallRAG)} <strong>${p.name}</strong> — Deadline: ${p.goLiveDate || 'TBD'} | ${p.deploymentPct}% complete</li>`).join('')}</ul>` : ''}
+
+  ${campaigns.length > 0 ? `
+  ${sectionHeader('📢 Active Campaigns')}
+  <ul style="font-family:${SC.font}; font-size:13px">${campaigns.map(p => `<li>${ragBadge(p.overallRAG)} <strong>${p.name}</strong> — Phase: ${p.currentPhase}</li>`).join('')}</ul>` : ''}
+
+  ${veevaItems.length > 0 ? `
+  ${sectionHeader('☁️ Veeva System Updates')}
+  <ul style="font-family:${SC.font}; font-size:13px">${veevaItems.map(p => `<li>${ragBadge(p.overallRAG)} <strong>${p.name}</strong> — ${p.currentPhase} | ${p.deploymentPct}% deployed</li>`).join('')}</ul>` : ''}
+
+  ${sectionHeader('Key Risks & Decisions Needed')}
+  ${projects.filter(p => p.overallRAG === 'RED').length > 0
+    ? `<ul style="font-family:${SC.font}; font-size:13px">${projects.filter(p => p.overallRAG === 'RED').map(p => `<li>${ragBadge('RED')} <strong>${p.name}</strong> — ${p.type}, Phase: ${p.currentPhase}</li>`).join('')}</ul>`
+    : `<p style="font-family:${SC.font}; font-size:13px; color:#27ae60">✅ No critical items this week.</p>`}
+
+  ${data.upcomingGoLives.length > 0 ? `
+  ${sectionHeader('Upcoming Milestones')}
+  <ul style="font-family:${SC.font}; font-size:13px">${data.upcomingGoLives.map(g => `<li><strong>${g.name}</strong> — ${g.goLiveDate} (${g.daysUntil} days)</li>`).join('')}</ul>` : ''}
+
+  <p style="font-family:${SC.font}; font-size:11px; color:#999; margin-top:24px; border-top:1px solid #eee; padding-top:8px">
+    Generated by Project Command Center | Commercial PM Module | ${data.generatedAt}
+  </p>
+</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Steering Committee Template
+// ═══════════════════════════════════════════════════════════════
+export function steeringCommitteeTemplate(data: ReportData): string {
+  const projects = data.projects;
+  const red = projects.filter(p => p.overallRAG === 'RED');
+  const amber = projects.filter(p => p.overallRAG === 'AMBER');
+  const green = projects.filter(p => p.overallRAG === 'GREEN');
+
+  return `
+<div style="font-family:${S.font}; max-width:800px; margin:0 auto">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#1a1a2e; padding:16px 24px; border-radius:4px 4px 0 0">
+    <tr>
+      <td><span style="font-size:18px; color:#fff; font-weight:bold; font-family:${S.font}">📊 Steering Committee Update</span></td>
+      <td align="right"><span style="font-size:12px; color:#ccc; font-family:${S.font}">${data.weekLabel} | ${data.date}</span></td>
+    </tr>
+  </table>
+
+  ${sectionHeader('Portfolio Health at a Glance')}
+  <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; margin-bottom:16px">
+    <tr>
+      <td style="padding:12px; text-align:center; background:${S.redBg}; border:1px solid ${S.borderColor}; width:33%">
+        <span style="font-size:24px; font-weight:bold; color:#c0392b; font-family:${S.font}">${red.length}</span><br/>
+        <span style="font-size:12px; color:#c0392b; font-family:${S.font}">Critical</span>
+      </td>
+      <td style="padding:12px; text-align:center; background:${S.amberBg}; border:1px solid ${S.borderColor}; width:33%">
+        <span style="font-size:24px; font-weight:bold; color:#e67e22; font-family:${S.font}">${amber.length}</span><br/>
+        <span style="font-size:12px; color:#e67e22; font-family:${S.font}">At Risk</span>
+      </td>
+      <td style="padding:12px; text-align:center; background:${S.greenBg}; border:1px solid ${S.borderColor}; width:33%">
+        <span style="font-size:24px; font-weight:bold; color:#27ae60; font-family:${S.font}">${green.length}</span><br/>
+        <span style="font-size:12px; color:#27ae60; font-family:${S.font}">On Track</span>
+      </td>
+    </tr>
+  </table>
+
+  ${red.length > 0 ? `
+  ${sectionHeader('🔴 Critical Items — Action Required')}
+  <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; margin-bottom:16px">
+    <tr>${th('Project')} ${th('Type')} ${th('Phase')} ${th('Deploy %')} ${th('Go-Live')} ${th('Owner')}</tr>
+    ${red.map(p => `<tr style="background:${S.redBg}">
+      ${td(`<strong>${p.name}</strong>`)} ${td(p.type)} ${td(p.currentPhase)} ${td(`${p.deploymentPct}%`)} ${td(p.goLiveDate || 'TBD')} ${td(p.businessOwner || 'TBD')}
+    </tr>`).join('')}
+  </table>` : ''}
+
+  ${amber.length > 0 ? `
+  ${sectionHeader('🟡 At Risk — Monitoring')}
+  <ul style="font-family:${S.font}; font-size:13px">${amber.map(p => `<li><strong>${p.name}</strong> (${p.type}) — ${p.currentPhase}, ${p.deploymentPct}% deployed, Go-Live: ${p.goLiveDate || 'TBD'}</li>`).join('')}</ul>` : ''}
+
+  ${sectionHeader('Key Metrics')}
+  <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; margin-bottom:16px">
+    <tr>
+      <td style="padding:8px 12px; border:1px solid ${S.borderColor}; font-family:${S.font}; font-size:13px"><strong>Total Active Projects</strong></td>
+      <td style="padding:8px 12px; border:1px solid ${S.borderColor}; font-family:${S.font}; font-size:13px; text-align:center">${data.activeProjectCount}</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px; border:1px solid ${S.borderColor}; font-family:${S.font}; font-size:13px"><strong>Upcoming Go-Lives (14 days)</strong></td>
+      <td style="padding:8px 12px; border:1px solid ${S.borderColor}; font-family:${S.font}; font-size:13px; text-align:center">${data.upcomingGoLives.length}</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px; border:1px solid ${S.borderColor}; font-family:${S.font}; font-size:13px"><strong>Overdue Milestones</strong></td>
+      <td style="padding:8px 12px; border:1px solid ${S.borderColor}; font-family:${S.font}; font-size:13px; text-align:center">${data.overdueCount}</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px; border:1px solid ${S.borderColor}; font-family:${S.font}; font-size:13px"><strong>Completed This Week</strong></td>
+      <td style="padding:8px 12px; border:1px solid ${S.borderColor}; font-family:${S.font}; font-size:13px; text-align:center">${data.completedThisWeek.length}</td>
+    </tr>
+  </table>
+
+  ${data.upcomingGoLives.length > 0 ? `
+  ${sectionHeader('Upcoming Go-Live Dates')}
+  <ul style="font-family:${S.font}; font-size:13px">${data.upcomingGoLives.map(g => `<li><strong>${g.name}</strong> — ${g.goLiveDate} (${g.daysUntil} days) — Lead: ${g.lead}</li>`).join('')}</ul>` : ''}
+
+  <p style="font-family:${S.font}; font-size:11px; color:#999; margin-top:24px; border-top:1px solid #eee; padding-top:8px">
+    Generated by Project Command Center | ${data.generatedAt}
+  </p>
+</div>`;
 }

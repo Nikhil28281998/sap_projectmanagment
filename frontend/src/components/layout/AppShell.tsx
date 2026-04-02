@@ -8,7 +8,8 @@ import {
   SettingOutlined, FileTextOutlined,
   BellOutlined, ReloadOutlined, WarningOutlined,
   AppstoreOutlined, RobotOutlined, TeamOutlined,
-  ShoppingCartOutlined, MedicineBoxOutlined, ApartmentOutlined
+  ShoppingCartOutlined, MedicineBoxOutlined, ApartmentOutlined,
+  FundProjectionScreenOutlined
 } from '@ant-design/icons';
 import { useNotifications, useRefreshTransports } from '../../hooks/useData';
 import { useAuth } from '../../contexts/AuthContext';
@@ -39,6 +40,10 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
   const refreshMutation = useRefreshTransports();
   const { user, canWrite, canConfigure, allowedApps } = useAuth();
   const { activeModule, setActiveModule, moduleDef } = useModule();
+
+  const isAdmin = user?.isAdmin ?? false;
+  const isExecutive = user?.isExecutive ?? false;
+  const canSeeExecutive = isAdmin || isExecutive;
 
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
 
@@ -84,6 +89,12 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
       icon: <HomeOutlined />,
       label: 'Home Dashboard',
     },
+    // Executive Dashboard — for Admin/Executive roles
+    ...(canSeeExecutive ? [{
+      key: '/executive',
+      icon: <FundProjectionScreenOutlined />,
+      label: 'Executive Dashboard',
+    }] : []),
     // Transport Pipeline — only for SAP
     ...(isSAP ? [{
       key: '/pipeline',

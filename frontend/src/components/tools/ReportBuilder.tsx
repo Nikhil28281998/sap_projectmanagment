@@ -11,6 +11,7 @@ import {
 import { useGenerateReport, useWorkItems, useReportTemplates } from '../../hooks/useData';
 import {
   weeklyStatusTemplate, executiveSummaryTemplate, goLiveReadinessTemplate,
+  coupaWeeklyTemplate, commercialWeeklyTemplate, steeringCommitteeTemplate,
   getEmailSubject, TEMPLATES,
   type ReportData, type ProjectData,
 } from '../../utils/report-templates';
@@ -151,6 +152,14 @@ const ReportBuilder: React.FC = () => {
       const project = reportData.projects[0];
       if (!project) { message.error('No project data available'); return; }
       html = goLiveReadinessTemplate(reportData, project);
+    } else if (selectedTemplate === 'coupa-weekly') {
+      const project = selectedProject ? reportData.projects[0] : null;
+      html = coupaWeeklyTemplate(reportData, project);
+    } else if (selectedTemplate === 'commercial-weekly') {
+      const project = selectedProject ? reportData.projects[0] : null;
+      html = commercialWeeklyTemplate(reportData, project);
+    } else if (selectedTemplate === 'steering-committee') {
+      html = steeringCommitteeTemplate(reportData);
     }
 
     setRenderedHtml(html);

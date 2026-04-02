@@ -1,17 +1,22 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Drawer, Input, Button, Typography, Space, Tag, Spin, Avatar, Empty,
-  Upload, Modal, Select, Switch, Tabs, Tooltip, message as antMessage
+  Upload, Modal, Select, Switch, Tabs, Tooltip, message as antMessage,
+  Card, Checkbox, Alert, Badge, Divider, Row, Col
 } from 'antd';
 import {
   RobotOutlined, SendOutlined, UserOutlined, CloseOutlined,
   BulbOutlined, UploadOutlined, FileTextOutlined, SaveOutlined,
   CodeOutlined, EyeOutlined, UndoOutlined, FormatPainterOutlined,
+  FileAddOutlined, CheckCircleOutlined, InboxOutlined,
+  MailOutlined, MedicineBoxOutlined, CloudOutlined, FileSearchOutlined,
 } from '@ant-design/icons';
-import { aiApi, templateApi } from '../../services/api';
+import { aiApi, templateApi, workItemApi } from '../../services/api';
+import { useModule, MODULE_DEFINITIONS, ModuleKey } from '../../contexts/ModuleContext';
 
 const { Text, Paragraph } = Typography;
 const { TextArea } = Input;
+const { Dragger } = Upload;
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -34,11 +39,36 @@ const QUICK_QUESTIONS = [
   'Which projects need attention?',
 ];
 
+const DOC_TYPES = [
+  { value: 'email', label: 'Email / Request', icon: <MailOutlined /> },
+  { value: 'veeva', label: 'Veeva Change Control', icon: <MedicineBoxOutlined /> },
+  { value: 'sharepoint', label: 'SharePoint Document', icon: <CloudOutlined /> },
+  { value: 'general', label: 'General Document', icon: <FileSearchOutlined /> },
+];
+
+interface Proposal {
+  workItemName: string;
+  workItemType: string;
+  projectCode: string;
+  priority: string;
+  complexity: string;
+  currentPhase: string;
+  businessOwner: string;
+  notes: string;
+  estimatedGoLive: string;
+  confidence: string;
+  selected?: boolean;
+}
+
+const CONFIDENCE_COLORS: Record<string, string> = { high: 'green', medium: 'orange', low: 'red' };
+const PRIORITY_COLORS: Record<string, string> = { P1: 'red', P2: 'orange', P3: 'blue' };
+
 const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
+  const { activeModule } = useModule();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'system',
-      content: 'Hi! I\'m your SAP Project Assistant. I can answer questions about your projects, transports, test status, milestones, and more.\n\nYou can also generate report templates — paste your current email format or upload a file, and I\'ll create a reusable Outlook template for you!',
+      content: 'Hi! I\'m your Project Command Center AI Assistant. I can answer questions about your projects, analyze uploaded documents, and help create work items.\n\n📄 Upload emails, Veeva Change Controls, or any project document — I\'ll analyze it and propose work items for you to review and approve.',
       timestamp: new Date(),
     }
   ]);
@@ -58,6 +88,17 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
   const [generatedHtml, setGeneratedHtml] = useState('');
   const [originalHtml, setOriginalHtml] = useState('');
   const [editorTab, setEditorTab] = useState<'code' | 'preview'>('code');
+
+  // Document analysis state
+  const [docModalOpen, setDocModalOpen] = useState(false);
+  const [docContent, setDocContent] = useState('');
+  const [docType, setDocType] = useState('email');
+  const [docFileName, setDocFileName] = useState('');
+  const [docApp, setDocApp] = useState<string>(activeModule === 'sap' ? 'SAP' : activeModule === 'coupa' ? 'Coupa' : 'Commercial');
+  const [analyzing, setAnalyzing] = useState(false);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [analysisSummary, setAnalysisSummary] = useState('');
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -111,6 +152,94 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
       content: 'Chat cleared. Ask me anything about your projects!',
       timestamp: new Date(),
     }]);
+  };
+
+  // ─── Document Analysis ───
+  const handleDocFileUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      setDocContent(content);
+      setDocFileName(file.name);
+      // Auto-detect document type from extension
+      const ext = file.name.toLowerCase();
+      if (ext.endsWith('.eml') || ext.endsWith('.msg') || ext.includes('email')) {
+        setDocType('email');
+      } else if (ext.includes('veeva') || ext.includes('change-control') || ext.includes('cc-')) {
+        setDocType('veeva');
+      } else if (ext.includes('sharepoint')) {
+        setDocType('sharepoint');
+      }
+    };
+    reader.readAsText(file);
+    return false;
+  };
+
+  const handleAnalyzeDocument = async () => {
+    if (!docContent.trim()) {
+      antMessage.warning('Please paste or upload document content.');
+      return;
+    }
+    setAnalyzing(true);
+    setProposals([]);
+    setAnalysisSummary('');
+
+    try {
+      const result = await aiApi.analyzeDocument(docContent, docType, docApp, docFileName);
+      if (result.success) {
+        const parsed: Proposal[] = JSON.parse(result.proposals).map((p: Proposal) => ({ ...p, selected: true }));
+        setProposals(parsed);
+        setAnalysisSummary(result.summary);
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `📄 Document analyzed: "${docFileName || 'Uploaded document'}"\n\n${result.summary}\n\n${parsed.length} work item(s) proposed. Review them in the Document Analysis panel.`,
+          timestamp: new Date(),
+          provider: result.provider,
+        }]);
+        antMessage.success(`AI found ${parsed.length} potential work item(s)`);
+      } else {
+        antMessage.error(result.summary || 'Analysis failed');
+      }
+    } catch (err: any) {
+      antMessage.error(`Analysis failed: ${err.message}`);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const handleToggleProposal = (index: number) => {
+    setProposals(prev => prev.map((p, i) => i === index ? { ...p, selected: !p.selected } : p));
+  };
+
+  const handleCreateSelected = async () => {
+    const selected = proposals.filter(p => p.selected);
+    if (selected.length === 0) {
+      antMessage.warning('No items selected to create.');
+      return;
+    }
+    setCreating(true);
+    try {
+      const result = await aiApi.createFromProposal(JSON.stringify(selected), docApp);
+      if (result.success) {
+        antMessage.success(result.message);
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `✅ ${result.message}\n\nThe new work items are now visible in the Tracker. You can click on them to add more details, assign team members, and set milestones.`,
+          timestamp: new Date(),
+        }]);
+        // Clear proposals after creation
+        setProposals([]);
+        setDocContent('');
+        setDocFileName('');
+        setDocModalOpen(false);
+      } else {
+        antMessage.error(result.message);
+      }
+    } catch (err: any) {
+      antMessage.error(`Creation failed: ${err.message}`);
+    } finally {
+      setCreating(false);
+    }
   };
 
   // ─── Template generation from email ───
@@ -205,6 +334,15 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
       onClose={onClose}
       extra={
         <Space>
+          <Button
+            size="small"
+            icon={<FileAddOutlined />}
+            onClick={() => setDocModalOpen(true)}
+            type="primary"
+            ghost
+          >
+            Analyze Doc
+          </Button>
           <Button
             size="small"
             icon={<FileTextOutlined />}
@@ -327,17 +465,209 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
           <Text type="secondary" style={{ fontSize: 10 }}>
             Shift+Enter for new line • AI queries your live project data
           </Text>
-          <Upload
-            accept=".txt,.html,.htm,.eml,.msg"
-            showUploadList={false}
-            beforeUpload={handleFileUpload}
-          >
-            <Button type="link" size="small" icon={<UploadOutlined />} style={{ fontSize: 10, padding: 0 }}>
-              Upload email sample
-            </Button>
-          </Upload>
+          <Space size={4}>
+            <Upload
+              accept=".txt,.html,.htm,.eml,.msg,.csv,.xlsx,.doc,.docx,.pdf"
+              showUploadList={false}
+              beforeUpload={(file) => {
+                handleDocFileUpload(file);
+                setDocModalOpen(true);
+                return false;
+              }}
+            >
+              <Button type="link" size="small" icon={<FileAddOutlined />} style={{ fontSize: 10, padding: 0 }}>
+                Upload & Analyze
+              </Button>
+            </Upload>
+            <Upload
+              accept=".txt,.html,.htm,.eml,.msg"
+              showUploadList={false}
+              beforeUpload={handleFileUpload}
+            >
+              <Button type="link" size="small" icon={<UploadOutlined />} style={{ fontSize: 10, padding: 0 }}>
+                Email template
+              </Button>
+            </Upload>
+          </Space>
         </div>
       </div>
+
+      {/* Document Analysis Modal */}
+      <Modal
+        title={
+          <Space>
+            <FileSearchOutlined style={{ color: '#1677ff' }} />
+            <span>AI Document Analysis</span>
+            <Tag color="blue">Beta</Tag>
+          </Space>
+        }
+        open={docModalOpen}
+        onCancel={() => { setDocModalOpen(false); setProposals([]); setAnalysisSummary(''); }}
+        footer={null}
+        width={760}
+        styles={{ body: { maxHeight: '75vh', overflow: 'auto' } }}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <Alert
+            message="Upload any project document — emails, Veeva Change Controls, SharePoint exports, or general documents. AI will analyze the content and propose work items for your review."
+            type="info"
+            showIcon
+            style={{ fontSize: 12 }}
+          />
+
+          <Row gutter={12}>
+            <Col span={12}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>Document Type</Text>
+              <Select
+                value={docType}
+                onChange={setDocType}
+                style={{ width: '100%' }}
+                options={DOC_TYPES.map(dt => ({ value: dt.value, label: <Space size={4}>{dt.icon}{dt.label}</Space> }))}
+              />
+            </Col>
+            <Col span={12}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>Target Application</Text>
+              <Select
+                value={docApp}
+                onChange={setDocApp}
+                style={{ width: '100%' }}
+                options={[
+                  { value: 'SAP', label: '⚙️ SAP Project Management' },
+                  { value: 'Coupa', label: '🛒 Coupa Project Management' },
+                  { value: 'Commercial', label: '💊 Commercial Project Management' },
+                ]}
+              />
+            </Col>
+          </Row>
+
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <Text strong>Document Content</Text>
+              {docFileName && <Tag color="blue">{docFileName}</Tag>}
+            </div>
+            {!docContent ? (
+              <Dragger
+                accept=".txt,.html,.htm,.eml,.msg,.csv,.xlsx,.doc,.docx"
+                showUploadList={false}
+                beforeUpload={handleDocFileUpload}
+                style={{ padding: '20px 0' }}
+              >
+                <p className="ant-upload-drag-icon"><InboxOutlined style={{ fontSize: 36, color: '#1677ff' }} /></p>
+                <p className="ant-upload-text" style={{ fontSize: 13 }}>Click or drag file to upload</p>
+                <p className="ant-upload-hint" style={{ fontSize: 11 }}>
+                  Supports: .eml, .msg, .txt, .html, .csv, .xlsx, .doc
+                </p>
+              </Dragger>
+            ) : (
+              <div>
+                <TextArea
+                  value={docContent}
+                  onChange={e => setDocContent(e.target.value)}
+                  placeholder="Paste document content here, or upload a file above..."
+                  rows={6}
+                  style={{ fontFamily: 'monospace', fontSize: 11 }}
+                />
+                <Button
+                  type="link"
+                  size="small"
+                  onClick={() => { setDocContent(''); setDocFileName(''); }}
+                  style={{ padding: 0, fontSize: 11, marginTop: 4 }}
+                >
+                  Clear content
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <Button
+            type="primary"
+            icon={<RobotOutlined />}
+            onClick={handleAnalyzeDocument}
+            loading={analyzing}
+            block
+            size="large"
+            disabled={!docContent.trim()}
+          >
+            {analyzing ? 'AI is analyzing document...' : 'Analyze Document with AI'}
+          </Button>
+
+          {/* Analysis Results — Proposals */}
+          {analysisSummary && (
+            <Alert
+              message="Analysis Summary"
+              description={analysisSummary}
+              type="success"
+              showIcon
+              style={{ fontSize: 12 }}
+            />
+          )}
+
+          {proposals.length > 0 && (
+            <>
+              <Divider style={{ margin: '8px 0' }}>
+                <Space>
+                  <Text strong>Proposed Work Items</Text>
+                  <Badge count={proposals.filter(p => p.selected).length} style={{ backgroundColor: '#52c41a' }} />
+                  <Text type="secondary" style={{ fontSize: 11 }}>/ {proposals.length} total</Text>
+                </Space>
+              </Divider>
+
+              {proposals.map((proposal, idx) => (
+                <Card
+                  key={idx}
+                  size="small"
+                  style={{
+                    borderColor: proposal.selected ? '#1677ff' : '#d9d9d9',
+                    backgroundColor: proposal.selected ? '#f0f5ff' : '#fafafa',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => handleToggleProposal(idx)}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <Space size={4} style={{ marginBottom: 4 }}>
+                        <Checkbox checked={proposal.selected} onChange={() => handleToggleProposal(idx)} />
+                        <Text strong style={{ fontSize: 13 }}>{proposal.workItemName}</Text>
+                      </Space>
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 4, marginLeft: 24 }}>
+                        <Tag color="blue">{proposal.workItemType}</Tag>
+                        <Tag color={PRIORITY_COLORS[proposal.priority] || 'default'}>{proposal.priority}</Tag>
+                        <Tag>{proposal.complexity}</Tag>
+                        <Tag color={CONFIDENCE_COLORS[proposal.confidence] || 'default'}>
+                          {proposal.confidence} confidence
+                        </Tag>
+                      </div>
+                      {proposal.notes && (
+                        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginLeft: 24 }}>
+                          {proposal.notes.substring(0, 200)}{proposal.notes.length > 200 ? '...' : ''}
+                        </Text>
+                      )}
+                      <div style={{ marginLeft: 24, marginTop: 4, display: 'flex', gap: 8 }}>
+                        {proposal.businessOwner && <Text style={{ fontSize: 11 }}>👤 {proposal.businessOwner}</Text>}
+                        {proposal.currentPhase && <Text style={{ fontSize: 11 }}>📍 {proposal.currentPhase}</Text>}
+                        {proposal.estimatedGoLive && <Text style={{ fontSize: 11 }}>🎯 {proposal.estimatedGoLive}</Text>}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+
+              <Button
+                type="primary"
+                icon={<CheckCircleOutlined />}
+                onClick={handleCreateSelected}
+                loading={creating}
+                block
+                size="large"
+                disabled={proposals.filter(p => p.selected).length === 0}
+                style={{ background: '#52c41a', borderColor: '#52c41a' }}
+              >
+                Create {proposals.filter(p => p.selected).length} Selected Work Item(s)
+              </Button>
+            </>
+          )}
+        </Space>
+      </Modal>
 
       {/* Template Generation Modal */}
       <Modal

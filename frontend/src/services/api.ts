@@ -153,6 +153,16 @@ export const aiApi = {
       method: 'POST',
       body: JSON.stringify({ question }),
     }),
+  analyzeDocument: (content: string, documentType: string, application: string, fileName: string) =>
+    request<{ success: boolean; proposals: string; summary: string; provider: string }>('/analyzeDocument', {
+      method: 'POST',
+      body: JSON.stringify({ content, documentType, application, fileName }),
+    }),
+  createFromProposal: (proposals: string, application: string) =>
+    request<{ success: boolean; created: number; message: string }>('/createFromProposal', {
+      method: 'POST',
+      body: JSON.stringify({ proposals, application }),
+    }),
   generateTemplate: (emailContent: string, templateName: string, scope: string) =>
     request<{ success: boolean; templateHtml: string; message: string; provider: string }>('/generateTemplateFromEmail', {
       method: 'POST',

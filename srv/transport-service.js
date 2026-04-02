@@ -40,6 +40,8 @@ class TransportService extends cds.ApplicationService {
     this.on('testAIConnection', this._onTestAIConnection.bind(this));
     this.on('saveAIConfig', this._onSaveAIConfig.bind(this));
     this.on('chatWithAgent', this._onChatWithAgent.bind(this));
+    this.on('analyzeDocument', this._onAnalyzeDocument.bind(this));
+    this.on('createFromProposal', this._onCreateFromProposal.bind(this));
     this.on('generateTemplateFromEmail', this._onGenerateTemplateFromEmail.bind(this));
     this.on('saveReportTemplate', this._onSaveReportTemplate.bind(this));
     this.on('deleteReportTemplate', this._onDeleteReportTemplate.bind(this));
@@ -609,6 +611,157 @@ class TransportService extends cds.ApplicationService {
     lines.push(`Today: ${now.toISOString().split('T')[0]}`);
 
     return lines.join('\n');
+  }
+
+  // ─── Analyze Uploaded Document (AI-powered) ───
+  async _onAnalyzeDocument(req) {
+    const { content, documentType, application, fileName } = req.data;
+    if (!content?.trim()) {
+      return { success: false, proposals: '[]', summary: 'No content provided.', provider: '' };
+    }
+
+    try {
+      const ai = await AIClient.create(this.db, this._e);
+      if (!ai.enabled) {
+        return { success: false, proposals: '[]', summary: 'AI is not configured. Go to Settings → AI Integration.', provider: '' };
+      }
+
+      // Determine document type context
+      const docTypeContext = {
+        email: 'This is an email (potentially a project request, status update, or approval). Extract project details, action items, timelines, owners, and any referenced tickets or systems.',
+        veeva: 'This is a Veeva Change Control document (pharmaceutical/life sciences). Extract change requests, impacted systems (Veeva CRM, Vault, PromoMats, Align, etc.), regulatory requirements, validation needs, affected business processes, and timelines.',
+        sharepoint: 'This is content from a SharePoint document or project tracker. Extract project names, milestones, owners, status updates, dates, and deliverables.',
+        general: 'This is a general project document. Extract all project-related information including names, types, owners, timelines, statuses, and action items.',
+      }[documentType] || 'Analyze this document for project management information.';
+
+      // Application context for proper work item types
+      const appTypes = {
+        SAP: 'Project, Enhancement, Break-fix, Support, Hypercare, Upgrade',
+        Coupa: 'Implementation, Integration, Configuration, Data Migration, Upgrade, Support, Optimization, Supplier Enablement',
+        Commercial: 'Product Launch, Campaign, Compliance Initiative, Market Access, Field Force, MLR Review, Veeva Implementation, Analytics Project',
+      }[application] || 'Project, Enhancement, Support';
+
+      const appPhases = {
+        SAP: 'Planning, Development, Testing, Go-Live, Hypercare, Complete',
+        Coupa: 'Design, Configure, Build, Test, Deploy, Optimize',
+        Commercial: 'Planning, Pre-Launch, Execution, Monitoring, Close-Out',
+      }[application] || 'Planning, Development, Testing, Go-Live, Complete';
+
+      const systemPrompt = `You are an expert project management AI assistant with deep knowledge of enterprise software implementations.
+Your specialty areas include SAP ERP, Coupa Procurement, and Life Sciences Commercial Operations (Veeva, pharma compliance).
+
+TASK: Analyze the uploaded document and propose work items to create in our project management system.
+
+DOCUMENT TYPE: ${documentType}
+${docTypeContext}
+
+APPLICATION: ${application}
+Valid work item types for this application: ${appTypes}
+Valid phases: ${appPhases}
+
+You MUST respond with ONLY valid JSON — no markdown code fences, no explanation text before or after.
+Return a JSON object with this exact structure:
+{
+  "summary": "Brief 2-3 sentence summary of what the document contains",
+  "proposals": [
+    {
+      "workItemName": "Descriptive name for the work item",
+      "workItemType": "One of the valid types listed above",
+      "projectCode": "Auto-generated code like PRJ-XXX-2026-XX",
+      "priority": "P1 or P2 or P3",
+      "complexity": "Low or Medium or High or Critical",
+      "currentPhase": "One of the valid phases listed above",
+      "businessOwner": "Extracted from document or empty string",
+      "notes": "Key details, requirements, or context from the document",
+      "estimatedGoLive": "YYYY-MM-DD if mentioned, or empty string",
+      "confidence": "high or medium or low — how confident you are this item should be created"
+    }
+  ]
+}
+
+RULES:
+- Extract as many distinct work items as the document suggests (1-10 items typically)
+- Use the EXACT work item types listed above — do not invent new types
+- Set realistic priorities based on urgency/impact signals in the document
+- Include relevant details in the notes field
+- For emails: look for action items, project requests, escalations
+- For Veeva Change Controls: each change request may be a separate work item
+- For SharePoint: extract distinct projects or deliverables
+- If the document doesn't contain enough info for a field, use empty string
+- NEVER hallucinate — only extract what's actually in the document`;
+
+      const userMessage = `File name: ${fileName || 'Unknown'}
+Application: ${application}
+
+DOCUMENT CONTENT:
+${content.substring(0, 15000)}`;
+
+      let response = await ai._call(systemPrompt, userMessage, 4000);
+
+      // Strip markdown code fences if present
+      response = response.trim();
+      if (response.startsWith('```')) {
+        response = response.replace(/^[\s]*```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+      }
+
+      // Parse the AI response
+      let parsed;
+      try {
+        parsed = JSON.parse(response);
+      } catch (parseErr) {
+        return { success: false, proposals: '[]', summary: `AI returned invalid JSON. Raw response: ${response.substring(0, 500)}`, provider: ai.provider };
+      }
+
+      return {
+        success: true,
+        proposals: JSON.stringify(parsed.proposals || []),
+        summary: parsed.summary || 'Document analyzed successfully.',
+        provider: ai.provider,
+      };
+    } catch (err) {
+      return { success: false, proposals: '[]', summary: `Analysis failed: ${err.message}`, provider: '' };
+    }
+  }
+
+  // ─── Create Work Items from AI Proposals ───
+  async _onCreateFromProposal(req) {
+    const { proposals, application } = req.data;
+    const { WorkItems } = this._e;
+
+    try {
+      const items = JSON.parse(proposals);
+      if (!Array.isArray(items) || items.length === 0) {
+        return { success: false, created: 0, message: 'No proposals to create.' };
+      }
+
+      let created = 0;
+      for (const item of items) {
+        const newId = cds.utils.uuid();
+        await INSERT.into(WorkItems).entries({
+          ID: newId,
+          workItemName: item.workItemName || 'Untitled Work Item',
+          projectCode: item.projectCode || `AI-${application?.substring(0, 3) || 'GEN'}-${Date.now().toString(36).toUpperCase()}`,
+          workItemType: item.workItemType || 'Project',
+          application: application || 'SAP',
+          priority: item.priority || 'P2',
+          complexity: item.complexity || 'Medium',
+          status: 'Active',
+          currentPhase: item.currentPhase || 'Planning',
+          businessOwner: item.businessOwner || '',
+          notes: item.notes || '',
+          goLiveDate: item.estimatedGoLive || null,
+          overallRAG: 'GREEN',
+          riskScore: 0,
+          deploymentPct: 0,
+          methodology: 'Hybrid',
+        });
+        created++;
+      }
+
+      return { success: true, created, message: `Successfully created ${created} work item(s) from AI analysis.` };
+    } catch (err) {
+      return { success: false, created: 0, message: `Creation failed: ${err.message}` };
+    }
   }
 
   // ─── Generate Template from Email (AI-powered) ───

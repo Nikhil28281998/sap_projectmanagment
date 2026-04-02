@@ -7,10 +7,14 @@ import {
 import {
   SearchOutlined, ReloadOutlined, EyeOutlined, FileExcelOutlined,
   ProjectOutlined, CodeOutlined, BugOutlined, AppstoreOutlined,
-  SwapOutlined, ThunderboltOutlined, CustomerServiceOutlined, SafetyOutlined
+  SwapOutlined, ThunderboltOutlined, CustomerServiceOutlined, SafetyOutlined,
+  ApiOutlined, ToolOutlined, DatabaseOutlined, RiseOutlined,
+  ShoppingCartOutlined, RocketOutlined, NotificationOutlined, AuditOutlined,
+  FundOutlined, TeamOutlined, FileProtectOutlined, BarChartOutlined,
+  CloudServerOutlined
 } from '@ant-design/icons';
 import { useWorkItems, useTransports } from '../../hooks/useData';
-import { useModule } from '../../contexts/ModuleContext';
+import { useModule, ModuleKey } from '../../contexts/ModuleContext';
 import { calculateRAG, daysFromNow, WORK_TYPE_MAP, WORK_TYPE_COLORS } from '../../utils/tr-parser';
 
 const { Title, Text } = Typography;
@@ -23,16 +27,40 @@ const STATUS_OPTIONS = [
   { value: 'Cancelled', label: 'Cancelled' },
 ];
 
-const TAB_CONFIG: { key: string; label: string; icon: React.ReactNode }[] = [
-  { key: '', label: 'All', icon: <AppstoreOutlined /> },
-  { key: 'Project', label: 'Projects', icon: <ProjectOutlined /> },
-  { key: 'Enhancement', label: 'Enhancements', icon: <CodeOutlined /> },
-  { key: 'Break-fix', label: 'Break-Fixes', icon: <BugOutlined /> },
-  { key: 'Upgrade', label: 'Upgrades', icon: <SwapOutlined /> },
-  { key: 'Support', label: 'Support', icon: <CustomerServiceOutlined /> },
-  { key: 'Hypercare', label: 'Hypercare', icon: <SafetyOutlined /> },
-  { key: 'tr-search', label: 'TR Search', icon: <SearchOutlined /> },
-];
+const TAB_CONFIGS: Record<ModuleKey, { key: string; label: string; icon: React.ReactNode }[]> = {
+  sap: [
+    { key: '', label: 'All', icon: <AppstoreOutlined /> },
+    { key: 'Project', label: 'Projects', icon: <ProjectOutlined /> },
+    { key: 'Enhancement', label: 'Enhancements', icon: <CodeOutlined /> },
+    { key: 'Break-fix', label: 'Break-Fixes', icon: <BugOutlined /> },
+    { key: 'Upgrade', label: 'Upgrades', icon: <SwapOutlined /> },
+    { key: 'Support', label: 'Support', icon: <CustomerServiceOutlined /> },
+    { key: 'Hypercare', label: 'Hypercare', icon: <SafetyOutlined /> },
+    { key: 'tr-search', label: 'TR Search', icon: <SearchOutlined /> },
+  ],
+  coupa: [
+    { key: '', label: 'All', icon: <AppstoreOutlined /> },
+    { key: 'Implementation', label: 'Implementations', icon: <RocketOutlined /> },
+    { key: 'Integration', label: 'Integrations', icon: <ApiOutlined /> },
+    { key: 'Configuration', label: 'Configurations', icon: <ToolOutlined /> },
+    { key: 'Data Migration', label: 'Data Migration', icon: <DatabaseOutlined /> },
+    { key: 'Upgrade', label: 'Upgrades', icon: <SwapOutlined /> },
+    { key: 'Support', label: 'Support', icon: <CustomerServiceOutlined /> },
+    { key: 'Optimization', label: 'Optimization', icon: <RiseOutlined /> },
+    { key: 'Supplier Enablement', label: 'Suppliers', icon: <ShoppingCartOutlined /> },
+  ],
+  commercial: [
+    { key: '', label: 'All', icon: <AppstoreOutlined /> },
+    { key: 'Product Launch', label: 'Product Launches', icon: <RocketOutlined /> },
+    { key: 'Campaign', label: 'Campaigns', icon: <NotificationOutlined /> },
+    { key: 'Compliance Initiative', label: 'Compliance', icon: <AuditOutlined /> },
+    { key: 'Market Access', label: 'Market Access', icon: <FundOutlined /> },
+    { key: 'Field Force', label: 'Field Force', icon: <TeamOutlined /> },
+    { key: 'MLR Review', label: 'MLR Review', icon: <FileProtectOutlined /> },
+    { key: 'Veeva Implementation', label: 'Veeva', icon: <CloudServerOutlined /> },
+    { key: 'Analytics Project', label: 'Analytics', icon: <BarChartOutlined /> },
+  ],
+};
 
 const WorkItemList: React.FC = () => {
   const { type } = useParams<{ type?: string }>();
@@ -309,7 +337,7 @@ const WorkItemList: React.FC = () => {
         onChange={handleTabChange}
         type="card"
         style={{ marginBottom: 0 }}
-        items={TAB_CONFIG.map(tab => ({
+        items={(TAB_CONFIGS[activeModule] || TAB_CONFIGS.sap).map(tab => ({
           key: tab.key,
           label: (
             <Space size={4}>

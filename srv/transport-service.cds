@@ -140,6 +140,22 @@ service TransportService {
     question : String
   ) returns { success: Boolean; answer: LargeString; provider: String };
 
+  // Analyze uploaded document (email, Veeva CC, general) and propose work items
+  @requires: ['Admin', 'Manager']
+  action analyzeDocument(
+    content      : LargeString,
+    documentType : String,
+    application  : String,
+    fileName     : String
+  ) returns { success: Boolean; proposals: LargeString; summary: String; provider: String };
+
+  // Create work items from AI-analyzed document proposals
+  @requires: ['Admin', 'Manager']
+  action createFromProposal(
+    proposals   : LargeString,
+    application : String
+  ) returns { success: Boolean; created: Integer; message: String };
+
   // Generate a report template from sample email content (Manager/Admin)
   @requires: ['Admin', 'Manager']
   action generateTemplateFromEmail(
