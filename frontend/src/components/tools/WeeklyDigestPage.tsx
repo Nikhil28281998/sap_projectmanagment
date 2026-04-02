@@ -8,6 +8,7 @@ import {
   EyeOutlined, CodeOutlined, ReloadOutlined, SaveOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
+import DOMPurify from 'dompurify';
 import { digestApi } from '../../services/api';
 import { useModule } from '../../contexts/ModuleContext';
 
@@ -262,7 +263,7 @@ const WeeklyDigestPage: React.FC = () => {
                     label: <span><EyeOutlined /> HTML Preview</span>,
                     children: (
                       <div
-                        dangerouslySetInnerHTML={{ __html: selectedDigest.digestHtml || '<p>No HTML content</p>' }}
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(selectedDigest.digestHtml || '<p>No HTML content</p>') }}
                         style={{
                           border: '1px solid #d9d9d9',
                           borderRadius: 6,

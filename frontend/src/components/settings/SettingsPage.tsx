@@ -53,6 +53,12 @@ const SettingsPage: React.FC = () => {
         if (c.configKey === 'AI_PROVIDER') {
           setAiProvider(c.configValue || 'openrouter');
         }
+        // Populate SharePoint fields from saved config
+        if (c.configKey === 'SHAREPOINT_TENANT_ID') setSpTenantId(c.configValue || '');
+        if (c.configKey === 'SHAREPOINT_CLIENT_ID') setSpClientId(c.configValue || '');
+        if (c.configKey === 'SHAREPOINT_CLIENT_SECRET' && c.configValue) setSpClientSecret('••••••••'); // masked
+        if (c.configKey === 'SHAREPOINT_SITE_URL') setSpSiteUrl(c.configValue || '');
+        if (c.configKey === 'SHAREPOINT_DRIVE_ID') setSpDriveId(c.configValue || '');
         const key = c.configKey || c.key;
         if (c.valueType === 'boolean') {
           formValues[key] = c.configValue === 'true';
@@ -389,7 +395,7 @@ const SettingsPage: React.FC = () => {
                 const result = await sharePointApi.configure({
                   tenantId: spTenantId,
                   clientId: spClientId,
-                  clientSecret: spClientSecret,
+                  clientSecret: spClientSecret === '••••••••' ? '' : spClientSecret, // don't send masked placeholder
                   siteUrl: spSiteUrl,
                   driveId: spDriveId,
                 });

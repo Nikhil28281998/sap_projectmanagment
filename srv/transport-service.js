@@ -29,6 +29,10 @@ class TransportService extends cds.ApplicationService {
     // ── Before handlers ──
     this.before('UPDATE', 'Transports', this._checkOptimisticLock.bind(this));
 
+    // ── Row-level data isolation: filter by user's allowedApps ──
+    this.before('READ', ['WorkItems', 'Milestones', 'Notifications'], this._filterByAllowedApps.bind(this));
+    this.before('READ', 'Transports', this._filterTransportsByAllowedApps.bind(this));
+
     // ── Action handlers ──
     this.on('categorizeTransport', this._onCategorize.bind(this));
     this.on('bulkCategorize', this._onBulkCategorize.bind(this));
@@ -61,8 +65,50 @@ class TransportService extends cds.ApplicationService {
     this.on('generateWeeklyDigest', this._onGenerateWeeklyDigest.bind(this));
     this.on('getWeeklyDigests', this._onGetWeeklyDigests.bind(this));
     this.on('analyzeProjectRisks', this._onAnalyzeProjectRisks.bind(this));
+    this.on('createWorkItem', this._onCreateWorkItem.bind(this));
+    this.on('deleteWorkItem', this._onDeleteWorkItem.bind(this));
+    this.on('changeWorkItemStatus', this._onChangeWorkItemStatus.bind(this));
 
     await super.init();
+  }
+
+  // ─── Row-Level Data Isolation ───
+  // Determines allowed applications for the current user
+  _getAllowedApps(req) {
+    const user = req.user;
+    const allowed = [];
+    if (user.is('SuperAdmin')) return null; // SuperAdmin sees all — no filter
+    if (user.is('SAP')) allowed.push('SAP');
+    if (user.is('Coupa')) allowed.push('Coupa');
+    if (user.is('Commercial')) allowed.push('Commercial');
+    // Backward compat: if no app roles, grant all
+    if (allowed.length === 0) return null;
+    return allowed;
+  }
+
+  // BEFORE READ handler for WorkItems, Milestones, Notifications
+  _filterByAllowedApps(req) {
+    const allowed = this._getAllowedApps(req);
+    if (!allowed) return; // SuperAdmin or unrestricted
+    // WorkItems have application column directly
+    if (req.target.name.endsWith('WorkItems')) {
+      req.query.where({ application: { in: allowed } });
+    }
+    // Milestones are linked to WorkItems — filter via subquery
+    if (req.target.name.endsWith('Milestones')) {
+      req.query.where(`workItem_ID in (SELECT ID from sap_pm_WorkItems WHERE application in (${allowed.map(a => `'${a}'`).join(',')}))`);
+    }
+    // Notifications — filter out notifications from other apps projects
+    // Notifications don't have application column, so we skip strict filtering here
+    // but AI risk notifications contain project names which is acceptable
+  }
+
+  // BEFORE READ handler for Transports — filter by linked WorkItem's application
+  _filterTransportsByAllowedApps(req) {
+    const allowed = this._getAllowedApps(req);
+    if (!allowed) return; // SuperAdmin or unrestricted
+    // Filter TRs: either linked to an allowed-app WorkItem, or unassigned (workItem_ID is null)
+    req.query.where(`(workItem_ID is null OR workItem_ID in (SELECT ID from sap_pm_WorkItems WHERE application in (${allowed.map(a => `'${a}'`).join(',')})))`);
   }
 
   // ─── Optimistic Locking ───
@@ -547,8 +593,9 @@ class TransportService extends cds.ApplicationService {
         return { success: false, answer: 'AI is not configured. Go to Settings → AI Integration to connect your Claude, ChatGPT, Gemini, or OpenRouter account.', provider: '' };
       }
 
-      // Gather all app data as context for the agent
-      const appContext = await this._gatherAgentContext();
+      // Gather app data filtered by user's allowed applications
+      const allowed = this._getAllowedApps(req);
+      const appContext = await this._gatherAgentContext(allowed);
       const answer = await ai.chat(question, appContext);
 
       return { success: true, answer, provider: ai.provider };
@@ -557,15 +604,28 @@ class TransportService extends cds.ApplicationService {
     }
   }
 
-  // ─── Gather all data for AI agent context ───
-  async _gatherAgentContext() {
+  // ─── Gather data for AI agent context (filtered by allowedApps) ───
+  async _gatherAgentContext(allowedApps) {
     const { TransportWorkItems, WorkItems, Milestones, Notifications } = this._e;
 
-    const [workItems, transports, milestones] = await Promise.all([
-      SELECT.from(WorkItems),
-      SELECT.from(TransportWorkItems),
-      SELECT.from(Milestones)
-    ]);
+    let workItems, transports, milestones;
+    if (allowedApps && allowedApps.length > 0) {
+      workItems = await SELECT.from(WorkItems).where({ application: { in: allowedApps } });
+      const wiIds = workItems.map(w => w.ID);
+      transports = wiIds.length > 0
+        ? await SELECT.from(TransportWorkItems).where({ workItem_ID: { in: wiIds } })
+        : [];
+      milestones = wiIds.length > 0
+        ? await SELECT.from(Milestones).where({ workItem_ID: { in: wiIds } })
+        : [];
+    } else {
+      // SuperAdmin or unrestricted — load all
+      [workItems, transports, milestones] = await Promise.all([
+        SELECT.from(WorkItems),
+        SELECT.from(TransportWorkItems),
+        SELECT.from(Milestones)
+      ]);
+    }
 
     const now = new Date();
     const lines = [];
@@ -973,7 +1033,7 @@ Scope: ${scope || 'single'} (${scope === 'multi' ? 'all projects summary' : scop
             .where({ trNumber: tr.trNumber, type: 'STUCK_TR', isRead: false });
           if (!existing) {
             await INSERT.into(Notifications).entries({
-              userEmail: tr.ownerFullName || tr.trOwner || 'system',
+              userEmail: tr.trOwner || tr.ownerFullName || 'system',
               type: 'STUCK_TR',
               message: `Transport ${tr.trNumber} stuck in ${tr.currentSystem} for ${Math.round(daysInSystem)} days — "${tr.trDescription}"`,
               trNumber: tr.trNumber,
@@ -991,7 +1051,7 @@ Scope: ${scope || 'single'} (${scope === 'multi' ? 'all projects summary' : scop
             .where({ trNumber: tr.trNumber, type: 'FAILED_IMPORT', isRead: false });
           if (!existing) {
             await INSERT.into(Notifications).entries({
-              userEmail: tr.ownerFullName || tr.trOwner || 'system',
+              userEmail: tr.trOwner || tr.ownerFullName || 'system',
               type: 'FAILED_IMPORT',
               message: `Transport ${tr.trNumber} FAILED import in ${tr.currentSystem} (RC=${tr.importRC}) — "${tr.trDescription}"`,
               trNumber: tr.trNumber,
@@ -1100,16 +1160,27 @@ Scope: ${scope || 'single'} (${scope === 'multi' ? 'all projects summary' : scop
     const wiDoneFilter = application ? { status: 'Done', application } : { status: 'Done' };
 
     const [
-      allTRs,
       activeProjects,
-      unassigned,
       completedWorkItems
     ] = await Promise.all([
-      SELECT.from(TransportWorkItems),
       SELECT.from(WorkItems).where(wiFilter),
-      SELECT.from(TransportWorkItems).where({ workType: null }),
       SELECT.from(WorkItems).where(wiDoneFilter)
     ]);
+
+    // Filter transports by application: only TRs linked to matching WorkItems
+    let allTRs;
+    if (application) {
+      const wiIds = activeProjects.map(w => w.ID);
+      const doneIds = completedWorkItems.map(w => w.ID);
+      const allIds = [...wiIds, ...doneIds];
+      allTRs = allIds.length > 0
+        ? await SELECT.from(TransportWorkItems).where({ workItem_ID: { in: allIds } })
+        : [];
+    } else {
+      allTRs = await SELECT.from(TransportWorkItems);
+    }
+
+    const unassigned = allTRs.filter(tr => !tr.workType);
 
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -1156,9 +1227,19 @@ Scope: ${scope || 'single'} (${scope === 'multi' ? 'all projects summary' : scop
 
   // ─── Pipeline Summary ───
   async _onPipelineSummary(req) {
-    const { TransportWorkItems } = this._e;
-    // Pipeline summary is SAP-transport specific; application param reserved for future use
-    const allTRs = await SELECT.from(TransportWorkItems);
+    const { TransportWorkItems, WorkItems } = this._e;
+    const application = req.data?.application || null;
+
+    // Filter transports by application if specified
+    let allTRs;
+    if (application) {
+      const wiIds = (await SELECT.from(WorkItems).where({ application }).columns('ID')).map(w => w.ID);
+      allTRs = wiIds.length > 0
+        ? await SELECT.from(TransportWorkItems).where({ workItem_ID: { in: wiIds } })
+        : [];
+    } else {
+      allTRs = await SELECT.from(TransportWorkItems);
+    }
 
     const now = new Date();
     const devTRs = allTRs.filter(tr => tr.currentSystem === 'DEV');
@@ -1419,7 +1500,7 @@ Apply the user's instruction precisely. Preserve all fields that weren't asked t
       const configs = [
         { configKey: 'SHAREPOINT_TENANT_ID', configValue: tenantId, description: 'Azure AD Tenant ID' },
         { configKey: 'SHAREPOINT_CLIENT_ID', configValue: clientId, description: 'Azure AD App Client ID' },
-        { configKey: 'SHAREPOINT_CLIENT_SECRET', configValue: clientSecret ? '***configured***' : '', description: 'Azure AD Client Secret (masked)' },
+        { configKey: 'SHAREPOINT_CLIENT_SECRET', configValue: clientSecret ? encrypt(clientSecret) : '', description: 'Azure AD Client Secret (encrypted)' },
         { configKey: 'SHAREPOINT_SITE_URL', configValue: siteUrl, description: 'SharePoint Site URL' },
         { configKey: 'SHAREPOINT_DRIVE_ID', configValue: driveId, description: 'SharePoint Drive/Library ID' },
       ];
@@ -1429,7 +1510,7 @@ Apply the user's instruction precisely. Preserve all fields that weren't asked t
         if (existing) {
           // Don't overwrite the real secret with the masked value
           if (cfg.configKey === 'SHAREPOINT_CLIENT_SECRET' && clientSecret) {
-            await UPDATE(AppConfig).set({ configValue: clientSecret, description: cfg.description }).where({ configKey: cfg.configKey });
+            await UPDATE(AppConfig).set({ configValue: encrypt(clientSecret), description: cfg.description }).where({ configKey: cfg.configKey });
           } else if (cfg.configKey !== 'SHAREPOINT_CLIENT_SECRET') {
             await UPDATE(AppConfig).set({ configValue: cfg.configValue, description: cfg.description }).where({ configKey: cfg.configKey });
           }
@@ -1479,7 +1560,7 @@ Apply the user's instruction precisely. Preserve all fields that weren't asked t
       const sp = new SharePointClient();
       sp.tenantId = cfg.SHAREPOINT_TENANT_ID;
       sp.clientId = cfg.SHAREPOINT_CLIENT_ID;
-      sp.clientSecret = cfg.SHAREPOINT_CLIENT_SECRET;
+      sp.clientSecret = decrypt(cfg.SHAREPOINT_CLIENT_SECRET || '');
       sp.useMock = false;
 
       await sp._ensureToken();
@@ -1549,7 +1630,7 @@ Apply the user's instruction precisely. Preserve all fields that weren't asked t
       const sp = new SharePointClient();
       sp.tenantId = cfg.SHAREPOINT_TENANT_ID;
       sp.clientId = cfg.SHAREPOINT_CLIENT_ID;
-      sp.clientSecret = cfg.SHAREPOINT_CLIENT_SECRET;
+      sp.clientSecret = decrypt(cfg.SHAREPOINT_CLIENT_SECRET || '');
       sp.useMock = false;
       await sp._ensureToken();
 
@@ -1847,6 +1928,124 @@ ${JSON.stringify(projectData, null, 2)}`;
       };
     } catch (err) {
       return { success: false, risks: '[]', generated: 0, message: `Risk analysis failed: ${err.message}`, provider: '' };
+    }
+  }
+
+  // ════════════════════════════════════════════════════════
+  //  CREATE / DELETE / STATUS CHANGE — Work Item CRUD
+  // ════════════════════════════════════════════════════════
+
+  async _onCreateWorkItem(req) {
+    const { workItemName, projectCode, workItemType, application, priority, complexity, currentPhase, businessOwner, goLiveDate, notes } = req.data;
+    const { WorkItems, ActivityLog } = this._e;
+
+    if (!workItemName?.trim()) {
+      return req.reject(400, 'Work item name is required');
+    }
+
+    try {
+      const newId = cds.utils.uuid();
+      await INSERT.into(WorkItems).entries({
+        ID: newId,
+        workItemName: workItemName.trim(),
+        projectCode: projectCode || `WI-${application?.substring(0, 3) || 'GEN'}-${Date.now().toString(36).toUpperCase()}`,
+        workItemType: workItemType || 'Project',
+        application: application || 'SAP',
+        priority: priority || 'P2',
+        complexity: complexity || 'Medium',
+        status: 'Active',
+        currentPhase: currentPhase || 'Planning',
+        businessOwner: businessOwner || '',
+        goLiveDate: goLiveDate || null,
+        notes: notes || '',
+        overallRAG: 'GREEN',
+        riskScore: 0,
+        deploymentPct: 0,
+        methodology: 'Hybrid',
+      });
+
+      await INSERT.into(ActivityLog).entries({
+        userEmail: req.user.id,
+        action: 'CREATE_WORK_ITEM',
+        entityType: 'WORK_ITEM',
+        entityId: newId,
+        newValue: workItemName,
+        createdAt: new Date().toISOString(),
+      });
+
+      return { success: true, workItemId: newId, message: `Work item "${workItemName}" created successfully.` };
+    } catch (err) {
+      return { success: false, workItemId: '', message: `Creation failed: ${err.message}` };
+    }
+  }
+
+  async _onDeleteWorkItem(req) {
+    const { workItemId } = req.data;
+    const { WorkItems, TransportWorkItems, Milestones, ActivityLog } = this._e;
+
+    try {
+      const wi = await SELECT.one.from(WorkItems).where({ ID: workItemId });
+      if (!wi) return req.reject(404, `Work item ${workItemId} not found`);
+
+      // Unlink transports (set workItem_ID to null instead of cascading)
+      await UPDATE(TransportWorkItems).set({ workItem_ID: null }).where({ workItem_ID: workItemId });
+
+      // Delete milestones
+      await DELETE.from(Milestones).where({ workItem_ID: workItemId });
+
+      // Delete work item
+      await DELETE.from(WorkItems).where({ ID: workItemId });
+
+      await INSERT.into(ActivityLog).entries({
+        userEmail: req.user.id,
+        action: 'DELETE_WORK_ITEM',
+        entityType: 'WORK_ITEM',
+        entityId: workItemId,
+        oldValue: wi.workItemName,
+        createdAt: new Date().toISOString(),
+      });
+
+      return { success: true, message: `Work item "${wi.workItemName}" deleted.` };
+    } catch (err) {
+      return { success: false, message: `Delete failed: ${err.message}` };
+    }
+  }
+
+  async _onChangeWorkItemStatus(req) {
+    const { workItemId, status } = req.data;
+    const { WorkItems, ActivityLog } = this._e;
+
+    const validStatuses = ['Active', 'On Hold', 'Done', 'Cancelled'];
+    if (!validStatuses.includes(status)) {
+      return req.reject(400, `Invalid status: ${status}. Must be one of: ${validStatuses.join(', ')}`);
+    }
+
+    try {
+      const wi = await SELECT.one.from(WorkItems).where({ ID: workItemId });
+      if (!wi) return req.reject(404, `Work item ${workItemId} not found`);
+
+      const oldStatus = wi.status;
+      const updateData = { status };
+
+      // Auto-set phase for terminal statuses
+      if (status === 'Done') updateData.currentPhase = 'Complete';
+      if (status === 'Cancelled') updateData.currentPhase = 'Complete';
+
+      await UPDATE(WorkItems).set(updateData).where({ ID: workItemId });
+
+      await INSERT.into(ActivityLog).entries({
+        userEmail: req.user.id,
+        action: 'CHANGE_STATUS',
+        entityType: 'WORK_ITEM',
+        entityId: workItemId,
+        oldValue: oldStatus,
+        newValue: status,
+        createdAt: new Date().toISOString(),
+      });
+
+      return { success: true, message: `Status changed from "${oldStatus}" to "${status}" for "${wi.workItemName}".` };
+    } catch (err) {
+      return { success: false, message: `Status change failed: ${err.message}` };
     }
   }
 }

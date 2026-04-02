@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Card, Table, Tag, Space, Input, Select, Button, Typography, Tooltip, Progress,
-  Tabs, Row, Col, Empty, Badge
+  Tabs, Row, Col, Empty, Badge, Modal, Form, DatePicker, message
 } from 'antd';
 import {
   SearchOutlined, ReloadOutlined, EyeOutlined, FileExcelOutlined,
@@ -11,9 +11,11 @@ import {
   ApiOutlined, ToolOutlined, DatabaseOutlined, RiseOutlined,
   ShoppingCartOutlined, RocketOutlined, NotificationOutlined, AuditOutlined,
   FundOutlined, TeamOutlined, FileProtectOutlined, BarChartOutlined,
-  CloudServerOutlined
+  CloudServerOutlined, PlusOutlined
 } from '@ant-design/icons';
-import { useWorkItems, useTransports } from '../../hooks/useData';
+import dayjs from 'dayjs';
+import { useWorkItems, useTransports, useCreateWorkItem } from '../../hooks/useData';
+import { useAuth } from '../../contexts/AuthContext';
 import { useModule, ModuleKey } from '../../contexts/ModuleContext';
 import { calculateRAG, daysFromNow, WORK_TYPE_MAP, WORK_TYPE_COLORS } from '../../utils/tr-parser';
 
@@ -69,6 +71,10 @@ const WorkItemList: React.FC = () => {
   const { data: allWorkItems = [], isLoading: wiLoading, refetch } = useWorkItems();
   const { data: transports = [], isLoading: trLoading } = useTransports();
   const { activeModule } = useModule();
+  const { canWrite } = useAuth();
+  const createMutation = useCreateWorkItem();
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createForm] = Form.useForm();
 
   // Filter work items by active application module
   const APP_MAP: Record<string, string> = { sap: 'SAP', coupa: 'Coupa', commercial: 'Commercial' };
@@ -439,6 +445,14 @@ const WorkItemList: React.FC = () => {
               <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
                 Refresh
               </Button>
+              {canWrite && (
+                <Button type="primary" icon={<PlusOutlined />} onClick={() => {
+                  createForm.resetFields();
+                  setCreateModalOpen(true);
+                }}>
+                  Create Work Item
+                </Button>
+              )}
             </Space>
           </Card>
 
@@ -458,6 +472,69 @@ const WorkItemList: React.FC = () => {
           </Card>
         </>
       )}
+
+      {/* Create Work Item Modal */}
+      <Modal
+        title="Create Work Item"
+        open={createModalOpen}
+        onCancel={() => setCreateModalOpen(false)}
+        okText="Create"
+        confirmLoading={createMutation.isPending}
+        onOk={() => {
+          createForm.validateFields().then(values => {
+            const APP_MAP_REV: Record<string, string> = { sap: 'SAP', coupa: 'Coupa', commercial: 'Commercial' };
+            createMutation.mutate({
+              ...values,
+              application: APP_MAP_REV[activeModule] || 'SAP',
+              goLiveDate: values.goLiveDate ? values.goLiveDate.format('YYYY-MM-DD') : undefined,
+            }, {
+              onSuccess: (res) => {
+                message.success(res.message);
+                setCreateModalOpen(false);
+                refetch();
+              },
+              onError: (err: any) => message.error(err.message || 'Failed to create'),
+            });
+          });
+        }}
+        width={560}
+      >
+        <Form form={createForm} layout="vertical" initialValues={{ priority: 'P2', complexity: 'Medium', workItemType: 'Project', currentPhase: 'Planning' }}>
+          <Form.Item name="workItemName" label="Name" rules={[{ required: true, message: 'Name is required' }]}>
+            <Input placeholder="e.g., FICO GL Upgrade Phase 2" />
+          </Form.Item>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item name="workItemType" label="Type">
+                <Select options={(TAB_CONFIGS[activeModule] || TAB_CONFIGS.sap).filter(t => t.key && t.key !== 'tr-search').map(t => ({ value: t.key, label: t.label }))} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="priority" label="Priority">
+                <Select options={[{ value: 'P1', label: 'P1 - Critical' }, { value: 'P2', label: 'P2 - High' }, { value: 'P3', label: 'P3 - Medium' }]} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item name="complexity" label="Complexity">
+                <Select options={[{ value: 'Low', label: 'Low' }, { value: 'Medium', label: 'Medium' }, { value: 'High', label: 'High' }, { value: 'Critical', label: 'Critical' }]} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="goLiveDate" label="Go-Live Date">
+                <DatePicker style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="businessOwner" label="Business Owner">
+            <Input placeholder="e.g., John Smith" />
+          </Form.Item>
+          <Form.Item name="notes" label="Notes">
+            <Input.TextArea rows={2} placeholder="Additional context..." />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 };

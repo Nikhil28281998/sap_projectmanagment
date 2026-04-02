@@ -78,6 +78,25 @@ export const workItemApi = {
     request<any>('/WorkItems', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: any) =>
     request<any>(`/WorkItems(${id})`, { method: 'PATCH', body: JSON.stringify(data) }),
+  createWorkItem: (data: {
+    workItemName: string; projectCode?: string; workItemType?: string;
+    application?: string; priority?: string; complexity?: string;
+    currentPhase?: string; businessOwner?: string; goLiveDate?: string; notes?: string;
+  }) =>
+    request<{ success: boolean; workItemId: string; message: string }>('/createWorkItem', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  deleteWorkItem: (workItemId: string) =>
+    request<{ success: boolean; message: string }>('/deleteWorkItem', {
+      method: 'POST',
+      body: JSON.stringify({ workItemId }),
+    }),
+  changeStatus: (workItemId: string, status: string) =>
+    request<{ success: boolean; message: string }>('/changeWorkItemStatus', {
+      method: 'POST',
+      body: JSON.stringify({ workItemId, status }),
+    }),
 };
 
 // ─── Milestones ───

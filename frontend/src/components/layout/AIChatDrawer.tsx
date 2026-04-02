@@ -12,6 +12,7 @@ import {
   MailOutlined, MedicineBoxOutlined, CloudOutlined, FileSearchOutlined,
   EditOutlined, FolderOpenOutlined, CloudDownloadOutlined,
 } from '@ant-design/icons';
+import DOMPurify from 'dompurify';
 import { aiApi, templateApi, workItemApi, sharePointApi } from '../../services/api';
 import { useModule, MODULE_DEFINITIONS, ModuleKey } from '../../contexts/ModuleContext';
 
@@ -975,7 +976,7 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
                       label: <span><EyeOutlined /> Preview</span>,
                       children: (
                         <div
-                          dangerouslySetInnerHTML={{ __html: generatedHtml }}
+                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(generatedHtml) }}
                           style={{
                             border: '1px solid #d9d9d9',
                             borderRadius: 6,

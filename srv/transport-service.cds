@@ -318,4 +318,32 @@ service TransportService {
   action analyzeProjectRisks(
     application : String
   ) returns { success: Boolean; risks: LargeString; generated: Integer; message: String; provider: String };
+
+  // ─── Create Work Item (manual creation) ───
+  @requires: ['Admin', 'Manager']
+  action createWorkItem(
+    workItemName  : String,
+    projectCode   : String,
+    workItemType  : String,
+    application   : String,
+    priority      : String,
+    complexity    : String,
+    currentPhase  : String,
+    businessOwner : String,
+    goLiveDate    : String,
+    notes         : String
+  ) returns { success: Boolean; workItemId: String; message: String };
+
+  // ─── Delete Work Item ───
+  @requires: ['Admin']
+  action deleteWorkItem(
+    workItemId : String
+  ) returns { success: Boolean; message: String };
+
+  // ─── Change Work Item Status ───
+  @requires: ['Admin', 'Manager']
+  action changeWorkItemStatus(
+    workItemId : String,
+    status     : String
+  ) returns { success: Boolean; message: String };
 }

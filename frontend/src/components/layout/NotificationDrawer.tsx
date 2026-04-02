@@ -53,9 +53,7 @@ const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ open, onClose }
   };
 
   const handleMarkAllRead = async () => {
-    for (const n of unread) {
-      try { await notificationApi.markRead(n.ID); } catch { /* ignore */ }
-    }
+    await Promise.all(unread.map((n: any) => notificationApi.markRead(n.ID).catch(() => {})));
     refetch();
   };
 

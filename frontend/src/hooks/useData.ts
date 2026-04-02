@@ -153,6 +153,46 @@ export function useGenerateReport() {
   });
 }
 
+// ─── Work Item Mutations (Create, Delete, StatusChange) ───
+export function useCreateWorkItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      workItemName: string; projectCode?: string; workItemType?: string;
+      application?: string; priority?: string; complexity?: string;
+      currentPhase?: string; businessOwner?: string; goLiveDate?: string; notes?: string;
+    }) => workItemApi.createWorkItem(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workItems'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
+    },
+  });
+}
+
+export function useDeleteWorkItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (workItemId: string) => workItemApi.deleteWorkItem(workItemId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workItems'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
+      queryClient.invalidateQueries({ queryKey: ['transports'] });
+    },
+  });
+}
+
+export function useChangeWorkItemStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ workItemId, status }: { workItemId: string; status: string }) =>
+      workItemApi.changeStatus(workItemId, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workItems'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
+    },
+  });
+}
+
 // ─── Report Templates ───
 export function useReportTemplates() {
   return useQuery({

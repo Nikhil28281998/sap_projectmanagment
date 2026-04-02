@@ -12,10 +12,11 @@ import {
   PlusOutlined, DeleteOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { useWorkItem, useTransports, useMethodologies } from '../../hooks/useData';
+import { useWorkItem, useTransports, useMethodologies, useDeleteWorkItem, useChangeWorkItemStatus } from '../../hooks/useData';
 import { useAuth } from '../../contexts/AuthContext';
 import { calculateRAG, daysFromNow, WORK_TYPE_MAP, WORK_TYPE_COLORS } from '../../utils/tr-parser';
 import { workItemApi, testStatusApi, milestoneApi } from '../../services/api';
+import { useQueryClient } from '@tanstack/react-query';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -26,6 +27,9 @@ const WorkItemDetail: React.FC = () => {
   const { data: allTransports = [] } = useTransports();
   const { data: methodologies = [] } = useMethodologies();
   const { canWrite } = useAuth();
+  const deleteMutation = useDeleteWorkItem();
+  const statusMutation = useChangeWorkItemStatus();
+  const queryClient = useQueryClient();
   const [veevaModalOpen, setVeevaModalOpen] = useState(false);
   const [veevaCC, setVeevaCC] = useState('');
   const [spModalOpen, setSpModalOpen] = useState(false);
@@ -68,8 +72,8 @@ const WorkItemDetail: React.FC = () => {
   const progressPct = workItem.deploymentPct || (totalTR > 0 ? Math.round((prodTR / totalTR) * 100) : 0);
 
   const handleUpdateVeevaCC = async () => {
-    if (!veevaCC.match(/^IT-CC-\d{4}$/)) {
-      message.error('Veeva CC must match pattern IT-CC-XXXX');
+    if (!veevaCC.match(/^IT-CC-\d{4,}$/)) {
+      message.error('Veeva CC must match pattern IT-CC-XXXX (4+ digits)');
       return;
     }
     try {
@@ -100,6 +104,8 @@ const WorkItemDetail: React.FC = () => {
       const result = await testStatusApi.update(workItem.ID, testData);
       message.success(result.message || 'Test status updated');
       setTestModalOpen(false);
+      refetchWI();
+      queryClient.invalidateQueries({ queryKey: ['workItems'] });
     } catch {
       message.error('Failed to update test status');
     }
@@ -257,6 +263,42 @@ const WorkItemDetail: React.FC = () => {
       {/* Header */}
       <Space style={{ marginBottom: 16 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>Back</Button>
+        {canWrite && (
+          <>
+            <Select
+              value={workItem.status}
+              onChange={(status) => {
+                statusMutation.mutate({ workItemId: workItem.ID, status }, {
+                  onSuccess: (res) => { message.success(res.message); refetchWI(); queryClient.invalidateQueries({ queryKey: ['workItems'] }); },
+                  onError: (err: any) => message.error(err.message),
+                });
+              }}
+              style={{ width: 130 }}
+              size="small"
+              options={[
+                { value: 'Active', label: 'Active' },
+                { value: 'On Hold', label: 'On Hold' },
+                { value: 'Done', label: 'Done' },
+                { value: 'Cancelled', label: 'Cancelled' },
+              ]}
+              loading={statusMutation.isPending}
+            />
+            <Popconfirm
+              title="Delete this work item?"
+              description="This will unlink all transports and delete milestones."
+              onConfirm={() => {
+                deleteMutation.mutate(workItem.ID, {
+                  onSuccess: (res) => { message.success(res.message); navigate(-1); },
+                  onError: (err: any) => message.error(err.message),
+                });
+              }}
+              okText="Delete"
+              okButtonProps={{ danger: true }}
+            >
+              <Button danger size="small" icon={<DeleteOutlined />} loading={deleteMutation.isPending}>Delete</Button>
+            </Popconfirm>
+          </>
+        )}
       </Space>
 
       <Row gutter={[16, 16]} align="middle" style={{ marginBottom: 16 }}>

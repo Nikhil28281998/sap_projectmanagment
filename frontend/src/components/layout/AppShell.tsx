@@ -9,7 +9,7 @@ import {
   BellOutlined, ReloadOutlined, WarningOutlined,
   AppstoreOutlined, RobotOutlined, TeamOutlined,
   ShoppingCartOutlined, MedicineBoxOutlined, ApartmentOutlined,
-  FundProjectionScreenOutlined, CalendarOutlined
+  FundProjectionScreenOutlined, CalendarOutlined, LogoutOutlined
 } from '@ant-design/icons';
 import { useNotifications, useRefreshTransports } from '../../hooks/useData';
 import { useAuth } from '../../contexts/AuthContext';
@@ -150,6 +150,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
     { key: 'email', label: <Text type="secondary" style={{ fontSize: 12 }}>{user?.email}</Text>, disabled: true },
     { type: 'divider' as const },
     { key: 'settings', label: 'Settings', icon: <SettingOutlined /> },
+    { key: 'logout', label: 'Logout', icon: <LogoutOutlined />, danger: true },
   ];
 
   const handleMenuClick = ({ key }: { key: string }) => {
@@ -234,7 +235,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
             <Badge count={unreadCount} size="small">
               <Button icon={<BellOutlined />} size="small" onClick={() => setNotifOpen(true)} />
             </Badge>
-            <Dropdown menu={{ items: userMenuItems, onClick: ({ key }) => { if (key === 'settings') navigate('/settings'); } }} trigger={['click']}>
+            <Dropdown menu={{ items: userMenuItems, onClick: ({ key }) => { if (key === 'settings') navigate('/settings'); if (key === 'logout') { window.location.href = '/api/v1/transport/logout'; } } }} trigger={['click']}>
               <Button size="small" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Avatar size={20} style={{ backgroundColor: roleBadge.color, fontSize: 10 }}>
                   {(user?.name || 'U')[0].toUpperCase()}

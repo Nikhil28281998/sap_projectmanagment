@@ -8,6 +8,7 @@ import {
   EyeOutlined, EditOutlined, PlusOutlined, DeleteOutlined,
   LockOutlined, GlobalOutlined, StarFilled,
 } from '@ant-design/icons';
+import DOMPurify from 'dompurify';
 import { useGenerateReport, useWorkItems, useReportTemplates } from '../../hooks/useData';
 import {
   weeklyStatusTemplate, executiveSummaryTemplate, goLiveReadinessTemplate,
@@ -478,7 +479,7 @@ const ReportBuilder: React.FC = () => {
         }
       >
         <div
-          dangerouslySetInnerHTML={{ __html: renderedHtml }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderedHtml) }}
           style={{
             maxHeight: '60vh',
             overflow: 'auto',

@@ -36,7 +36,7 @@ const PROVIDERS = {
   },
   openrouter: {
     name: 'OpenRouter (Free)',
-    defaultModel: 'openrouter/free',
+    defaultModel: 'meta-llama/llama-3.1-8b-instruct:free',
     baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
     keyPrefix: 'sk-or-',
     configKey: 'OPENROUTER_API_KEY',
@@ -120,20 +120,29 @@ class AIClient {
 
   // ── Claude (Anthropic) ──
   async _callClaude(systemPrompt, userMessage, maxTokens) {
-    const response = await fetch(this.providerConfig.baseUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': this.apiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: this.model,
-        max_tokens: maxTokens,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userMessage }]
-      })
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    let response;
+    try {
+      response = await fetch(this.providerConfig.baseUrl, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': this.apiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: maxTokens,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userMessage }]
+        })
+      });
+    } catch (err) {
+      if (err.name === 'AbortError') throw new Error('Claude API timed out after 30s');
+      throw err;
+    } finally { clearTimeout(timeout); }
 
     if (!response.ok) {
       const err = await response.text();
@@ -155,11 +164,21 @@ class AIClient {
 
     // Retry once on 429 (rate limit) after a short wait
     for (let attempt = 0; attempt < 2; attempt++) {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+      let response;
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          signal: controller.signal,
+          headers: { 'Content-Type': 'application/json' },
+          body
+        });
+      } catch (err) {
+        clearTimeout(timeout);
+        if (err.name === 'AbortError') throw new Error('Gemini API timed out after 30s');
+        throw err;
+      } finally { clearTimeout(timeout); }
 
       if (response.status === 429 && attempt === 0) {
         console.warn('Gemini rate limit hit, retrying in 5s...');
@@ -190,23 +209,32 @@ class AIClient {
   async _callOpenRouter(systemPrompt, userMessage, maxTokens) {
     // Free models may route to reasoning models that need more tokens
     const effectiveMaxTokens = Math.max(maxTokens, 4000);
-    const response = await fetch(this.providerConfig.baseUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
-        'HTTP-Referer': 'https://sap-project-mgmt.local',
-        'X-Title': 'SAP Project Management'
-      },
-      body: JSON.stringify({
-        model: this.model,
-        max_tokens: effectiveMaxTokens,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userMessage }
-        ]
-      })
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    let response;
+    try {
+      response = await fetch(this.providerConfig.baseUrl, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+          'HTTP-Referer': 'https://sap-project-mgmt.local',
+          'X-Title': 'SAP Project Management'
+        },
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: effectiveMaxTokens,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
+          ]
+        })
+      });
+    } catch (err) {
+      if (err.name === 'AbortError') throw new Error('OpenRouter API timed out after 30s');
+      throw err;
+    } finally { clearTimeout(timeout); }
 
     if (!response.ok) {
       const err = await response.text();
@@ -234,21 +262,30 @@ class AIClient {
 
   // ── ChatGPT (OpenAI) ──
   async _callOpenAI(systemPrompt, userMessage, maxTokens) {
-    const response = await fetch(this.providerConfig.baseUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`
-      },
-      body: JSON.stringify({
-        model: this.model,
-        max_tokens: maxTokens,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userMessage }
-        ]
-      })
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    let response;
+    try {
+      response = await fetch(this.providerConfig.baseUrl, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`
+        },
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: maxTokens,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
+          ]
+        })
+      });
+    } catch (err) {
+      if (err.name === 'AbortError') throw new Error('OpenAI API timed out after 30s');
+      throw err;
+    } finally { clearTimeout(timeout); }
 
     if (!response.ok) {
       const err = await response.text();

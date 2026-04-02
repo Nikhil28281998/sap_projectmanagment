@@ -2,6 +2,10 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
+// Dev proxy user — override via VITE_DEV_USER env var (default: admin@test.com)
+const devUser = process.env.VITE_DEV_USER || 'admin@test.com';
+const devPass = process.env.VITE_DEV_PASS || 'pass';
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -19,7 +23,7 @@ export default defineConfig({
         configure: (proxy) => {
           proxy.on('proxyReq', (proxyReq) => {
             // Auto-inject mocked auth for development
-            const auth = Buffer.from('admin@test.com:pass').toString('base64');
+            const auth = Buffer.from(`${devUser}:${devPass}`).toString('base64');
             proxyReq.setHeader('Authorization', `Basic ${auth}`);
           });
         },
