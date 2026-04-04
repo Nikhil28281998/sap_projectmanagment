@@ -1,339 +1,291 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  Row, Col, Card, Statistic, Progress, Tag, List, Typography, Space, Empty,
-  Timeline, Tooltip, Steps, Alert
+  Row, Col, Select, Typography, ConfigProvider, theme, Tooltip, Space,
+  DatePicker, Button, Empty
 } from 'antd';
 import {
-  ShoppingCartOutlined, ApiOutlined, CloudServerOutlined, CheckCircleOutlined,
-  ClockCircleOutlined, WarningOutlined, RocketOutlined, SettingOutlined,
-  DatabaseOutlined, SyncOutlined, SafetyCertificateOutlined, TeamOutlined,
-  DashboardOutlined, ProjectOutlined, ToolOutlined, SwapOutlined
+  FilterOutlined, CaretUpOutlined, CaretDownOutlined, InfoCircleOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { Column, Pie, Bar } from '@ant-design/charts';
 import { useWorkItems } from '../../hooks/useData';
 import { useAuth } from '../../contexts/AuthContext';
-import { useModule } from '../../contexts/ModuleContext';
-import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
+import { calculateRAG } from '../../utils/tr-parser';
+import dayjs from 'dayjs';
+import '../../styles/dashboard-dark.css';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
+const { RangePicker } = DatePicker;
 
-const RAG_COLORS: Record<string, string> = { GREEN: '#52c41a', AMBER: '#faad14', RED: '#ff4d4f' };
+const C = {
+  bg: '#0d1117', card: '#161b22', border: '#30363d',
+  text: 'rgba(255,255,255,0.87)', textSec: 'rgba(255,255,255,0.45)',
+  accent: '#58a6ff', green: '#3fb950', red: '#f85149', amber: '#d29922',
+  orange: '#ff8c00', purple: '#bc8cff', cyan: '#39d2c0', pink: '#f778ba',
+  blue: '#1f6feb',
+};
 
-/**
- * Coupa Project Management Dashboard
- *
- * This dashboard tracks Coupa implementation PROJECTS — not Coupa's operational
- * platform features. Coupa implementations follow a four-step methodology
- * (Source: Coupa Compass, compass.coupa.com) with three delivery models:
- * Direct Delivery, Expert Services, and Co-Delivery.
- *
- * Project types tracked here:
- * - Implementation: Core Coupa module deployments (greenfield/brownfield)
- * - Integration: ERP connectors, cXML/API feeds, P-Card integration
- * - Configuration: Approval workflows, business rules, content groups
- * - Data Migration: Supplier data, catalogs, contracts, spend history
- * - Supplier Enablement: Supplier onboarding programs & portal rollouts
- * - Upgrade / Optimization: Post-go-live improvements, release upgrades
- *
- * Phases: Design → Configure → Build → Test → Deploy → Optimize
- * Environments: Sandbox (dev/config) → Staging (UAT) → Production
- *
- * Source: Coupa Compass implementation documentation (2024),
- * SAFe LPM for portfolio governance, PMI Pulse 2025
- */
+function getRAG(wi: any): string {
+  return wi.overallRAG || calculateRAG({
+    goLiveDate: wi.goLiveDate, deploymentPct: wi.deploymentPct || 0,
+    status: wi.status, overallRAG: wi.overallRAG,
+  });
+}
+
 const CoupaDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { moduleDef } = useModule();
-  const { data: workItems = [], isLoading } = useWorkItems();
+  const { data: allWorkItems = [] } = useWorkItems();
 
-  // Filter work items by application field
-  const coupaItems = workItems.filter((wi: any) => wi.application === 'Coupa');
-  const activeItems = coupaItems.filter((wi: any) => wi.status === 'Active');
-  const displayItems = activeItems;
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
+  const [filterPriority, setFilterPriority] = useState<string | undefined>();
+  const [filterStatus, setFilterStatus] = useState<string | undefined>();
 
-  // Category breakdown
-  const categoryBreakdown = useMemo(() => {
-    const cats: Record<string, number> = {};
-    for (const wi of displayItems) {
-      const t = wi.workItemType || 'Other';
-      cats[t] = (cats[t] || 0) + 1;
-    }
-    return Object.entries(cats);
-  }, [displayItems]);
-
-  // Phase distribution
-  const phaseDistribution = useMemo(() => {
-    const phases: Record<string, number> = {};
-    for (const wi of displayItems) {
-      const p = wi.currentPhase || 'Design';
-      phases[p] = (phases[p] || 0) + 1;
-    }
-    return phases;
-  }, [displayItems]);
-
-  // Upcoming go-lives
-  const upcomingGoLives = useMemo(() => {
-    return displayItems
-      .filter((wi: any) => wi.goLiveDate)
-      .map((wi: any) => ({ ...wi, daysLeft: daysFromNow(wi.goLiveDate) }))
-      .filter((wi: any) => wi.daysLeft >= -7 && wi.daysLeft <= 60)
-      .sort((a: any, b: any) => a.daysLeft - b.daysLeft);
-  }, [displayItems]);
-
-  // RAG summary
-  const ragSummary = useMemo(() => {
-    const dist = { GREEN: 0, AMBER: 0, RED: 0 };
-    for (const wi of displayItems) {
-      const rag = wi.overallRAG || calculateRAG({
-        goLiveDate: wi.goLiveDate, deploymentPct: wi.deploymentPct || 0,
-        status: wi.status, overallRAG: wi.overallRAG,
+  const workItems = useMemo(() => {
+    let items = allWorkItems.filter((wi: any) => wi.application === 'Coupa');
+    if (filterPriority) items = items.filter((wi: any) => wi.priority === filterPriority);
+    if (filterStatus) items = items.filter((wi: any) => wi.status === filterStatus);
+    if (dateRange) {
+      items = items.filter((wi: any) => {
+        if (!wi.goLiveDate) return true;
+        const d = dayjs(wi.goLiveDate);
+        return d.isAfter(dateRange[0]) && d.isBefore(dateRange[1]);
       });
-      if (rag in dist) dist[rag as keyof typeof dist]++;
-      else dist.GREEN++;
     }
-    return dist;
-  }, [displayItems]);
+    return items;
+  }, [allWorkItems, filterPriority, filterStatus, dateRange]);
 
-  // Coupa project types (matching MODULE_DEFINITIONS workItemTypes)
-  const coupaProjectTypes = [
-    { name: 'Implementation', icon: <ProjectOutlined />, color: '#1677ff', desc: 'Core Coupa module deployments' },
-    { name: 'Integration', icon: <ApiOutlined />, color: '#52c41a', desc: 'ERP, cXML, API connectors' },
-    { name: 'Configuration', icon: <SettingOutlined />, color: '#fa8c16', desc: 'Workflows, rules, approvals' },
-    { name: 'Data Migration', icon: <DatabaseOutlined />, color: '#722ed1', desc: 'Suppliers, catalogs, contracts' },
-    { name: 'Supplier Enablement', icon: <TeamOutlined />, color: '#13c2c2', desc: 'Onboarding & portal rollouts' },
-    { name: 'Optimization', icon: <ToolOutlined />, color: '#eb2f96', desc: 'Post-go-live improvements' },
-  ];
+  const activeItems = workItems.filter((wi: any) => wi.status === 'Active');
 
-  // Phase distribution
-  const phaseItems = useMemo(() => {
-    const phaseLookup: Record<string, number> = {};
-    for (const wi of displayItems) {
-      const p = wi.currentPhase || 'Design';
-      phaseLookup[p] = (phaseLookup[p] || 0) + 1;
+  const avgDeployment = useMemo(() => {
+    if (activeItems.length === 0) return 0;
+    return Math.round(activeItems.reduce((s: number, wi: any) => s + (wi.deploymentPct || 0), 0) / activeItems.length);
+  }, [activeItems]);
+
+  const ragDist = useMemo(() => {
+    const d = { GREEN: 0, AMBER: 0, RED: 0 };
+    for (const wi of activeItems) {
+      const r = getRAG(wi);
+      if (r in d) d[r as keyof typeof d]++; else d.GREEN++;
     }
-    return phaseLookup;
-  }, [displayItems]);
+    return d;
+  }, [activeItems]);
+
+  const totalRiskScore = useMemo(() =>
+    activeItems.reduce((s: number, wi: any) => s + (wi.riskScore || 0), 0), [activeItems]);
+
+  // Chart: By Phase & Health
+  const phaseChartData = useMemo(() => {
+    const phases = ['Design', 'Configure', 'Build', 'Test', 'Deploy', 'Optimize'];
+    const data: { phase: string; count: number; status: string }[] = [];
+    for (const phase of phases) {
+      const pi = activeItems.filter((wi: any) => (wi.currentPhase || 'Design') === phase);
+      for (const [ragKey, label] of [['GREEN', 'On Track'], ['AMBER', 'At Risk'], ['RED', 'Critical']] as const) {
+        const count = pi.filter((wi: any) => getRAG(wi) === ragKey).length;
+        if (count > 0) data.push({ phase, count, status: label });
+      }
+    }
+    return data;
+  }, [activeItems]);
+
+  // Donut: By Type
+  const typeDonutData = useMemo(() => {
+    const types: Record<string, number> = {};
+    for (const wi of workItems) types[wi.workItemType || 'Other'] = (types[wi.workItemType || 'Other'] || 0) + 1;
+    return Object.entries(types).map(([type, value]) => ({ type, value }));
+  }, [workItems]);
+
+  // Bar: By Priority
+  const priorityBarData = useMemo(() => {
+    const pr: Record<string, number> = {};
+    for (const wi of activeItems) pr[wi.priority || 'N/A'] = (pr[wi.priority || 'N/A'] || 0) + 1;
+    return Object.entries(pr).map(([priority, count]) => ({ priority, count })).sort((a, b) => a.priority.localeCompare(b.priority));
+  }, [activeItems]);
+
+  // Bar: UAT Status
+  const uatBarData = useMemo(() => {
+    const uat: Record<string, number> = {};
+    for (const wi of activeItems) uat[wi.uatStatus || 'Not Started'] = (uat[wi.uatStatus || 'Not Started'] || 0) + 1;
+    return Object.entries(uat).map(([status, count]) => ({ status, count })).sort((a, b) => b.count - a.count);
+  }, [activeItems]);
+
+  const priorities = [...new Set(workItems.map((w: any) => w.priority).filter(Boolean))].sort();
+  const statuses = [...new Set(workItems.map((w: any) => w.status).filter(Boolean))];
+
+  const typeColors = [C.blue, C.green, C.orange, C.purple, C.cyan, C.pink, C.amber, C.red];
+  const typeColorMap: Record<string, string> = {};
+  typeDonutData.forEach((d, i) => { typeColorMap[d.type] = typeColors[i % typeColors.length]; });
+
+  const darkTheme = {
+    algorithm: theme.darkAlgorithm,
+    token: { colorBgContainer: C.card, colorBorderSecondary: C.border, borderRadius: 8, colorPrimary: C.accent },
+  };
 
   return (
-    <div>
-      {/* Banner */}
-      <Card
-        style={{ marginBottom: 16, background: 'linear-gradient(135deg, #0070d2 0%, #004990 100%)', border: 'none' }}
-        styles={{ body: { padding: '16px 24px' } }}
-      >
-        <Row align="middle" justify="space-between">
-          <Col>
-            <Title level={3} style={{ color: '#fff', margin: 0 }}>
-              <ShoppingCartOutlined /> Coupa Project Command Center
-            </Title>
-            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, marginTop: 4, display: 'block' }}>
-              Implementation &amp; Deployment Management — <strong>{user?.name || 'User'}</strong>
-              {user?.roles && user.roles.length > 0 && <Tag color="gold" style={{ marginLeft: 8 }}>{user.roles[0]}</Tag>}
-            </Text>
-          </Col>
-          <Col>
-            <Space size="large">
-              <div style={{ textAlign: 'center', padding: '4px 16px' }}>
-                <div style={{ color: '#fff', fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>{displayItems.length}</div>
-                <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}>Active Items</div>
-              </div>
-              <div style={{ textAlign: 'center', padding: '4px 16px' }}>
-                <div style={{ color: '#52c41a', fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>{ragSummary.GREEN}</div>
-                <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}>On Track</div>
-              </div>
-              {(ragSummary.AMBER + ragSummary.RED) > 0 && (
-                <div style={{ textAlign: 'center', padding: '4px 16px' }}>
-                  <div style={{ color: '#faad14', fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>{ragSummary.AMBER + ragSummary.RED}</div>
-                  <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}>Need Attention</div>
-                </div>
-              )}
-            </Space>
-          </Col>
-        </Row>
-      </Card>
-
-      {/* Project Types */}
-      <Row gutter={[12, 12]}>
-        {coupaProjectTypes.map((area) => {
-          const count = displayItems.filter((wi: any) => wi.workItemType === area.name).length;
-          return (
-            <Col xs={12} sm={8} lg={4} key={area.name}>
-              <Tooltip title={area.desc}>
-                <Card
-                  size="small" hoverable style={{ textAlign: 'center', cursor: 'pointer' }}
-                  onClick={() => navigate(`/tracker/${area.name}`)}
-                >
-                  <div style={{ fontSize: 24, color: area.color, marginBottom: 4 }}>{area.icon}</div>
-                  <Text style={{ fontSize: 11 }}>{area.name}</Text>
-                  {count > 0 && <Tag color={area.color} style={{ marginLeft: 4, fontSize: 10 }}>{count}</Tag>}
-                </Card>
-              </Tooltip>
-            </Col>
-          );
-        })}
-      </Row>
-
-      {/* Deployment Pipeline: Sandbox → Staging → Production */}
-      <Card
-        title={<Space><CloudServerOutlined /> Deployment Pipeline</Space>}
-        size="small" style={{ marginTop: 12 }}
-      >
-        <div style={{ maxWidth: 700, margin: '0 auto', padding: '16px 0' }}>
-          <Steps
-            current={1}
-            items={[
-              {
-                title: 'Sandbox',
-                description: `${phaseDistribution['Design'] || phaseDistribution['Configure'] || 0} items`,
-                icon: <SettingOutlined />,
-              },
-              {
-                title: 'Staging / UAT',
-                description: `${phaseDistribution['Test'] || phaseDistribution['Testing'] || 0} items`,
-                icon: <SyncOutlined />,
-              },
-              {
-                title: 'Production',
-                description: `${phaseDistribution['Deploy'] || phaseDistribution['Go-Live'] || phaseDistribution['Complete'] || 0} items`,
-                icon: <CheckCircleOutlined />,
-              },
-            ]}
-          />
-        </div>
-        <div style={{ textAlign: 'center', marginTop: 8 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Environment flow: {moduleDef.terminology.environments}
+    <ConfigProvider theme={darkTheme}>
+      <div className="eramind-dashboard">
+        <div style={{ marginBottom: 12 }}>
+          <Text style={{ color: C.textSec, fontSize: 13 }}>
+            Dashboards / <Text style={{ color: C.text, fontSize: 13 }}>Coupa Projects</Text>
           </Text>
         </div>
-      </Card>
 
-      {/* Active Items + Go-Lives */}
-      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
-        <Col xs={24} lg={14}>
-          <Card
-            title={<Space><ShoppingCartOutlined /> Active Deliverables</Space>}
-            size="small"
-            extra={<a onClick={() => navigate('/tracker')}>View All →</a>}
-          >
-            {displayItems.length === 0 ? (
-              <Empty description="No active Coupa deliverables. Create one from the Tracker page." />
-            ) : (
-              <List
-                size="small"
-                dataSource={displayItems.slice(0, 10)}
-                renderItem={(wi: any) => {
-                  const rag = wi.overallRAG || calculateRAG({
-                    goLiveDate: wi.goLiveDate, deploymentPct: wi.deploymentPct || 0,
-                    status: wi.status, overallRAG: wi.overallRAG,
-                  });
-                  return (
-                    <List.Item
-                      style={{ cursor: 'pointer', padding: '8px 0' }}
-                      onClick={() => navigate(`/workitem/${wi.ID}`)}
-                    >
-                      <List.Item.Meta
-                        avatar={
-                          <div style={{
-                            width: 12, height: 12, borderRadius: '50%', marginTop: 4,
-                            background: RAG_COLORS[rag] || '#d9d9d9',
-                          }} />
-                        }
-                        title={
-                          <Space size={4}>
-                            <Text strong style={{ fontSize: 13 }}>{wi.workItemName}</Text>
-                            <Tag style={{ fontSize: 10 }}>{wi.workItemType}</Tag>
-                          </Space>
-                        }
-                        description={
-                          <Space size={8}>
-                            <Tag color="processing" style={{ fontSize: 10 }}>{wi.currentPhase || 'Design'}</Tag>
-                            <Progress percent={wi.deploymentPct || 0} size="small" style={{ width: 120 }} />
-                            {wi.goLiveDate && (
-                              <Text type="secondary" style={{ fontSize: 11 }}>
-                                🚀 {wi.goLiveDate} ({daysFromNow(wi.goLiveDate)}d)
-                              </Text>
-                            )}
-                          </Space>
-                        }
-                      />
-                    </List.Item>
-                  );
-                }}
-              />
-            )}
-          </Card>
-        </Col>
-        <Col xs={24} lg={10}>
-          <Card title={<Space><RocketOutlined /> Upcoming Go-Lives</Space>} size="small" style={{ marginBottom: 16 }}>
-            {upcomingGoLives.length === 0 ? (
-              <Empty description="No upcoming go-lives" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            ) : (
-              <Timeline
-                items={upcomingGoLives.slice(0, 6).map((wi: any) => ({
-                  color: wi.daysLeft <= 0 ? 'red' : wi.daysLeft <= 14 ? 'orange' : 'blue',
-                  children: (
-                    <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/workitem/${wi.ID}`)}>
-                      <Text strong style={{ fontSize: 12 }}>{wi.workItemName}</Text>
-                      <br />
-                      <Text type="secondary" style={{ fontSize: 11 }}>
-                        {wi.goLiveDate} — <Tag color={wi.daysLeft <= 7 ? 'red' : 'blue'} style={{ fontSize: 10 }}>{wi.daysLeft}d</Tag>
-                      </Text>
-                    </div>
-                  ),
-                }))}
-              />
-            )}
-          </Card>
+        <div className="eramind-filter-bar">
+          <RangePicker size="middle" onChange={(dates) => setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)} />
+          <Select placeholder="Priority" allowClear value={filterPriority}
+            onChange={setFilterPriority} style={{ width: 120 }}
+            options={priorities.map((p: string) => ({ value: p, label: p }))} />
+          <Select placeholder="Status" allowClear value={filterStatus}
+            onChange={setFilterStatus} style={{ width: 140 }}
+            options={statuses.map((s: string) => ({ value: s, label: s }))} />
+          <Button icon={<FilterOutlined />}>Filters</Button>
+        </div>
 
-          {/* Category Breakdown */}
-          <Card title={<Space><DashboardOutlined /> By Category</Space>} size="small">
-            {categoryBreakdown.length === 0 ? (
-              <Empty description="No data" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            ) : (
-              categoryBreakdown.map(([cat, count]) => (
-                <div key={cat} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                  <Text style={{ fontSize: 12 }}>{cat}</Text>
-                  <Space size={4}>
-                    <Progress
-                      percent={Math.round((count / (displayItems.length || 1)) * 100)}
-                      size="small" style={{ width: 80 }} showInfo={false}
-                    />
-                    <Text strong style={{ fontSize: 12, width: 20, textAlign: 'right' }}>{count}</Text>
+        {/* KPI Cards */}
+        <Row gutter={16} style={{ marginBottom: 20 }}>
+          <Col xs={12} lg={6}>
+            <div className="eramind-kpi" onClick={() => navigate('/tracker')} style={{ cursor: 'pointer' }}>
+              <div className="kpi-label">Active Deliverables</div>
+              <div className="kpi-value">{activeItems.length}</div>
+              <div className="kpi-delta positive"><CaretUpOutlined /> {ragDist.GREEN} on track</div>
+            </div>
+          </Col>
+          <Col xs={12} lg={6}>
+            <div className="eramind-kpi">
+              <div className="kpi-label">Risk Score <Tooltip title="Aggregate risk"><InfoCircleOutlined style={{ fontSize: 11 }} /></Tooltip></div>
+              <div className="kpi-value">{totalRiskScore}</div>
+              <div className={`kpi-delta ${totalRiskScore > 150 ? 'negative' : 'positive'}`}>
+                {totalRiskScore > 150 ? <><CaretUpOutlined /> Elevated</> : <><CaretDownOutlined /> Normal</>}
+              </div>
+            </div>
+          </Col>
+          <Col xs={12} lg={6}>
+            <div className="eramind-kpi">
+              <div className="kpi-label">Avg Progress</div>
+              <div className="kpi-value">{avgDeployment}<span style={{ fontSize: 18, opacity: 0.5 }}>%</span></div>
+              <div className="kpi-delta neutral">Across active deliverables</div>
+            </div>
+          </Col>
+          <Col xs={12} lg={6}>
+            <div className="eramind-kpi">
+              <div className="kpi-label">Total Items</div>
+              <div className="kpi-value">{workItems.length}</div>
+              <div className="rag-bar">
+                {ragDist.GREEN > 0 && <Tooltip title={`On Track: ${ragDist.GREEN}`}><div style={{ flex: ragDist.GREEN, background: C.green }} /></Tooltip>}
+                {ragDist.AMBER > 0 && <Tooltip title={`At Risk: ${ragDist.AMBER}`}><div style={{ flex: ragDist.AMBER, background: C.amber }} /></Tooltip>}
+                {ragDist.RED > 0 && <Tooltip title={`Critical: ${ragDist.RED}`}><div style={{ flex: ragDist.RED, background: C.red }} /></Tooltip>}
+              </div>
+              <div className="rag-bar-legend">
+                <span><span style={{ color: C.green }}>●</span> On Track</span>
+                <span><span style={{ color: C.amber }}>●</span> At Risk</span>
+                <span><span style={{ color: C.red }}>●</span> Critical</span>
+              </div>
+            </div>
+          </Col>
+        </Row>
+
+        {/* Overall Trends */}
+        <div className="eramind-chart-card" style={{ marginBottom: 20 }}>
+          <div className="chart-title">Overall trends</div>
+          <Row gutter={24}>
+            <Col xs={24} lg={14}>
+              <div style={{ marginBottom: 12 }}>
+                <Text style={{ color: C.text, fontWeight: 600, fontSize: 14 }}>Deliverables by phase &amp; health</Text>
+                <br /><Text style={{ color: C.textSec, fontSize: 12 }}>Coupa implementation lifecycle</Text>
+              </div>
+              <Space size={16} style={{ marginBottom: 12 }}>
+                {[['On Track', C.green], ['At Risk', C.amber], ['Critical', C.red]].map(([label, color]) => (
+                  <Space key={label as string} size={4}>
+                    <div style={{ width: 12, height: 12, borderRadius: 2, background: color as string }} />
+                    <Text style={{ color: C.textSec, fontSize: 12 }}>{label}</Text>
                   </Space>
+                ))}
+              </Space>
+              {phaseChartData.length > 0 ? (
+                <Column data={phaseChartData} xField="phase" yField="count" colorField="status"
+                  stack={true} height={280} theme="classicDark"
+                  scale={{ color: { domain: ['On Track', 'At Risk', 'Critical'], range: [C.green, C.amber, C.red] } }}
+                  style={{ maxWidth: 40, radiusTopLeft: 4, radiusTopRight: 4 }}
+                  axis={{
+                    x: { title: false, labelFill: C.textSec, line: null, tick: null },
+                    y: { title: false, labelFill: C.textSec, gridStroke: C.border, gridLineDash: [3, 3] },
+                  }}
+                  legend={false} />
+              ) : (
+                <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Empty description={<Text style={{ color: C.textSec }}>No data</Text>} />
                 </div>
-              ))
-            )}
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Phase Distribution */}
-      <Card
-        title={<Space><DashboardOutlined /> Phase Distribution</Space>}
-        size="small" style={{ marginTop: 12 }}
-      >
-        {displayItems.length === 0 ? (
-          <Empty description="No active deliverables" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-        ) : (
-          <Row gutter={[16, 8]}>
-            {['Design', 'Configure', 'Build', 'Test', 'Deploy', 'Optimize'].map((phase) => {
-              const count = phaseItems[phase] || 0;
-              const pct = displayItems.length > 0 ? Math.round((count / displayItems.length) * 100) : 0;
-              return (
-                <Col xs={12} sm={8} lg={4} key={phase}>
-                  <div style={{ textAlign: 'center', padding: '8px 0' }}>
-                    <Text style={{ fontSize: 11, color: '#8c8c8c' }}>{phase}</Text>
-                    <div style={{ fontSize: 20, fontWeight: 600 }}>{count}</div>
-                    <Progress percent={pct} size="small" showInfo={false} style={{ width: '80%', margin: '0 auto' }} />
+              )}
+            </Col>
+            <Col xs={24} lg={10}>
+              <div style={{ marginBottom: 12 }}>
+                <Text style={{ color: C.text, fontWeight: 600, fontSize: 14 }}>Items by type</Text>
+                <br /><Text style={{ color: C.textSec, fontSize: 12 }}>Coupa project categories</Text>
+              </div>
+              {typeDonutData.length > 0 ? (
+                <div style={{ position: 'relative' }}>
+                  <Pie data={typeDonutData} angleField="value" colorField="type"
+                    innerRadius={0.65} height={280} theme="classicDark"
+                    scale={{ color: { range: typeDonutData.map(d => typeColorMap[d.type]) } }}
+                    label={false} legend={false} />
+                  <div className="donut-center-label">
+                    <div className="donut-value">{workItems.length}</div>
+                    <div className="donut-sub">Items</div>
                   </div>
-                </Col>
-              );
-            })}
+                  <div style={{ position: 'absolute', right: 0, top: 24 }}>
+                    <div className="eramind-legend">
+                      {typeDonutData.map(({ type, value }) => (
+                        <div key={type} className="eramind-legend-item">
+                          <div className="eramind-legend-dot" style={{ background: typeColorMap[type] }} />
+                          <span>{type}: {Math.round((value / (workItems.length || 1)) * 100)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Empty description={<Text style={{ color: C.textSec }}>No data</Text>} />
+                </div>
+              )}
+            </Col>
           </Row>
-        )}
-      </Card>
-    </div>
+        </div>
+
+        {/* Comparison */}
+        <div className="eramind-chart-card">
+          <div className="chart-title">Deliverable comparison</div>
+          <Row gutter={24}>
+            <Col xs={24} lg={12}>
+              <div style={{ marginBottom: 12 }}>
+                <Text style={{ color: C.text, fontWeight: 600, fontSize: 14 }}>Items by priority</Text>
+                <br /><Text style={{ color: C.textSec, fontSize: 12 }}>Active deliverables by priority level</Text>
+              </div>
+              {priorityBarData.length > 0 ? (
+                <Bar data={priorityBarData} xField="priority" yField="count"
+                  height={Math.max(200, priorityBarData.length * 48)} theme="classicDark"
+                  style={{ fill: C.orange, radiusTopRight: 4, radiusBottomRight: 4 }}
+                  axis={{ x: { title: false, labelFill: C.textSec }, y: { title: false, labelFill: C.textSec, gridStroke: C.border, gridLineDash: [3, 3] } }}
+                  label={{ text: 'count', fill: C.text, fontSize: 11 }} legend={false} />
+              ) : <Empty description={<Text style={{ color: C.textSec }}>No data</Text>} />}
+            </Col>
+            <Col xs={24} lg={12}>
+              <div style={{ marginBottom: 12 }}>
+                <Text style={{ color: C.text, fontWeight: 600, fontSize: 14 }}>UAT status breakdown</Text>
+                <br /><Text style={{ color: C.textSec, fontSize: 12 }}>Testing status across active deliverables</Text>
+              </div>
+              {uatBarData.length > 0 ? (
+                <Bar data={uatBarData} xField="status" yField="count"
+                  height={Math.max(200, uatBarData.length * 48)} theme="classicDark"
+                  style={{ fill: C.accent, radiusTopRight: 4, radiusBottomRight: 4 }}
+                  axis={{ x: { title: false, labelFill: C.textSec }, y: { title: false, labelFill: C.textSec, gridStroke: C.border, gridLineDash: [3, 3] } }}
+                  label={{ text: 'count', fill: C.text, fontSize: 11 }} legend={false} />
+              ) : <Empty description={<Text style={{ color: C.textSec }}>No data</Text>} />}
+            </Col>
+          </Row>
+        </div>
+      </div>
+    </ConfigProvider>
   );
 };
 

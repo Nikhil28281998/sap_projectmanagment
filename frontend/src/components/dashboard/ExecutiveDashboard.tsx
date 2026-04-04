@@ -1,29 +1,33 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  Row, Col, Card, Statistic, Progress, Tag, List, Typography, Space, Empty,
-  Timeline, Tooltip, Table
+  Row, Col, Select, Typography, ConfigProvider, theme, Tooltip, Space,
+  DatePicker, Button, Empty, Table, Tag
 } from 'antd';
 import {
-  ProjectOutlined, CheckCircleOutlined, ClockCircleOutlined,
-  WarningOutlined, RocketOutlined, DashboardOutlined, FundOutlined,
-  ExclamationCircleOutlined, TeamOutlined,
+  FilterOutlined, CaretUpOutlined, CaretDownOutlined, InfoCircleOutlined,
   ApartmentOutlined, ShoppingCartOutlined, MedicineBoxOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { Column, Pie, Bar } from '@ant-design/charts';
 import { useWorkItems } from '../../hooks/useData';
 import { useAuth } from '../../contexts/AuthContext';
-import { useModule, MODULE_DEFINITIONS, ModuleKey } from '../../contexts/ModuleContext';
 import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
+import dayjs from 'dayjs';
+import '../../styles/dashboard-dark.css';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
+const { RangePicker } = DatePicker;
 
-const RAG_COLORS: Record<string, string> = { GREEN: '#52c41a', AMBER: '#faad14', RED: '#ff4d4f' };
-const RAG_LABELS: Record<string, string> = { GREEN: 'On Track', AMBER: 'At Risk', RED: 'Critical' };
-const APP_COLORS: Record<string, string> = { SAP: '#1677ff', Coupa: '#0070d2', Commercial: '#722ed1' };
+const C = {
+  bg: '#0d1117', card: '#161b22', border: '#30363d',
+  text: 'rgba(255,255,255,0.87)', textSec: 'rgba(255,255,255,0.45)',
+  accent: '#58a6ff', green: '#3fb950', red: '#f85149', amber: '#d29922',
+  orange: '#ff8c00', purple: '#bc8cff', cyan: '#39d2c0', pink: '#f778ba',
+};
+
+const APP_COLORS: Record<string, string> = { SAP: C.accent, Coupa: C.orange, Commercial: C.purple };
 const APP_ICONS: Record<string, React.ReactNode> = {
-  SAP: <ApartmentOutlined />,
-  Coupa: <ShoppingCartOutlined />,
-  Commercial: <MedicineBoxOutlined />,
+  SAP: <ApartmentOutlined />, Coupa: <ShoppingCartOutlined />, Commercial: <MedicineBoxOutlined />,
 };
 
 function getRAG(wi: any): string {
@@ -33,414 +37,310 @@ function getRAG(wi: any): string {
   });
 }
 
+const RAG_LABELS: Record<string, string> = { GREEN: 'On Track', AMBER: 'At Risk', RED: 'Critical' };
+const RAG_COLORS: Record<string, string> = { GREEN: C.green, AMBER: C.amber, RED: C.red };
+
 const ExecutiveDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user, allowedApps } = useAuth();
-  const { allModules } = useModule();
   const { data: allWorkItems = [], isLoading } = useWorkItems();
 
-  // Filter by allowed applications for this user
-  const workItems = allWorkItems.filter((wi: any) =>
-    !wi.application || allowedApps.includes(wi.application)
-  );
-  const activeProjects = workItems.filter((wi: any) => wi.status === 'Active');
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
+  const [filterApp, setFilterApp] = useState<string | undefined>();
 
-  // ── Per-Application Breakdown ──
-  const appBreakdown = useMemo(() => {
-    const apps = ['SAP', 'Coupa', 'Commercial'].filter(a => allowedApps.includes(a));
-    return apps.map(app => {
-      const appItems = workItems.filter((wi: any) => wi.application === app);
-      const active = appItems.filter((wi: any) => wi.status === 'Active');
-      const completed = appItems.filter((wi: any) => wi.status === 'Complete' || wi.status === 'Done' || wi.status === 'Completed');
-      const rag = { GREEN: 0, AMBER: 0, RED: 0 };
-      for (const wi of active) {
-        const r = getRAG(wi);
-        if (r in rag) rag[r as keyof typeof rag]++;
-        else rag.GREEN++;
-      }
-      const avgPct = active.length > 0
-        ? Math.round(active.reduce((s: number, wi: any) => s + (wi.deploymentPct || 0), 0) / active.length)
-        : 0;
-      return { app, total: appItems.length, active: active.length, completed: completed.length, rag, avgPct };
-    });
-  }, [workItems, allowedApps]);
-
-  // RAG distribution (global)
-  const ragSummary = useMemo(() => {
-    const dist = { GREEN: 0, AMBER: 0, RED: 0 };
-    for (const wi of activeProjects) {
-      const rag = getRAG(wi);
-      if (rag in dist) dist[rag as keyof typeof dist]++;
-      else dist.GREEN++;
+  const workItems = useMemo(() => {
+    let items = allWorkItems.filter((wi: any) => !wi.application || allowedApps.includes(wi.application));
+    if (filterApp) items = items.filter((wi: any) => wi.application === filterApp);
+    if (dateRange) {
+      items = items.filter((wi: any) => {
+        if (!wi.goLiveDate) return true;
+        const d = dayjs(wi.goLiveDate);
+        return d.isAfter(dateRange[0]) && d.isBefore(dateRange[1]);
+      });
     }
-    return dist;
+    return items;
+  }, [allWorkItems, allowedApps, filterApp, dateRange]);
+
+  const activeProjects = workItems.filter((wi: any) => wi.status === 'Active');
+  const completedCount = workItems.filter((wi: any) => ['Complete', 'Completed', 'Done'].includes(wi.status)).length;
+
+  const ragDist = useMemo(() => {
+    const d = { GREEN: 0, AMBER: 0, RED: 0 };
+    for (const wi of activeProjects) {
+      const r = getRAG(wi); if (r in d) d[r as keyof typeof d]++; else d.GREEN++;
+    }
+    return d;
   }, [activeProjects]);
 
-  // Critical upcoming go-lives
-  const upcomingGoLives = useMemo(() => {
-    return workItems
-      .filter((wi: any) => wi.goLiveDate && wi.status === 'Active')
-      .map((wi: any) => ({ ...wi, daysLeft: daysFromNow(wi.goLiveDate) }))
-      .filter((wi: any) => wi.daysLeft >= -7 && wi.daysLeft <= 60)
-      .sort((a: any, b: any) => a.daysLeft - b.daysLeft);
-  }, [workItems]);
-
-  // At-risk projects
-  const atRiskProjects = useMemo(() => {
-    return activeProjects.filter((wi: any) => {
-      const rag = getRAG(wi);
-      return rag === 'RED' || rag === 'AMBER';
-    }).map((wi: any) => ({
-      ...wi,
-      rag: getRAG(wi),
-    }));
-  }, [activeProjects]);
-
-  // Completed projects
-  const completedCount = workItems.filter((wi: any) => wi.status === 'Complete' || wi.status === 'Completed' || wi.status === 'Done').length;
-
-  // Average completion rate
   const avgDeployment = useMemo(() => {
     if (activeProjects.length === 0) return 0;
-    const total = activeProjects.reduce((sum: number, wi: any) => sum + (wi.deploymentPct || 0), 0);
-    return Math.round(total / activeProjects.length);
+    return Math.round(activeProjects.reduce((s: number, wi: any) => s + (wi.deploymentPct || 0), 0) / activeProjects.length);
   }, [activeProjects]);
 
-  // Test summary
   const testSummary = useMemo(() => {
     let passed = 0, total = 0;
-    for (const wi of activeProjects) {
-      passed += wi.testPassed || 0;
-      total += wi.testTotal || 0;
-    }
+    for (const wi of activeProjects) { passed += wi.testPassed || 0; total += wi.testTotal || 0; }
     return { passed, total, rate: total > 0 ? Math.round((passed / total) * 100) : 0 };
   }, [activeProjects]);
 
-  const projectTableCols = [
+  // Chart: By Application & Health
+  const appChartData = useMemo(() => {
+    const apps = ['SAP', 'Coupa', 'Commercial'];
+    const data: { app: string; count: number; status: string }[] = [];
+    for (const app of apps) {
+      const appItems = activeProjects.filter((wi: any) => wi.application === app);
+      for (const [ragKey, label] of [['GREEN', 'On Track'], ['AMBER', 'At Risk'], ['RED', 'Critical']] as const) {
+        const count = appItems.filter((wi: any) => getRAG(wi) === ragKey).length;
+        if (count > 0) data.push({ app, count, status: label });
+      }
+    }
+    return data;
+  }, [activeProjects]);
+
+  // Donut: RAG distribution
+  const ragDonutData = useMemo(() => {
+    const data: { status: string; value: number }[] = [];
+    if (ragDist.GREEN > 0) data.push({ status: 'On Track', value: ragDist.GREEN });
+    if (ragDist.AMBER > 0) data.push({ status: 'At Risk', value: ragDist.AMBER });
+    if (ragDist.RED > 0) data.push({ status: 'Critical', value: ragDist.RED });
+    return data;
+  }, [ragDist]);
+
+  // Bar: Progress by App
+  const appProgressData = useMemo(() => {
+    return ['SAP', 'Coupa', 'Commercial'].map(app => {
+      const items = activeProjects.filter((wi: any) => wi.application === app);
+      const avg = items.length > 0 ? Math.round(items.reduce((s: number, w: any) => s + (w.deploymentPct || 0), 0) / items.length) : 0;
+      return { app, progress: avg };
+    }).filter(d => d.progress > 0);
+  }, [activeProjects]);
+
+  // Bar: Risk by App
+  const appRiskData = useMemo(() => {
+    return ['SAP', 'Coupa', 'Commercial'].map(app => {
+      const items = activeProjects.filter((wi: any) => wi.application === app);
+      const avg = items.length > 0 ? Math.round(items.reduce((s: number, w: any) => s + (w.riskScore || 0), 0) / items.length) : 0;
+      return { app, riskScore: avg };
+    }).filter(d => d.riskScore > 0);
+  }, [activeProjects]);
+
+  const availableApps = ['SAP', 'Coupa', 'Commercial'].filter(a => allowedApps.includes(a));
+
+  // Project table columns
+  const tableCols = [
     {
-      title: 'Application', dataIndex: 'application', key: 'app', width: 120,
-      filters: appBreakdown.map(a => ({ text: a.app, value: a.app })),
-      onFilter: (v: any, r: any) => r.application === v,
-      render: (app: string) => (
-        <Tag color={APP_COLORS[app] || 'default'} icon={APP_ICONS[app]}>
-          {app}
-        </Tag>
-      ),
+      title: 'Application', dataIndex: 'application', key: 'app', width: 110,
+      render: (app: string) => <Tag style={{ color: APP_COLORS[app], borderColor: APP_COLORS[app], background: 'transparent' }} icon={APP_ICONS[app]}>{app}</Tag>,
     },
     {
       title: 'Project', dataIndex: 'workItemName', key: 'name', ellipsis: true,
-      render: (t: string, r: any) => (
-        <a onClick={() => navigate(`/workitem/${r.ID}`)}>{t}</a>
-      ),
+      render: (t: string, r: any) => <a style={{ color: C.accent }} onClick={() => navigate(`/workitem/${r.ID}`)}>{t}</a>,
     },
     {
       title: 'Type', dataIndex: 'workItemType', key: 'type', width: 120,
-      render: (t: string) => <Tag>{t}</Tag>,
+      render: (t: string) => <Tag style={{ background: 'transparent', borderColor: C.border, color: C.textSec }}>{t}</Tag>,
     },
     {
-      title: 'Phase', dataIndex: 'currentPhase', key: 'phase', width: 120,
-      render: (t: string) => <Tag color="processing">{t || 'Planning'}</Tag>,
-    },
-    {
-      title: 'Health', key: 'rag', width: 80, align: 'center' as const,
-      filters: [
-        { text: 'On Track', value: 'GREEN' },
-        { text: 'At Risk', value: 'AMBER' },
-        { text: 'Critical', value: 'RED' },
-      ],
-      onFilter: (v: any, r: any) => getRAG(r) === v,
+      title: 'Health', key: 'rag', width: 70, align: 'center' as const,
       render: (_: any, r: any) => {
         const rag = getRAG(r);
-        return (
-          <Tooltip title={RAG_LABELS[rag]}>
-            <div style={{
-              width: 14, height: 14, borderRadius: '50%', margin: '0 auto',
-              background: RAG_COLORS[rag] || '#d9d9d9',
-            }} />
-          </Tooltip>
-        );
+        return <Tooltip title={RAG_LABELS[rag]}><div style={{ width: 12, height: 12, borderRadius: '50%', background: RAG_COLORS[rag], margin: '0 auto' }} /></Tooltip>;
       },
     },
     {
       title: 'Go-Live', dataIndex: 'goLiveDate', key: 'gl', width: 120,
-      render: (d: string) => d ? (
-        <Space size={4}>
-          <Text style={{ fontSize: 12 }}>{d}</Text>
-          <Tag color={daysFromNow(d) <= 14 ? 'red' : 'blue'} style={{ fontSize: 10 }}>
-            {daysFromNow(d)}d
-          </Tag>
-        </Space>
-      ) : '—',
+      render: (d: string) => d ? <Text style={{ color: C.textSec, fontSize: 12 }}>{d} ({daysFromNow(d)}d)</Text> : <Text style={{ color: C.textSec }}>—</Text>,
     },
     {
-      title: 'Progress', key: 'progress', width: 130,
-      render: (_: any, r: any) => (
-        <Progress percent={r.deploymentPct || 0} size="small" strokeColor={
-          RAG_COLORS[getRAG(r)]
-        } />
-      ),
-    },
-    {
-      title: 'Owner', dataIndex: 'businessOwner', key: 'owner', width: 120, ellipsis: true,
-      render: (t: string) => t || '—',
+      title: 'Progress', dataIndex: 'deploymentPct', key: 'pct', width: 90,
+      render: (pct: number) => <Text style={{ color: C.text }}>{pct || 0}%</Text>,
     },
   ];
 
+  const darkTheme = {
+    algorithm: theme.darkAlgorithm,
+    token: { colorBgContainer: C.card, colorBorderSecondary: C.border, borderRadius: 8, colorPrimary: C.accent },
+  };
+
   return (
-    <div>
-      {/* Banner */}
-      <Card
-        style={{ marginBottom: 16, background: 'linear-gradient(135deg, #141414 0%, #1f1f1f 50%, #262626 100%)', border: 'none' }}
-        styles={{ body: { padding: '16px 24px' } }}
-      >
-        <Row align="middle" justify="space-between">
-          <Col>
-            <Title level={3} style={{ color: '#fff', margin: 0 }}>
-              <FundOutlined /> Executive Dashboard
-            </Title>
-            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginTop: 4, display: 'block' }}>
-              Welcome, <strong>{user?.name || 'Executive'}</strong> — Cross-application portfolio health
-            </Text>
+    <ConfigProvider theme={darkTheme}>
+      <div className="eramind-dashboard">
+        <div style={{ marginBottom: 12 }}>
+          <Text style={{ color: C.textSec, fontSize: 13 }}>
+            Dashboards / <Text style={{ color: C.text, fontSize: 13 }}>Executive Overview</Text>
+          </Text>
+        </div>
+
+        <div className="eramind-filter-bar">
+          <RangePicker size="middle" onChange={(dates) => setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)} />
+          <Select placeholder="Application" allowClear value={filterApp} onChange={setFilterApp}
+            style={{ width: 160 }} options={availableApps.map(a => ({ value: a, label: a }))} />
+          <Button icon={<FilterOutlined />}>Filters</Button>
+        </div>
+
+        {/* KPI Cards */}
+        <Row gutter={16} style={{ marginBottom: 20 }}>
+          <Col xs={12} lg={6}>
+            <div className="eramind-kpi" onClick={() => navigate('/tracker?app=all')} style={{ cursor: 'pointer' }}>
+              <div className="kpi-label">Active Projects</div>
+              <div className="kpi-value">{activeProjects.length}</div>
+              <div className="kpi-delta positive"><CaretUpOutlined /> {ragDist.GREEN} on track</div>
+            </div>
           </Col>
-          <Col>
-            <Space size="large">
-              <div style={{ textAlign: 'center', padding: '4px 16px', cursor: 'pointer' }} onClick={() => navigate('/tracker?app=all')}>
-                <div style={{ color: '#fff', fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>
-                  {activeProjects.length}
-                </div>
-                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>Active Projects</div>
+          <Col xs={12} lg={6}>
+            <div className="eramind-kpi">
+              <div className="kpi-label">Completed</div>
+              <div className="kpi-value" style={{ color: C.green }}>{completedCount}</div>
+              <div className="kpi-delta neutral">Across all applications</div>
+            </div>
+          </Col>
+          <Col xs={12} lg={6}>
+            <div className="eramind-kpi">
+              <div className="kpi-label">Avg Progress</div>
+              <div className="kpi-value">{avgDeployment}<span style={{ fontSize: 18, opacity: 0.5 }}>%</span></div>
+              <div className="kpi-delta neutral">Test pass: {testSummary.rate}%</div>
+            </div>
+          </Col>
+          <Col xs={12} lg={6}>
+            <div className="eramind-kpi">
+              <div className="kpi-label">Portfolio Health</div>
+              <div className="kpi-value">{activeProjects.length}</div>
+              <div className="rag-bar">
+                {ragDist.GREEN > 0 && <Tooltip title={`On Track: ${ragDist.GREEN}`}><div style={{ flex: ragDist.GREEN, background: C.green }} /></Tooltip>}
+                {ragDist.AMBER > 0 && <Tooltip title={`At Risk: ${ragDist.AMBER}`}><div style={{ flex: ragDist.AMBER, background: C.amber }} /></Tooltip>}
+                {ragDist.RED > 0 && <Tooltip title={`Critical: ${ragDist.RED}`}><div style={{ flex: ragDist.RED, background: C.red }} /></Tooltip>}
               </div>
-              <div style={{ textAlign: 'center', padding: '4px 16px', cursor: 'pointer' }} onClick={() => navigate('/tracker?app=all&status=completed')}>
-                <div style={{ color: '#52c41a', fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>
-                  {completedCount}
-                </div>
-                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>Completed</div>
+              <div className="rag-bar-legend">
+                <span><span style={{ color: C.green }}>●</span> On Track</span>
+                <span><span style={{ color: C.amber }}>●</span> At Risk</span>
+                <span><span style={{ color: C.red }}>●</span> Critical</span>
               </div>
-              {atRiskProjects.length > 0 && (
-                <div style={{ textAlign: 'center', padding: '4px 16px', cursor: 'pointer' }} onClick={() => navigate('/tracker?app=all&rag=risk')}>
-                  <div style={{ color: '#faad14', fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>
-                    {atRiskProjects.length}
-                  </div>
-                  <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>At Risk</div>
-                </div>
-              )}
-            </Space>
+            </div>
           </Col>
         </Row>
-      </Card>
 
-      {/* ── Per-Application Breakdown Cards ── */}
-      <Row gutter={[12, 12]}>
-        {appBreakdown.map(({ app, total, active, completed, rag, avgPct }) => (
-          <Col xs={24} md={8} key={app}>
-            <Card
-              size="small"
-              hoverable
-              style={{ borderTop: `3px solid ${APP_COLORS[app]}`, cursor: 'pointer' }}
-              onClick={() => navigate(`/tracker?app=${app.toLowerCase()}`)}
-              title={
-                <Space>
-                  {APP_ICONS[app]}
-                  <Text strong>{app}</Text>
-                  <Tag color={APP_COLORS[app]} style={{ fontSize: 10 }}>{total} total</Tag>
-                </Space>
-              }
-            >
-              <Row gutter={8}>
-                <Col span={8}>
-                  <Statistic title={<Text type="secondary" style={{ fontSize: 10 }}>Active</Text>} value={active} valueStyle={{ fontSize: 20 }} />
-                </Col>
-                <Col span={8}>
-                  <Statistic title={<Text type="secondary" style={{ fontSize: 10 }}>Done</Text>} value={completed} valueStyle={{ fontSize: 20, color: '#52c41a' }} />
-                </Col>
-                <Col span={8}>
-                  <Statistic title={<Text type="secondary" style={{ fontSize: 10 }}>Progress</Text>} value={avgPct} suffix="%" valueStyle={{ fontSize: 20 }} />
-                </Col>
-              </Row>
-              <div style={{ display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden', marginTop: 8 }}>
-                {rag.GREEN > 0 && (
-                  <Tooltip title={`On Track: ${rag.GREEN}`}>
-                    <div style={{ width: `${(rag.GREEN / (active || 1)) * 100}%`, background: '#52c41a' }} />
-                  </Tooltip>
-                )}
-                {rag.AMBER > 0 && (
-                  <Tooltip title={`At Risk: ${rag.AMBER}`}>
-                    <div style={{ width: `${(rag.AMBER / (active || 1)) * 100}%`, background: '#faad14' }} />
-                  </Tooltip>
-                )}
-                {rag.RED > 0 && (
-                  <Tooltip title={`Critical: ${rag.RED}`}>
-                    <div style={{ width: `${(rag.RED / (active || 1)) * 100}%`, background: '#ff4d4f' }} />
-                  </Tooltip>
-                )}
-                {active === 0 && <div style={{ width: '100%', background: '#f0f0f0' }} />}
+        {/* Overall Trends */}
+        <div className="eramind-chart-card" style={{ marginBottom: 20 }}>
+          <div className="chart-title">Portfolio overview</div>
+          <Row gutter={24}>
+            <Col xs={24} lg={14}>
+              <div style={{ marginBottom: 12 }}>
+                <Text style={{ color: C.text, fontWeight: 600, fontSize: 14 }}>Projects by application &amp; health</Text>
+                <br /><Text style={{ color: C.textSec, fontSize: 12 }}>Cross-platform portfolio distribution</Text>
               </div>
-            </Card>
-          </Col>
-        ))}
-      </Row>
-
-      {/* Global Health Summary Cards */}
-      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
-        <Col xs={8} lg={4}>
-          <Card size="small" hoverable style={{ cursor: 'pointer' }} onClick={() => navigate('/tracker?app=all&rag=GREEN')}>
-            <Statistic
-              title={<Text type="secondary" style={{ fontSize: 11 }}>On Track</Text>}
-              value={ragSummary.GREEN}
-              prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: '#52c41a', fontSize: 24 }}
-            />
-          </Card>
-        </Col>
-        <Col xs={8} lg={4}>
-          <Card size="small" hoverable style={{ cursor: 'pointer' }} onClick={() => navigate('/tracker?app=all&rag=AMBER')}>
-            <Statistic
-              title={<Text type="secondary" style={{ fontSize: 11 }}>At Risk</Text>}
-              value={ragSummary.AMBER}
-              prefix={<WarningOutlined />}
-              valueStyle={{ color: '#faad14', fontSize: 24 }}
-            />
-          </Card>
-        </Col>
-        <Col xs={8} lg={4}>
-          <Card size="small" hoverable style={{ cursor: 'pointer' }} onClick={() => navigate('/tracker?app=all&rag=RED')}>
-            <Statistic
-              title={<Text type="secondary" style={{ fontSize: 11 }}>Critical</Text>}
-              value={ragSummary.RED}
-              prefix={<ExclamationCircleOutlined />}
-              valueStyle={{ color: '#ff4d4f', fontSize: 24 }}
-            />
-          </Card>
-        </Col>
-        <Col xs={8} lg={4}>
-          <Card size="small" hoverable style={{ cursor: 'pointer' }} onClick={() => navigate('/tracker?app=all')}>
-            <Statistic
-              title={<Text type="secondary" style={{ fontSize: 11 }}>Avg Progress</Text>}
-              value={avgDeployment}
-              suffix="%"
-              prefix={<DashboardOutlined />}
-              valueStyle={{ fontSize: 24 }}
-            />
-          </Card>
-        </Col>
-        <Col xs={8} lg={4}>
-          <Card size="small" hoverable style={{ cursor: 'pointer' }} onClick={() => navigate('/tracker?app=all')}>
-            <Statistic
-              title={<Text type="secondary" style={{ fontSize: 11 }}>Test Pass Rate</Text>}
-              value={testSummary.rate}
-              suffix="%"
-              valueStyle={{ color: testSummary.rate >= 80 ? '#52c41a' : testSummary.rate >= 50 ? '#faad14' : '#ff4d4f', fontSize: 24 }}
-            />
-          </Card>
-        </Col>
-        <Col xs={8} lg={4}>
-          <Card size="small" hoverable style={{ cursor: 'pointer' }} onClick={() => navigate('/tracker?app=all')}>
-            <Statistic
-              title={<Text type="secondary" style={{ fontSize: 11 }}>Applications</Text>}
-              value={appBreakdown.length}
-              prefix={<TeamOutlined />}
-              valueStyle={{ fontSize: 24 }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
-      {/* RAG Health Bar */}
-      {activeProjects.length > 0 && (
-        <Card size="small" style={{ marginTop: 16 }} title={<Space><DashboardOutlined /> Portfolio Health Distribution</Space>}>
-          <div style={{ display: 'flex', height: 16, borderRadius: 8, overflow: 'hidden', marginBottom: 8 }}>
-            {ragSummary.GREEN > 0 && (
-              <Tooltip title={`On Track: ${ragSummary.GREEN}`}>
-                <div style={{ width: `${(ragSummary.GREEN / activeProjects.length) * 100}%`, background: '#52c41a', transition: 'width 0.3s' }} />
-              </Tooltip>
-            )}
-            {ragSummary.AMBER > 0 && (
-              <Tooltip title={`At Risk: ${ragSummary.AMBER}`}>
-                <div style={{ width: `${(ragSummary.AMBER / activeProjects.length) * 100}%`, background: '#faad14', transition: 'width 0.3s' }} />
-              </Tooltip>
-            )}
-            {ragSummary.RED > 0 && (
-              <Tooltip title={`Critical: ${ragSummary.RED}`}>
-                <div style={{ width: `${(ragSummary.RED / activeProjects.length) * 100}%`, background: '#ff4d4f', transition: 'width 0.3s' }} />
-              </Tooltip>
-            )}
-          </div>
-        </Card>
-      )}
-
-      {/* Project Portfolio Table + Go-Lives */}
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col xs={24} lg={16}>
-          <Card
-            title={<Space><ProjectOutlined /> All Active Projects</Space>}
-            size="small"
-            extra={<a onClick={() => navigate('/tracker?app=all')}>View All →</a>}
-          >
-            {activeProjects.length === 0 ? (
-              <Empty description="No active projects" />
-            ) : (
-              <Table
-                dataSource={activeProjects}
-                columns={projectTableCols}
-                rowKey="ID"
-                size="small"
-                pagination={{ pageSize: 10, size: 'small' }}
-                scroll={{ x: 900 }}
-                loading={isLoading}
-              />
-            )}
-          </Card>
-        </Col>
-        <Col xs={24} lg={8}>
-          <Card title={<Space><RocketOutlined /> Upcoming Go-Lives</Space>} size="small" style={{ marginBottom: 16 }}>
-            {upcomingGoLives.length === 0 ? (
-              <Empty description="No upcoming go-lives" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            ) : (
-              <Timeline
-                items={upcomingGoLives.slice(0, 8).map((wi: any) => ({
-                  color: wi.daysLeft <= 0 ? 'red' : wi.daysLeft <= 14 ? 'orange' : 'blue',
-                  children: (
-                    <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/workitem/${wi.ID}`)}>
-                      <Space size={4}>
-                        <Tag color={APP_COLORS[wi.application] || 'default'} style={{ fontSize: 9, lineHeight: '14px', padding: '0 3px' }}>{wi.application}</Tag>
-                        <Text strong style={{ fontSize: 12 }}>{wi.workItemName}</Text>
-                      </Space>
-                      <br />
-                      <Text type="secondary" style={{ fontSize: 11 }}>
-                        {wi.goLiveDate} — <Tag color={wi.daysLeft <= 7 ? 'red' : wi.daysLeft <= 14 ? 'orange' : 'blue'} style={{ fontSize: 10 }}>{wi.daysLeft}d</Tag>
-                      </Text>
+              <Space size={16} style={{ marginBottom: 12 }}>
+                {[['On Track', C.green], ['At Risk', C.amber], ['Critical', C.red]].map(([label, color]) => (
+                  <Space key={label as string} size={4}>
+                    <div style={{ width: 12, height: 12, borderRadius: 2, background: color as string }} />
+                    <Text style={{ color: C.textSec, fontSize: 12 }}>{label}</Text>
+                  </Space>
+                ))}
+              </Space>
+              {appChartData.length > 0 ? (
+                <Column data={appChartData} xField="app" yField="count" colorField="status"
+                  stack={true} height={280} theme="classicDark"
+                  scale={{ color: { domain: ['On Track', 'At Risk', 'Critical'], range: [C.green, C.amber, C.red] } }}
+                  style={{ maxWidth: 60, radiusTopLeft: 4, radiusTopRight: 4 }}
+                  axis={{
+                    x: { title: false, labelFill: C.textSec, line: null, tick: null },
+                    y: { title: false, labelFill: C.textSec, gridStroke: C.border, gridLineDash: [3, 3] },
+                  }}
+                  legend={false} />
+              ) : (
+                <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Empty description={<Text style={{ color: C.textSec }}>No data</Text>} />
+                </div>
+              )}
+            </Col>
+            <Col xs={24} lg={10}>
+              <div style={{ marginBottom: 12 }}>
+                <Text style={{ color: C.text, fontWeight: 600, fontSize: 14 }}>Health distribution</Text>
+                <br /><Text style={{ color: C.textSec, fontSize: 12 }}>RAG status across all projects</Text>
+              </div>
+              {ragDonutData.length > 0 ? (
+                <div style={{ position: 'relative' }}>
+                  <Pie data={ragDonutData} angleField="value" colorField="status"
+                    innerRadius={0.65} height={280} theme="classicDark"
+                    scale={{ color: { domain: ['On Track', 'At Risk', 'Critical'], range: [C.green, C.amber, C.red] } }}
+                    label={false} legend={false} />
+                  <div className="donut-center-label">
+                    <div className="donut-value">{activeProjects.length}</div>
+                    <div className="donut-sub">Active</div>
+                  </div>
+                  <div style={{ position: 'absolute', right: 0, top: 24 }}>
+                    <div className="eramind-legend">
+                      {ragDonutData.map(({ status, value }) => (
+                        <div key={status} className="eramind-legend-item">
+                          <div className="eramind-legend-dot" style={{ background: status === 'On Track' ? C.green : status === 'At Risk' ? C.amber : C.red }} />
+                          <span>{status}: {value}</span>
+                        </div>
+                      ))}
                     </div>
-                  ),
-                }))}
-              />
-            )}
-          </Card>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Empty description={<Text style={{ color: C.textSec }}>No data</Text>} />
+                </div>
+              )}
+            </Col>
+          </Row>
+        </div>
 
-          {/* At Risk Summary */}
-          {atRiskProjects.length > 0 && (
-            <Card title={<Space><WarningOutlined style={{ color: '#faad14' }} /> Projects at Risk</Space>} size="small">
-              <List
-                size="small"
-                dataSource={atRiskProjects.slice(0, 6)}
-                renderItem={(wi: any) => (
-                  <List.Item style={{ cursor: 'pointer', padding: '6px 0' }} onClick={() => navigate(`/workitem/${wi.ID}`)}>
-                    <Space size={4}>
-                      <div style={{
-                        width: 10, height: 10, borderRadius: '50%',
-                        background: RAG_COLORS[wi.rag],
-                      }} />
-                      <Tag color={APP_COLORS[wi.application] || 'default'} style={{ fontSize: 9, lineHeight: '14px', padding: '0 3px' }}>{wi.application}</Tag>
-                      <Text style={{ fontSize: 12 }}>{wi.workItemName}</Text>
-                      {wi.goLiveDate && <Tag style={{ fontSize: 10 }}>{daysFromNow(wi.goLiveDate)}d</Tag>}
-                    </Space>
-                  </List.Item>
-                )}
-              />
-            </Card>
-          )}
-        </Col>
-      </Row>
-    </div>
+        {/* Application Comparison */}
+        <div className="eramind-chart-card" style={{ marginBottom: 20 }}>
+          <div className="chart-title">Application comparison</div>
+          <Row gutter={24}>
+            <Col xs={24} lg={12}>
+              <div style={{ marginBottom: 12 }}>
+                <Text style={{ color: C.text, fontWeight: 600, fontSize: 14 }}>Progress by application</Text>
+                <br /><Text style={{ color: C.textSec, fontSize: 12 }}>Average deployment % per platform</Text>
+              </div>
+              {appProgressData.length > 0 ? (
+                <Bar data={appProgressData} xField="app" yField="progress"
+                  height={Math.max(180, appProgressData.length * 56)} theme="classicDark"
+                  style={{ fill: C.orange, radiusTopRight: 4, radiusBottomRight: 4 }}
+                  axis={{ x: { title: false, labelFill: C.textSec }, y: { title: false, labelFill: C.textSec, gridStroke: C.border, gridLineDash: [3, 3] } }}
+                  label={{ text: (d: any) => `${d.progress}%`, fill: C.text, fontSize: 11 }} legend={false} />
+              ) : <Empty description={<Text style={{ color: C.textSec }}>No data</Text>} />}
+            </Col>
+            <Col xs={24} lg={12}>
+              <div style={{ marginBottom: 12 }}>
+                <Text style={{ color: C.text, fontWeight: 600, fontSize: 14 }}>Risk score by application</Text>
+                <br /><Text style={{ color: C.textSec, fontSize: 12 }}>Average risk per platform</Text>
+              </div>
+              {appRiskData.length > 0 ? (
+                <Bar data={appRiskData} xField="app" yField="riskScore"
+                  height={Math.max(180, appRiskData.length * 56)} theme="classicDark"
+                  style={{ fill: C.accent, radiusTopRight: 4, radiusBottomRight: 4 }}
+                  axis={{ x: { title: false, labelFill: C.textSec }, y: { title: false, labelFill: C.textSec, gridStroke: C.border, gridLineDash: [3, 3] } }}
+                  label={{ text: 'riskScore', fill: C.text, fontSize: 11 }} legend={false} />
+              ) : <Empty description={<Text style={{ color: C.textSec }}>No data</Text>} />}
+            </Col>
+          </Row>
+        </div>
+
+        {/* All Projects Table */}
+        <div className="eramind-chart-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div className="chart-title" style={{ marginBottom: 0 }}>All active projects</div>
+            <Button type="link" style={{ color: C.accent, padding: 0 }} onClick={() => navigate('/tracker?app=all')}>
+              View All →
+            </Button>
+          </div>
+          <Table
+            dataSource={activeProjects}
+            columns={tableCols}
+            rowKey="ID"
+            size="small"
+            pagination={{ pageSize: 8, size: 'small' }}
+            scroll={{ x: 700 }}
+            loading={isLoading}
+            locale={{ emptyText: <Empty description={<Text style={{ color: C.textSec }}>No active projects</Text>} /> }}
+          />
+        </div>
+      </div>
+    </ConfigProvider>
   );
 };
 

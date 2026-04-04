@@ -1,339 +1,287 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  Row, Col, Card, Statistic, Progress, Tag, List, Typography, Space, Empty,
-  Timeline, Tooltip, Alert
+  Row, Col, Select, Typography, ConfigProvider, theme, Tooltip, Space,
+  DatePicker, Button, Empty
 } from 'antd';
 import {
-  MedicineBoxOutlined, RocketOutlined, SafetyCertificateOutlined,
-  CheckCircleOutlined, ClockCircleOutlined, WarningOutlined,
-  TeamOutlined, FundOutlined, AuditOutlined, GlobalOutlined,
-  ExperimentOutlined, DashboardOutlined, FileProtectOutlined
+  FilterOutlined, CaretUpOutlined, CaretDownOutlined, InfoCircleOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { Column, Pie, Bar } from '@ant-design/charts';
 import { useWorkItems } from '../../hooks/useData';
 import { useAuth } from '../../contexts/AuthContext';
-import { useModule } from '../../contexts/ModuleContext';
-import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
+import { calculateRAG } from '../../utils/tr-parser';
+import dayjs from 'dayjs';
+import '../../styles/dashboard-dark.css';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
+const { RangePicker } = DatePicker;
 
-const RAG_COLORS: Record<string, string> = { GREEN: '#52c41a', AMBER: '#faad14', RED: '#ff4d4f' };
+const C = {
+  bg: '#0d1117', card: '#161b22', border: '#30363d',
+  text: 'rgba(255,255,255,0.87)', textSec: 'rgba(255,255,255,0.45)',
+  accent: '#58a6ff', green: '#3fb950', red: '#f85149', amber: '#d29922',
+  orange: '#ff8c00', purple: '#bc8cff', cyan: '#39d2c0', pink: '#f778ba',
+};
 
-/**
- * Commercial Life Sciences Dashboard
- *
- * Life Sciences commercial operations in pharma/biotech typically include:
- *
- * 1. **Product Launch Management**
- *    - Pre-launch planning, launch readiness, post-launch monitoring
- *    - Cross-functional coordination (Medical, Regulatory, Commercial, Supply Chain)
- *    - KOL (Key Opinion Leader) engagement planning
- *
- * 2. **Campaign Management**
- *    - HCP (Healthcare Provider) engagement campaigns
- *    - DTC (Direct-to-Consumer) campaigns (US/NZ only — other markets prohibit)
- *    - Multi-channel marketing (digital, field force, congress/symposium)
- *
- * 3. **Compliance & Regulatory**
- *    - PhRMA Code / EFPIA Code adherence
- *    - Sunshine Act / Open Payments reporting (aggregate spend tracking)
- *    - Adverse event reporting
- *    - MLR (Medical Legal Regulatory) review cycles for promotional materials
- *
- * 4. **Field Force Operations**
- *    - Territory management & alignment
- *    - Call planning & physician targeting
- *    - Sales force effectiveness metrics (TRx, NRx, market share)
- *    - CRM (typically Veeva CRM) management
- *
- * 5. **Market Access**
- *    - Formulary positioning & payer strategy
- *    - Pricing & reimbursement
- *    - Patient support programs
- *
- * Sources: PhRMA Code on Interactions with Healthcare Professionals (2008),
- * FDA OPDP guidelines, Pharmaceutical Marketing (Wikipedia), McKinsey Life Sciences
- */
+function getRAG(wi: any): string {
+  return wi.overallRAG || calculateRAG({
+    goLiveDate: wi.goLiveDate, deploymentPct: wi.deploymentPct || 0,
+    status: wi.status, overallRAG: wi.overallRAG,
+  });
+}
+
 const CommercialDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { moduleDef } = useModule();
-  const { data: workItems = [], isLoading } = useWorkItems();
+  const { data: allWorkItems = [] } = useWorkItems();
 
-  // Filter work items by application field
-  const commercialItems = workItems.filter((wi: any) => wi.application === 'Commercial');
-  const activeItems = commercialItems.filter((wi: any) => wi.status === 'Active');
-  const displayItems = activeItems;
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
+  const [filterPriority, setFilterPriority] = useState<string | undefined>();
+  const [filterStatus, setFilterStatus] = useState<string | undefined>();
 
-  // RAG summary
-  const ragSummary = useMemo(() => {
-    const dist = { GREEN: 0, AMBER: 0, RED: 0 };
-    for (const wi of displayItems) {
-      const rag = wi.overallRAG || calculateRAG({
-        goLiveDate: wi.goLiveDate, deploymentPct: wi.deploymentPct || 0,
-        status: wi.status, overallRAG: wi.overallRAG,
+  const workItems = useMemo(() => {
+    let items = allWorkItems.filter((wi: any) => wi.application === 'Commercial');
+    if (filterPriority) items = items.filter((wi: any) => wi.priority === filterPriority);
+    if (filterStatus) items = items.filter((wi: any) => wi.status === filterStatus);
+    if (dateRange) {
+      items = items.filter((wi: any) => {
+        if (!wi.goLiveDate) return true;
+        const d = dayjs(wi.goLiveDate);
+        return d.isAfter(dateRange[0]) && d.isBefore(dateRange[1]);
       });
-      if (rag in dist) dist[rag as keyof typeof dist]++;
-      else dist.GREEN++;
     }
-    return dist;
-  }, [displayItems]);
+    return items;
+  }, [allWorkItems, filterPriority, filterStatus, dateRange]);
 
-  // Category breakdown
-  const categoryBreakdown = useMemo(() => {
-    const cats: Record<string, number> = {};
-    for (const wi of displayItems) {
-      const t = wi.workItemType || 'Other';
-      cats[t] = (cats[t] || 0) + 1;
+  const activeItems = workItems.filter((wi: any) => wi.status === 'Active');
+
+  const avgDeployment = useMemo(() => {
+    if (activeItems.length === 0) return 0;
+    return Math.round(activeItems.reduce((s: number, wi: any) => s + (wi.deploymentPct || 0), 0) / activeItems.length);
+  }, [activeItems]);
+
+  const ragDist = useMemo(() => {
+    const d = { GREEN: 0, AMBER: 0, RED: 0 };
+    for (const wi of activeItems) {
+      const r = getRAG(wi); if (r in d) d[r as keyof typeof d]++; else d.GREEN++;
     }
-    return Object.entries(cats);
-  }, [displayItems]);
+    return d;
+  }, [activeItems]);
 
-  // Upcoming launches/deadlines
-  const upcomingDeadlines = useMemo(() => {
-    return displayItems
-      .filter((wi: any) => wi.goLiveDate)
-      .map((wi: any) => ({ ...wi, daysLeft: daysFromNow(wi.goLiveDate) }))
-      .filter((wi: any) => wi.daysLeft >= -7 && wi.daysLeft <= 90)
-      .sort((a: any, b: any) => a.daysLeft - b.daysLeft);
-  }, [displayItems]);
+  const totalRiskScore = useMemo(() =>
+    activeItems.reduce((s: number, wi: any) => s + (wi.riskScore || 0), 0), [activeItems]);
 
-  // Commercial capability areas
-  const commercialAreas = [
-    { name: 'Product Launch', icon: <RocketOutlined />, color: '#722ed1', desc: 'Launch readiness & go-to-market' },
-    { name: 'Campaigns', icon: <FundOutlined />, color: '#1677ff', desc: 'HCP & DTC engagement' },
-    { name: 'Compliance', icon: <SafetyCertificateOutlined />, color: '#52c41a', desc: 'PhRMA Code, Sunshine Act, AE reporting' },
-    { name: 'Market Access', icon: <GlobalOutlined />, color: '#fa8c16', desc: 'Formulary, pricing, payer strategy' },
-    { name: 'Field Force', icon: <TeamOutlined />, color: '#13c2c2', desc: 'Territory mgmt, call planning, CRM' },
-    { name: 'MLR Review', icon: <AuditOutlined />, color: '#eb2f96', desc: 'Medical Legal Regulatory review' },
-  ];
+  // Chart: By Phase
+  const phaseChartData = useMemo(() => {
+    const phases = ['Planning', 'Pre-Launch', 'Execution', 'Monitoring', 'Close-Out'];
+    const data: { phase: string; count: number; status: string }[] = [];
+    for (const phase of phases) {
+      const pi = activeItems.filter((wi: any) => (wi.currentPhase || 'Planning') === phase);
+      for (const [ragKey, label] of [['GREEN', 'On Track'], ['AMBER', 'At Risk'], ['RED', 'Critical']] as const) {
+        const count = pi.filter((wi: any) => getRAG(wi) === ragKey).length;
+        if (count > 0) data.push({ phase, count, status: label });
+      }
+    }
+    return data;
+  }, [activeItems]);
+
+  // Donut: By Type
+  const typeDonutData = useMemo(() => {
+    const types: Record<string, number> = {};
+    for (const wi of workItems) types[wi.workItemType || 'Other'] = (types[wi.workItemType || 'Other'] || 0) + 1;
+    return Object.entries(types).map(([type, value]) => ({ type, value }));
+  }, [workItems]);
+
+  // Bar: By Priority
+  const priorityBarData = useMemo(() => {
+    const pr: Record<string, number> = {};
+    for (const wi of activeItems) pr[wi.priority || 'N/A'] = (pr[wi.priority || 'N/A'] || 0) + 1;
+    return Object.entries(pr).map(([priority, count]) => ({ priority, count })).sort((a, b) => a.priority.localeCompare(b.priority));
+  }, [activeItems]);
+
+  // Bar: Complexity
+  const complexityBarData = useMemo(() => {
+    const cx: Record<string, number> = {};
+    for (const wi of activeItems) cx[wi.complexity || 'N/A'] = (cx[wi.complexity || 'N/A'] || 0) + 1;
+    return Object.entries(cx).map(([complexity, count]) => ({ complexity, count })).sort((a, b) => b.count - a.count);
+  }, [activeItems]);
+
+  const priorities = [...new Set(workItems.map((w: any) => w.priority).filter(Boolean))].sort();
+  const statuses = [...new Set(workItems.map((w: any) => w.status).filter(Boolean))];
+
+  const typeColors = [C.purple, C.accent, C.green, C.orange, C.cyan, C.pink, C.amber, C.red];
+  const typeColorMap: Record<string, string> = {};
+  typeDonutData.forEach((d, i) => { typeColorMap[d.type] = typeColors[i % typeColors.length]; });
+
+  const darkTheme = {
+    algorithm: theme.darkAlgorithm,
+    token: { colorBgContainer: C.card, colorBorderSecondary: C.border, borderRadius: 8, colorPrimary: C.accent },
+  };
 
   return (
-    <div>
-      {/* Banner */}
-      <Card
-        style={{ marginBottom: 16, background: 'linear-gradient(135deg, #722ed1 0%, #531dab 100%)', border: 'none' }}
-        styles={{ body: { padding: '16px 24px' } }}
-      >
-        <Row align="middle" justify="space-between">
-          <Col>
-            <Title level={3} style={{ color: '#fff', margin: 0 }}>
-              <MedicineBoxOutlined /> Commercial Operations Center
-            </Title>
-            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, marginTop: 4, display: 'block' }}>
-              Life Sciences Commercial — <strong>{user?.name || 'User'}</strong>
-              {user?.roles && user.roles.length > 0 && <Tag color="gold" style={{ marginLeft: 8 }}>{user.roles[0]}</Tag>}
-            </Text>
+    <ConfigProvider theme={darkTheme}>
+      <div className="eramind-dashboard">
+        <div style={{ marginBottom: 12 }}>
+          <Text style={{ color: C.textSec, fontSize: 13 }}>
+            Dashboards / <Text style={{ color: C.text, fontSize: 13 }}>Commercial Life Sciences</Text>
+          </Text>
+        </div>
+
+        <div className="eramind-filter-bar">
+          <RangePicker size="middle" onChange={(dates) => setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)} />
+          <Select placeholder="Priority" allowClear value={filterPriority} onChange={setFilterPriority}
+            style={{ width: 120 }} options={priorities.map((p: string) => ({ value: p, label: p }))} />
+          <Select placeholder="Status" allowClear value={filterStatus} onChange={setFilterStatus}
+            style={{ width: 140 }} options={statuses.map((s: string) => ({ value: s, label: s }))} />
+          <Button icon={<FilterOutlined />}>Filters</Button>
+        </div>
+
+        {/* KPI Cards */}
+        <Row gutter={16} style={{ marginBottom: 20 }}>
+          <Col xs={12} lg={6}>
+            <div className="eramind-kpi" onClick={() => navigate('/tracker')} style={{ cursor: 'pointer' }}>
+              <div className="kpi-label">Active Initiatives</div>
+              <div className="kpi-value">{activeItems.length}</div>
+              <div className="kpi-delta positive"><CaretUpOutlined /> {ragDist.GREEN} on track</div>
+            </div>
           </Col>
-          <Col>
-            <Space size="large">
-              <div style={{ textAlign: 'center', padding: '4px 16px' }}>
-                <div style={{ color: '#fff', fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>{displayItems.length}</div>
-                <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}>Active Initiatives</div>
+          <Col xs={12} lg={6}>
+            <div className="eramind-kpi">
+              <div className="kpi-label">Risk Score <Tooltip title="Aggregate risk"><InfoCircleOutlined style={{ fontSize: 11 }} /></Tooltip></div>
+              <div className="kpi-value">{totalRiskScore}</div>
+              <div className={`kpi-delta ${totalRiskScore > 150 ? 'negative' : 'positive'}`}>
+                {totalRiskScore > 150 ? <><CaretUpOutlined /> Elevated</> : <><CaretDownOutlined /> Normal</>}
               </div>
-              <div style={{ textAlign: 'center', padding: '4px 16px' }}>
-                <div style={{ color: '#b7eb8f', fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>{ragSummary.GREEN}</div>
-                <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}>On Track</div>
+            </div>
+          </Col>
+          <Col xs={12} lg={6}>
+            <div className="eramind-kpi">
+              <div className="kpi-label">Avg Progress</div>
+              <div className="kpi-value">{avgDeployment}<span style={{ fontSize: 18, opacity: 0.5 }}>%</span></div>
+              <div className="kpi-delta neutral">Across active initiatives</div>
+            </div>
+          </Col>
+          <Col xs={12} lg={6}>
+            <div className="eramind-kpi">
+              <div className="kpi-label">Total Items</div>
+              <div className="kpi-value">{workItems.length}</div>
+              <div className="rag-bar">
+                {ragDist.GREEN > 0 && <Tooltip title={`On Track: ${ragDist.GREEN}`}><div style={{ flex: ragDist.GREEN, background: C.green }} /></Tooltip>}
+                {ragDist.AMBER > 0 && <Tooltip title={`At Risk: ${ragDist.AMBER}`}><div style={{ flex: ragDist.AMBER, background: C.amber }} /></Tooltip>}
+                {ragDist.RED > 0 && <Tooltip title={`Critical: ${ragDist.RED}`}><div style={{ flex: ragDist.RED, background: C.red }} /></Tooltip>}
               </div>
-              {(ragSummary.AMBER + ragSummary.RED) > 0 && (
-                <div style={{ textAlign: 'center', padding: '4px 16px' }}>
-                  <div style={{ color: '#faad14', fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>{ragSummary.AMBER + ragSummary.RED}</div>
-                  <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}>Need Attention</div>
-                </div>
-              )}
-            </Space>
+              <div className="rag-bar-legend">
+                <span><span style={{ color: C.green }}>●</span> On Track</span>
+                <span><span style={{ color: C.amber }}>●</span> At Risk</span>
+                <span><span style={{ color: C.red }}>●</span> Critical</span>
+              </div>
+            </div>
           </Col>
         </Row>
-      </Card>
 
-      {/* Commercial Capability Areas */}
-      <Row gutter={[12, 12]}>
-        {commercialAreas.map((area) => (
-          <Col xs={12} sm={8} lg={4} key={area.name}>
-            <Tooltip title={area.desc}>
-              <Card size="small" hoverable style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 24, color: area.color, marginBottom: 4 }}>{area.icon}</div>
-                <Text style={{ fontSize: 11 }}>{area.name}</Text>
-              </Card>
-            </Tooltip>
-          </Col>
-        ))}
-      </Row>
-
-      {/* Launch Readiness + Compliance */}
-      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
-        <Col xs={24} lg={12}>
-          <Card title={<Space><RocketOutlined /> Launch & Initiative Tracker</Space>} size="small">
-            {displayItems.length === 0 ? (
-              <Empty description="No active initiatives. Create one from the Tracker page." />
-            ) : (
-              <List
-                size="small"
-                dataSource={displayItems.slice(0, 8)}
-                renderItem={(wi: any) => {
-                  const rag = wi.overallRAG || calculateRAG({
-                    goLiveDate: wi.goLiveDate, deploymentPct: wi.deploymentPct || 0,
-                    status: wi.status, overallRAG: wi.overallRAG,
-                  });
-                  return (
-                    <List.Item
-                      style={{ cursor: 'pointer', padding: '8px 0' }}
-                      onClick={() => navigate(`/workitem/${wi.ID}`)}
-                    >
-                      <List.Item.Meta
-                        avatar={
-                          <div style={{
-                            width: 12, height: 12, borderRadius: '50%', marginTop: 4,
-                            background: RAG_COLORS[rag] || '#d9d9d9',
-                          }} />
-                        }
-                        title={
-                          <Space size={4}>
-                            <Text strong style={{ fontSize: 13 }}>{wi.workItemName}</Text>
-                            <Tag style={{ fontSize: 10 }}>{wi.workItemType}</Tag>
-                          </Space>
-                        }
-                        description={
-                          <Space size={8}>
-                            <Tag color="processing" style={{ fontSize: 10 }}>{wi.currentPhase || 'Planning'}</Tag>
-                            <Progress percent={wi.deploymentPct || 0} size="small" style={{ width: 120 }} />
-                            {wi.goLiveDate && (
-                              <Text type="secondary" style={{ fontSize: 11 }}>
-                                {wi.goLiveDate} ({daysFromNow(wi.goLiveDate)}d)
-                              </Text>
-                            )}
-                          </Space>
-                        }
-                      />
-                    </List.Item>
-                  );
-                }}
-              />
-            )}
-          </Card>
-        </Col>
-        <Col xs={24} lg={12}>
-          <Card
-            title={<Space><SafetyCertificateOutlined /> Compliance & Regulatory Status</Space>}
-            size="small"
-          >
-            <Row gutter={[16, 16]}>
-              <Col span={12}>
-                <Card size="small" style={{ background: '#f6ffed', border: '1px solid #b7eb8f' }}>
-                  <Statistic
-                    title={<Text style={{ fontSize: 11 }}>PhRMA Code</Text>}
-                    value="Compliant"
-                    prefix={<CheckCircleOutlined />}
-                    valueStyle={{ fontSize: 14, color: '#52c41a' }}
-                  />
-                </Card>
-              </Col>
-              <Col span={12}>
-                <Card size="small" style={{ background: '#f6ffed', border: '1px solid #b7eb8f' }}>
-                  <Statistic
-                    title={<Text style={{ fontSize: 11 }}>Sunshine Act</Text>}
-                    value="Current"
-                    prefix={<FileProtectOutlined />}
-                    valueStyle={{ fontSize: 14, color: '#52c41a' }}
-                  />
-                </Card>
-              </Col>
-              <Col span={12}>
-                <Card size="small">
-                  <Statistic
-                    title={<Text style={{ fontSize: 11 }}>MLR Reviews</Text>}
-                    value="—"
-                    prefix={<AuditOutlined />}
-                    valueStyle={{ fontSize: 14 }}
-                  />
-                </Card>
-              </Col>
-              <Col span={12}>
-                <Card size="small">
-                  <Statistic
-                    title={<Text style={{ fontSize: 11 }}>AE Reports</Text>}
-                    value="—"
-                    prefix={<ExperimentOutlined />}
-                    valueStyle={{ fontSize: 14 }}
-                  />
-                </Card>
-              </Col>
-            </Row>
-            <Alert
-              style={{ marginTop: 12 }}
-              message="Compliance tracking activates with Veeva Vault / CRM integration."
-              type="info" showIcon
-            />
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Timeline + Category Breakdown */}
-      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
-        <Col xs={24} lg={14}>
-          {/* Phase Distribution */}
-          <Card title={<Space><DashboardOutlined /> Phase Distribution</Space>} size="small">
-            {displayItems.length === 0 ? (
-              <Empty description="No active initiatives" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            ) : (
-              <Row gutter={[16, 8]}>
-                {['Planning', 'Pre-Launch', 'Execution', 'Monitoring', 'Close-Out'].map((phase) => {
-                  const count = displayItems.filter((wi: any) => (wi.currentPhase || 'Planning') === phase).length;
-                  const pct = displayItems.length > 0 ? Math.round((count / displayItems.length) * 100) : 0;
-                  return (
-                    <Col xs={12} sm={8} lg={4} key={phase}>
-                      <div style={{ textAlign: 'center', padding: '8px 0' }}>
-                        <Text style={{ fontSize: 11, color: '#8c8c8c' }}>{phase}</Text>
-                        <div style={{ fontSize: 20, fontWeight: 600 }}>{count}</div>
-                        <Progress percent={pct} size="small" showInfo={false} style={{ width: '80%', margin: '0 auto' }} />
-                      </div>
-                    </Col>
-                  );
-                })}
-              </Row>
-            )}
-          </Card>
-        </Col>
-        <Col xs={24} lg={10}>
-          <Card title={<Space><ClockCircleOutlined /> Upcoming Deadlines</Space>} size="small" style={{ marginBottom: 16 }}>
-            {upcomingDeadlines.length === 0 ? (
-              <Empty description="No upcoming deadlines" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            ) : (
-              <Timeline
-                items={upcomingDeadlines.slice(0, 6).map((wi: any) => ({
-                  color: wi.daysLeft <= 0 ? 'red' : wi.daysLeft <= 14 ? 'orange' : 'blue',
-                  children: (
-                    <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/workitem/${wi.ID}`)}>
-                      <Text strong style={{ fontSize: 12 }}>{wi.workItemName}</Text>
-                      <br />
-                      <Text type="secondary" style={{ fontSize: 11 }}>
-                        {wi.goLiveDate} — <Tag color={wi.daysLeft <= 7 ? 'red' : 'blue'} style={{ fontSize: 10 }}>{wi.daysLeft}d</Tag>
-                      </Text>
-                    </div>
-                  ),
-                }))}
-              />
-            )}
-          </Card>
-
-          <Card title={<Space><DashboardOutlined /> By Initiative Type</Space>} size="small">
-            {categoryBreakdown.length === 0 ? (
-              <Empty description="No data" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            ) : (
-              categoryBreakdown.map(([cat, count]) => (
-                <div key={cat} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                  <Text style={{ fontSize: 12 }}>{cat}</Text>
-                  <Space size={4}>
-                    <Progress percent={Math.round((count / (displayItems.length || 1)) * 100)} size="small" style={{ width: 80 }} showInfo={false} />
-                    <Text strong style={{ fontSize: 12, width: 20, textAlign: 'right' }}>{count}</Text>
+        {/* Overall Trends */}
+        <div className="eramind-chart-card" style={{ marginBottom: 20 }}>
+          <div className="chart-title">Overall trends</div>
+          <Row gutter={24}>
+            <Col xs={24} lg={14}>
+              <div style={{ marginBottom: 12 }}>
+                <Text style={{ color: C.text, fontWeight: 600, fontSize: 14 }}>Initiatives by phase &amp; health</Text>
+                <br /><Text style={{ color: C.textSec, fontSize: 12 }}>Commercial lifecycle phases</Text>
+              </div>
+              <Space size={16} style={{ marginBottom: 12 }}>
+                {[['On Track', C.green], ['At Risk', C.amber], ['Critical', C.red]].map(([label, color]) => (
+                  <Space key={label as string} size={4}>
+                    <div style={{ width: 12, height: 12, borderRadius: 2, background: color as string }} />
+                    <Text style={{ color: C.textSec, fontSize: 12 }}>{label}</Text>
                   </Space>
+                ))}
+              </Space>
+              {phaseChartData.length > 0 ? (
+                <Column data={phaseChartData} xField="phase" yField="count" colorField="status"
+                  stack={true} height={280} theme="classicDark"
+                  scale={{ color: { domain: ['On Track', 'At Risk', 'Critical'], range: [C.green, C.amber, C.red] } }}
+                  style={{ maxWidth: 40, radiusTopLeft: 4, radiusTopRight: 4 }}
+                  axis={{
+                    x: { title: false, labelFill: C.textSec, line: null, tick: null },
+                    y: { title: false, labelFill: C.textSec, gridStroke: C.border, gridLineDash: [3, 3] },
+                  }}
+                  legend={false} />
+              ) : (
+                <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Empty description={<Text style={{ color: C.textSec }}>No data</Text>} />
                 </div>
-              ))
-            )}
-          </Card>
-        </Col>
-      </Row>
-    </div>
+              )}
+            </Col>
+            <Col xs={24} lg={10}>
+              <div style={{ marginBottom: 12 }}>
+                <Text style={{ color: C.text, fontWeight: 600, fontSize: 14 }}>Initiatives by type</Text>
+                <br /><Text style={{ color: C.textSec, fontSize: 12 }}>Commercial initiative categories</Text>
+              </div>
+              {typeDonutData.length > 0 ? (
+                <div style={{ position: 'relative' }}>
+                  <Pie data={typeDonutData} angleField="value" colorField="type"
+                    innerRadius={0.65} height={280} theme="classicDark"
+                    scale={{ color: { range: typeDonutData.map(d => typeColorMap[d.type]) } }}
+                    label={false} legend={false} />
+                  <div className="donut-center-label">
+                    <div className="donut-value">{workItems.length}</div>
+                    <div className="donut-sub">Items</div>
+                  </div>
+                  <div style={{ position: 'absolute', right: 0, top: 24 }}>
+                    <div className="eramind-legend">
+                      {typeDonutData.map(({ type, value }) => (
+                        <div key={type} className="eramind-legend-item">
+                          <div className="eramind-legend-dot" style={{ background: typeColorMap[type] }} />
+                          <span>{type}: {Math.round((value / (workItems.length || 1)) * 100)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Empty description={<Text style={{ color: C.textSec }}>No data</Text>} />
+                </div>
+              )}
+            </Col>
+          </Row>
+        </div>
+
+        {/* Comparison */}
+        <div className="eramind-chart-card">
+          <div className="chart-title">Initiative comparison</div>
+          <Row gutter={24}>
+            <Col xs={24} lg={12}>
+              <div style={{ marginBottom: 12 }}>
+                <Text style={{ color: C.text, fontWeight: 600, fontSize: 14 }}>Initiatives by priority</Text>
+                <br /><Text style={{ color: C.textSec, fontSize: 12 }}>Active items by priority level</Text>
+              </div>
+              {priorityBarData.length > 0 ? (
+                <Bar data={priorityBarData} xField="priority" yField="count"
+                  height={Math.max(200, priorityBarData.length * 48)} theme="classicDark"
+                  style={{ fill: C.purple, radiusTopRight: 4, radiusBottomRight: 4 }}
+                  axis={{ x: { title: false, labelFill: C.textSec }, y: { title: false, labelFill: C.textSec, gridStroke: C.border, gridLineDash: [3, 3] } }}
+                  label={{ text: 'count', fill: C.text, fontSize: 11 }} legend={false} />
+              ) : <Empty description={<Text style={{ color: C.textSec }}>No data</Text>} />}
+            </Col>
+            <Col xs={24} lg={12}>
+              <div style={{ marginBottom: 12 }}>
+                <Text style={{ color: C.text, fontWeight: 600, fontSize: 14 }}>Complexity breakdown</Text>
+                <br /><Text style={{ color: C.textSec, fontSize: 12 }}>Active items by complexity level</Text>
+              </div>
+              {complexityBarData.length > 0 ? (
+                <Bar data={complexityBarData} xField="complexity" yField="count"
+                  height={Math.max(200, complexityBarData.length * 48)} theme="classicDark"
+                  style={{ fill: C.cyan, radiusTopRight: 4, radiusBottomRight: 4 }}
+                  axis={{ x: { title: false, labelFill: C.textSec }, y: { title: false, labelFill: C.textSec, gridStroke: C.border, gridLineDash: [3, 3] } }}
+                  label={{ text: 'count', fill: C.text, fontSize: 11 }} legend={false} />
+              ) : <Empty description={<Text style={{ color: C.textSec }}>No data</Text>} />}
+            </Col>
+          </Row>
+        </div>
+      </div>
+    </ConfigProvider>
   );
 };
 
