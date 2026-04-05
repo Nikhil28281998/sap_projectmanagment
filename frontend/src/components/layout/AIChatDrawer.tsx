@@ -454,46 +454,21 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
       styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column' } }}
     >
       {/* Messages Area */}
-      <div style={{
-        flex: 1,
-        overflow: 'auto',
-        padding: '16px',
-        minHeight: 'calc(100vh - 220px)',
-        maxHeight: 'calc(100vh - 220px)',
-      }}>
+      <div className="ai-messages-area">
         {messages.map((msg, idx) => (
           <div
             key={idx}
-            style={{
-              marginBottom: 16,
-              display: 'flex',
-              flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
-              alignItems: 'flex-start',
-              gap: 8,
-            }}
+            className={`ai-msg-row ${msg.role === 'user' ? 'ai-msg-row-user' : 'ai-msg-row-bot'}`}
           >
             <Avatar
               size="small"
               icon={msg.role === 'user' ? <UserOutlined /> : <RobotOutlined />}
-              style={{
-                backgroundColor: msg.role === 'user' ? '#1677ff' : '#52c41a',
-                flexShrink: 0,
-              }}
+              className={msg.role === 'user' ? 'ai-avatar-user' : 'ai-avatar-bot'}
             />
-            <div style={{
-              maxWidth: '85%',
-              background: msg.role === 'user' ? '#1677ff' : '#f5f5f5',
-              color: msg.role === 'user' ? '#fff' : '#000',
-              borderRadius: 12,
-              padding: '8px 12px',
-              fontSize: 13,
-              lineHeight: 1.5,
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-            }}>
+            <div className={`ai-msg-bubble ${msg.role === 'user' ? 'ai-msg-bubble-user' : 'ai-msg-bubble-bot'}`}>
               {msg.content}
               {msg.provider && (
-                <div style={{ marginTop: 4 }}>
+                <div className="mt-4">
                   <Tag
                     color={msg.provider === 'claude' ? 'orange' : msg.provider === 'gemini' ? 'blue' : 'green'}
                     style={{ fontSize: 10-1, margin: 0 }}
@@ -507,8 +482,8 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
         ))}
 
         {loading && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
-            <Avatar size="small" icon={<RobotOutlined />} style={{ backgroundColor: '#52c41a' }} />
+          <div className="ai-loading-row">
+            <Avatar size="small" icon={<RobotOutlined />} className="ai-avatar-bot" />
             <Spin size="small" />
             <Text type="secondary" style={{ fontSize: 12 }}>Thinking...</Text>
           </div>
@@ -519,16 +494,16 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
 
       {/* Quick Questions */}
       {messages.length <= 1 && (
-        <div style={{ padding: '0 16px 8px', borderTop: '1px solid #f0f0f0' }}>
-          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 8, marginBottom: 6 }}>
+        <div className="ai-quick-section">
+          <Text type="secondary" className="fs-11 d-block mt-8 mb-8">
             <BulbOutlined /> Try asking:
           </Text>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+          <div className="ai-quick-tags">
             {QUICK_QUESTIONS.map((q, i) => (
               <Tag
                 key={i}
                 color="blue"
-                style={{ cursor: 'pointer', fontSize: 11, margin: 0 }}
+                className="ai-quick-tag"
                 onClick={() => sendMessage(q)}
               >
                 {q}
@@ -539,8 +514,8 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
       )}
 
       {/* Input Area */}
-      <div style={{ padding: '12px 16px', borderTop: '1px solid #f0f0f0', background: '#fafafa' }}>
-        <Space.Compact style={{ width: '100%' }}>
+      <div className="ai-input-area">
+        <Space.Compact className="w-full">
           <TextArea
             ref={inputRef}
             value={input}
@@ -548,7 +523,7 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
             onKeyDown={handleKeyDown}
             placeholder="Ask about your projects, transports, tests..."
             autoSize={{ minRows: 1, maxRows: 4 }}
-            style={{ borderRadius: '8px 0 0 8px' }}
+            className="ai-input-field"
             disabled={loading}
           />
           <Button
@@ -556,10 +531,10 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
             icon={<SendOutlined />}
             onClick={() => sendMessage()}
             loading={loading}
-            style={{ height: 'auto', borderRadius: '0 8px 8px 0' }}
+            className="ai-send-btn"
           />
         </Space.Compact>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+        <div className="ai-input-footer">
           <Text type="secondary" style={{ fontSize: 10 }}>
             Shift+Enter for new line • AI queries your live project data
           </Text>
@@ -649,7 +624,7 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
           </Row>
 
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <div className="ai-doc-header">
               <Text strong>Document Content</Text>
               {docFileName && <Tag color="blue">{docFileName}</Tag>}
             </div>
@@ -660,9 +635,9 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
                 beforeUpload={handleDocFileUpload}
                 style={{ padding: '20px 0' }}
               >
-                <p className="ant-upload-drag-icon"><InboxOutlined style={{ fontSize: 36, color: '#1677ff' }} /></p>
-                <p className="ant-upload-text" style={{ fontSize: 13 }}>Click or drag file to upload</p>
-                <p className="ant-upload-hint" style={{ fontSize: 11 }}>
+                <p className="ant-upload-drag-icon"><InboxOutlined className="ai-inbox-icon" /></p>
+                <p className="ant-upload-text ai-upload-text">Click or drag file to upload</p>
+                <p className="ant-upload-hint ai-upload-hint">
                   Supports: .eml, .msg, .txt, .html, .csv, .xlsx, .doc
                 </p>
               </Dragger>
@@ -731,13 +706,13 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
                   }}
                   onClick={() => handleToggleProposal(idx)}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ flex: 1 }}>
+                  <div className="ai-proposal-header">
+                    <div className="ai-proposal-body">
                       <Space size={4} style={{ marginBottom: 4 }}>
                         <Checkbox checked={proposal.selected} onChange={() => handleToggleProposal(idx)} />
                         <Text strong style={{ fontSize: 13 }}>{proposal.workItemName}</Text>
                       </Space>
-                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 4, marginLeft: 24 }}>
+                      <div className="ai-proposal-tags">
                         <Tag color="blue">{proposal.workItemType}</Tag>
                         <Tag color={PRIORITY_COLORS[proposal.priority] || 'default'}>{proposal.priority}</Tag>
                         <Tag>{proposal.complexity}</Tag>
@@ -750,8 +725,8 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
                           {proposal.notes.substring(0, 200)}{proposal.notes.length > 200 ? '...' : ''}
                         </Text>
                       )}
-                      <div style={{ marginLeft: 24, marginTop: 4, display: 'flex', gap: 8 }}>
-                        {proposal.businessOwner && <Text style={{ fontSize: 11 }}>👤 {proposal.businessOwner}</Text>}
+                      <div className="ai-proposal-meta">
+                        {proposal.businessOwner && <Text className="fs-11">👤 {proposal.businessOwner}</Text>}
                         {proposal.currentPhase && <Text style={{ fontSize: 11 }}>📍 {proposal.currentPhase}</Text>}
                         {proposal.estimatedGoLive && <Text style={{ fontSize: 11 }}>🎯 {proposal.estimatedGoLive}</Text>}
                       </div>
@@ -781,7 +756,7 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
                 </Space>
               </Divider>
               {refineHistory.length > 0 && (
-                <div style={{ marginBottom: 8 }}>
+                <div className="mb-8">
                   {refineHistory.map((h, i) => (
                     <Tag key={i} color="purple" style={{ fontSize: 10, marginBottom: 2 }}>✏️ {h}</Tag>
                   ))}
@@ -839,9 +814,9 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
             />
           </div>
 
-          <div style={{ display: 'flex', gap: 16 }}>
-            <div style={{ flex: 1 }}>
-              <Text strong style={{ display: 'block', marginBottom: 6 }}>Scope</Text>
+          <div className="ai-template-form">
+            <div className="ai-template-col">
+              <Text strong className="ai-template-label">Scope</Text>
               <Select
                 value={templateScope}
                 onChange={setTemplateScope}
@@ -853,8 +828,8 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
                 ]}
               />
             </div>
-            <div style={{ flex: 1 }}>
-              <Text strong style={{ display: 'block', marginBottom: 6 }}>Visibility</Text>
+            <div className="ai-template-col">
+              <Text strong className="ai-template-label">Visibility</Text>
               <Select
                 value={templateVisibility}
                 onChange={setTemplateVisibility}
@@ -867,13 +842,13 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="ai-switch-row">
             <Switch checked={templateDefault} onChange={setTemplateDefault} size="small" />
             <Text>Set as my default template</Text>
           </div>
 
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <div className="ai-paste-header">
               <Text strong>Paste or Upload Your Email Sample</Text>
               <Upload
                 accept=".txt,.html,.htm,.eml,.msg"
@@ -913,7 +888,7 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
             <>
               {/* ── Template Editor ── */}
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <div className="ai-editor-header">
                   <Text strong>Edit Generated Template</Text>
                   <Space size="small">
                     <Tooltip title="Reset to AI-generated original">
@@ -977,15 +952,7 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
                       children: (
                         <div
                           dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(generatedHtml) }}
-                          style={{
-                            border: '1px solid #d9d9d9',
-                            borderRadius: 6,
-                            padding: 16,
-                            minHeight: 200,
-                            maxHeight: 340,
-                            overflow: 'auto',
-                            background: '#fff',
-                          }}
+                          className="ai-template-preview"
                         />
                       ),
                     },
@@ -1041,7 +1008,7 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
           {spDocuments.length === 0 ? (
             <Empty description="No documents found" image={Empty.PRESENTED_IMAGE_SIMPLE} />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="ai-sp-docs-list">
               {spDocuments.map((doc: any) => {
                 const isFolder = doc.type === 'folder';
                 const ext = (doc.name || '').split('.').pop()?.toLowerCase() || '';
@@ -1054,7 +1021,7 @@ const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
                     onClick={() => isFolder ? handleBrowseSharePoint(doc.name) : handleFetchSpDocument(doc)}
                     style={{ cursor: 'pointer' }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="ai-sp-card-inner">
                       <Space>
                         {isFolder ? <FolderOpenOutlined style={{ color: '#faad14', fontSize: 18 }} /> : <FileTextOutlined style={{ color: '#1677ff', fontSize: 18 }} />}
                         <div>

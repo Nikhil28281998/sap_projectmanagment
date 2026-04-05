@@ -179,7 +179,7 @@ const SettingsPage: React.FC = () => {
             <Space>
               <span>API Key</span>
               {selectedProvider && (
-                <a href={selectedProvider.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12 }}>
+                <a href={selectedProvider.url} target="_blank" rel="noopener noreferrer" className="settings-link-sm">
                   Get key →
                 </a>
               )}
@@ -189,7 +189,7 @@ const SettingsPage: React.FC = () => {
               value={aiApiKey}
               onChange={e => setAiApiKey(e.target.value)}
               placeholder={selectedProvider?.hint || 'Enter API key...'}
-              style={{ width: 420 }}
+              className="settings-api-key-input"
               addonBefore={<LinkOutlined />}
               disabled={!canConfigure}
             />
@@ -320,8 +320,8 @@ const SettingsPage: React.FC = () => {
 
         <Row gutter={16}>
           <Col span={12}>
-            <div style={{ marginBottom: 12 }}>
-              <Text strong style={{ display: 'block', marginBottom: 4 }}>Azure AD Tenant ID</Text>
+            <div className="settings-field-group">
+              <Text strong className="settings-field-label">Azure AD Tenant ID</Text>
               <Input
                 value={spTenantId}
                 onChange={e => setSpTenantId(e.target.value)}
@@ -331,8 +331,8 @@ const SettingsPage: React.FC = () => {
             </div>
           </Col>
           <Col span={12}>
-            <div style={{ marginBottom: 12 }}>
-              <Text strong style={{ display: 'block', marginBottom: 4 }}>Client ID (App ID)</Text>
+            <div className="settings-field-group">
+              <Text strong className="settings-field-label">Client ID (App ID)</Text>
               <Input
                 value={spClientId}
                 onChange={e => setSpClientId(e.target.value)}
@@ -345,8 +345,8 @@ const SettingsPage: React.FC = () => {
 
         <Row gutter={16}>
           <Col span={12}>
-            <div style={{ marginBottom: 12 }}>
-              <Text strong style={{ display: 'block', marginBottom: 4 }}>Client Secret</Text>
+            <div className="settings-field-group">
+              <Text strong className="settings-field-label">Client Secret</Text>
               <Input.Password
                 value={spClientSecret}
                 onChange={e => setSpClientSecret(e.target.value)}
@@ -356,8 +356,8 @@ const SettingsPage: React.FC = () => {
             </div>
           </Col>
           <Col span={12}>
-            <div style={{ marginBottom: 12 }}>
-              <Text strong style={{ display: 'block', marginBottom: 4 }}>SharePoint Site URL / ID</Text>
+            <div className="settings-field-group">
+              <Text strong className="settings-field-label">SharePoint Site URL / ID</Text>
               <Input
                 value={spSiteUrl}
                 onChange={e => setSpSiteUrl(e.target.value)}
@@ -370,8 +370,8 @@ const SettingsPage: React.FC = () => {
 
         <Row gutter={16}>
           <Col span={12}>
-            <div style={{ marginBottom: 12 }}>
-              <Text strong style={{ display: 'block', marginBottom: 4 }}>Drive / Library ID</Text>
+            <div className="settings-field-group">
+              <Text strong className="settings-field-label">Drive / Library ID</Text>
               <Input
                 value={spDriveId}
                 onChange={e => setSpDriveId(e.target.value)}

@@ -117,18 +117,18 @@ const WeeklyDigestPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }
       )}
 
       {/* Controls */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card size="small" className="digest-filter-card">
         <Space size="middle" wrap>
           <div>
-            <Text strong style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>Application Scope</Text>
+            <Text strong className="digest-filter-label">Application Scope</Text>
             <Select
               value={appFilter}
               onChange={setAppFilter}
-              style={{ width: 260 }}
+              className="digest-scope-select"
               options={APP_OPTIONS}
             />
           </div>
-          <div style={{ paddingTop: 20 }}>
+          <div className="digest-btn-pad">
             <Button
               type="primary"
               size="large"
@@ -139,24 +139,24 @@ const WeeklyDigestPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }
               {generating ? 'AI is generating digest...' : 'Generate Weekly Digest'}
             </Button>
           </div>
-          <div style={{ paddingTop: 20 }}>
+          <div className="digest-btn-pad">
             <Button icon={<ReloadOutlined />} onClick={loadDigests}>Refresh</Button>
           </div>
         </Space>
       </Card>
 
-      <div style={{ display: 'flex', gap: 16 }}>
+      <div className="digest-layout">
         {/* Digest History */}
         <Card
           title={<Space><FileTextOutlined /> Saved Digests</Space>}
           size="small"
-          style={{ width: 300, flexShrink: 0 }}
+          className="digest-sidebar"
           loading={loading}
         >
           {digests.length === 0 ? (
             <Empty description="No digests yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: '60vh', overflow: 'auto' }}>
+            <div className="digest-list">
               {digests.map(d => {
                 const isSelected = selectedDigest?.ID === d.ID;
                 let highlights: string[] = [];
@@ -166,27 +166,23 @@ const WeeklyDigestPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }
                     key={d.ID}
                     size="small"
                     hoverable
-                    style={{
-                      cursor: 'pointer',
-                      borderColor: isSelected ? '#1677ff' : '#d9d9d9',
-                      backgroundColor: isSelected ? '#f0f5ff' : '#fff',
-                    }}
+                    className={isSelected ? 'digest-card-selected' : 'digest-card-default'}
                     onClick={() => { setSelectedDigest(d); setViewTab('preview'); }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text strong style={{ fontSize: 13 }}>{d.weekLabel || 'Draft'}</Text>
-                      <Tag color={appColor[d.application] || 'default'} style={{ fontSize: 10 }}>
+                    <div className="digest-card-header">
+                      <Text strong className="fs-13">{d.weekLabel || 'Draft'}</Text>
+                      <Tag color={appColor[d.application] || 'default'} className="fs-10">
                         {d.application}
                       </Tag>
                     </div>
-                    <div style={{ marginTop: 4 }}>
-                      <Text type="secondary" style={{ fontSize: 10 }}>
+                    <div className="mt-4">
+                      <Text type="secondary" className="fs-10">
                         {new Date(d.createdAt).toLocaleDateString()} • {d.projectCount} projects
-                        {d.riskCount > 0 && <Tag color="red" style={{ fontSize: 9, marginLeft: 4 }}>{d.riskCount} risks</Tag>}
+                        {d.riskCount > 0 && <Tag color="red" className="fs-9 ml-4">{d.riskCount} risks</Tag>}
                       </Text>
                     </div>
                     {d.aiProvider && (
-                      <Tag style={{ fontSize: 9, marginTop: 4 }}>🤖 {d.aiProvider}</Tag>
+                      <Tag className="fs-9 mt-4">🤖 {d.aiProvider}</Tag>
                     )}
                   </Card>
                 );
@@ -211,7 +207,7 @@ const WeeklyDigestPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }
             )
           }
           size="small"
-          style={{ flex: 1 }}
+          className="digest-preview"
           extra={
             selectedDigest && (
               <Space size={4}>
@@ -241,16 +237,16 @@ const WeeklyDigestPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }
             <Empty
               description="Select a digest from the list or generate a new one"
               image={Empty.PRESENTED_IMAGE_SIMPLE}
-              style={{ padding: '60px 0' }}
+              className="digest-empty-pad"
             />
           ) : (
             <div>
               {/* Stats bar */}
-              <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
+              <div className="digest-stats-bar">
                 <Tag color="blue">{selectedDigest.projectCount} projects</Tag>
                 {selectedDigest.riskCount > 0 && <Tag color="red">{selectedDigest.riskCount} risks</Tag>}
                 {selectedDigest.aiProvider && <Tag>🤖 {selectedDigest.aiProvider}</Tag>}
-                <Text type="secondary" style={{ fontSize: 11 }}>
+                <Text type="secondary" className="fs-11">
                   Generated: {new Date(selectedDigest.createdAt).toLocaleString()}
                   {selectedDigest.generatedBy && ` by ${selectedDigest.generatedBy}`}
                 </Text>
@@ -267,15 +263,7 @@ const WeeklyDigestPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }
                     children: (
                       <div
                         dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(selectedDigest.digestHtml || '<p>No HTML content</p>') }}
-                        style={{
-                          border: '1px solid #d9d9d9',
-                          borderRadius: 6,
-                          padding: 16,
-                          minHeight: 300,
-                          maxHeight: '55vh',
-                          overflow: 'auto',
-                          background: '#fff',
-                        }}
+                        className="digest-html-preview"
                       />
                     ),
                   },
@@ -283,17 +271,7 @@ const WeeklyDigestPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }
                     key: 'text',
                     label: <span><CodeOutlined /> Plain Text</span>,
                     children: (
-                      <pre style={{
-                        border: '1px solid #d9d9d9',
-                        borderRadius: 6,
-                        padding: 16,
-                        minHeight: 300,
-                        maxHeight: '55vh',
-                        overflow: 'auto',
-                        background: '#fafafa',
-                        fontSize: 12,
-                        whiteSpace: 'pre-wrap',
-                      }}>
+                      <pre className="digest-plain-preview">
                         {selectedDigest.digestText || 'No plain text version available'}
                       </pre>
                     ),

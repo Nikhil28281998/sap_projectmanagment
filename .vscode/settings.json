@@ -2,36 +2,32 @@
   // ─── Editor ───
   "editor.formatOnSave": true,
   "editor.tabSize": 2,
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
   "files.trimTrailingWhitespace": true,
   "files.insertFinalNewline": true,
 
   // ─── CDS ───
-  "[cds]": {
-    "editor.defaultFormatter": "sapse.vscode-cds"
-  },
   "cds.workspaceFolders": ["sap-project-mgmt"],
 
   // ─── TypeScript / React ───
   "[typescript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "vscode.typescript-language-features"
   },
   "[typescriptreact]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "vscode.typescript-language-features"
   },
   "typescript.preferences.importModuleSpecifier": "relative",
 
   // ─── JavaScript (CAP service) ───
   "[javascript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "vscode.typescript-language-features"
   },
 
   // ─── JSON ───
   "[json]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "vscode.json-language-features"
   },
   "[jsonc]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "vscode.json-language-features"
   },
 
   // ─── Files ───

@@ -21,13 +21,13 @@ const AdminPage = lazy(() => import('./components/admin/AdminPage'));
 const MethodologyPage = lazy(() => import('./components/settings/MethodologyPage'));
 
 const PageFallback = () => (
-  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+  <div className="page-fallback">
     <Spin size="large" tip="Loading..." />
   </div>
 );
 
 const NotFound: React.FC = () => (
-  <div style={{ textAlign: 'center', padding: 80 }}>
+  <div className="page-not-found">
     <h2>404 — Page Not Found</h2>
     <p>The page you're looking for doesn't exist.</p>
     <a href="/">Go to Dashboard</a>

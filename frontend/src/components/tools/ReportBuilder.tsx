@@ -251,16 +251,16 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
     items: string[],
     setItems: (v: string[]) => void,
   ) => (
-    <div style={{ marginBottom: 16 }}>
-      <Text strong style={{ display: 'block', marginBottom: 8 }}>{label}</Text>
+    <div className="rb-editable-list">
+      <Text strong className="d-block mb-8">{label}</Text>
       {items.map((item, idx) => (
-        <div key={idx} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
-          <span style={{ minWidth: 24, lineHeight: '32px', color: '#999' }}>{idx + 1}.</span>
+        <div key={idx} className="rb-editable-row">
+          <span className="rb-row-number">{idx + 1}.</span>
           <Input
             value={item}
             onChange={e => updateItem(items, setItems, idx, e.target.value)}
             placeholder={`${label.replace(' Items', '')} item...`}
-            style={{ flex: 1 }}
+            className="flex-1"
           />
           <Button
             icon={<DeleteOutlined />}
@@ -276,7 +276,7 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
         size="small"
         icon={<PlusOutlined />}
         onClick={() => addItem(items, setItems)}
-        style={{ marginTop: 4 }}
+        className="mt-4"
       >
         Add item
       </Button>
@@ -286,15 +286,15 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
   // ─── Tab content ───
   const configureTab = (
     <Card size="small">
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      <Space direction="vertical" className="w-full" size="middle">
         {/* Project Selector */}
         <div>
-          <Text strong style={{ display: 'block', marginBottom: 6 }}>
-            <ProjectOutlined style={{ marginRight: 4 }} />
+          <Text strong className="d-block mb-8">
+            <ProjectOutlined className="mr-4" />
             Report Scope
           </Text>
           <Select
-            style={{ width: '100%', maxWidth: 500 }}
+            className="w-full rb-max-w-500"
             placeholder="All Projects (Executive Summary)"
             allowClear
             value={selectedProject}
@@ -307,7 +307,7 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
               }))}
           />
           <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Text type="secondary" className="fs-12">
             {selectedProject
               ? 'Single-project report with milestones & weekly activities.'
               : 'All-projects executive summary — also exportable to Excel.'}
@@ -316,12 +316,12 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
 
         {/* Template Selector */}
         <div>
-          <Text strong style={{ display: 'block', marginBottom: 6 }}>
-            <FileTextOutlined style={{ marginRight: 4 }} />
+          <Text strong className="d-block mb-8">
+            <FileTextOutlined className="mr-4" />
             Report Template
           </Text>
           <Select
-            style={{ width: '100%', maxWidth: 500 }}
+            className="w-full rb-max-w-500"
             value={selectedTemplate}
             onChange={setSelectedTemplate}
             options={availableTemplates.map(t => ({
@@ -333,22 +333,22 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
               const tmpl = allTemplates.find(t => t.id === option.value);
               return (
                 <div>
-                  <div style={{ fontWeight: 600 }}>
+                  <div className="fw-600">
                     {option.label}
                     {tmpl?.source === 'custom' && (
                       <>
                         {' '}
                         {tmpl.visibility === 'private'
-                          ? <LockOutlined style={{ fontSize: 11, color: '#999' }} />
-                          : <GlobalOutlined style={{ fontSize: 11, color: '#1677ff' }} />
+                          ? <LockOutlined className="fs-11 text-sec" />
+                          : <GlobalOutlined className="fs-11 text-accent" />
                         }
-                        {(tmpl as any).isDefault && <StarFilled style={{ fontSize: 11, color: '#faad14', marginLeft: 4 }} />}
+                        {(tmpl as any).isDefault && <StarFilled className="fs-11 text-amber ml-4" />}
                       </>
                     )}
                   </div>
-                  <div style={{ fontSize: 11, color: '#888' }}>
+                  <div className="rb-template-desc">
                     {tmpl?.description || ''}
-                    {tmpl?.source === 'custom' && <Tag color="purple" style={{ marginLeft: 6, fontSize: 10 }}>Custom</Tag>}
+                    {tmpl?.source === 'custom' && <Tag color="purple" className="ml-4 fs-10">Custom</Tag>}
                   </div>
                 </div>
               );
@@ -362,7 +362,7 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
             <Tag
               key={t.id}
               color={t.id === selectedTemplate ? 'blue' : t.source === 'custom' ? 'purple' : 'default'}
-              style={{ cursor: 'pointer', marginBottom: 4 }}
+              className="cursor-pointer mb-4"
               onClick={() => {
                 if (availableTemplates.some(at => at.id === t.id)) {
                   setSelectedTemplate(t.id);
@@ -371,15 +371,15 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
             >
               {t.source === 'custom' && (
                 t.visibility === 'private'
-                  ? <LockOutlined style={{ marginRight: 4 }} />
-                  : <GlobalOutlined style={{ marginRight: 4 }} />
+                  ? <LockOutlined className="mr-4" />
+                  : <GlobalOutlined className="mr-4" />
               )}
               {t.name} ({t.scope === 'single' ? 'Single Project' : t.scope === 'multi' ? 'All Projects' : 'Both'})
             </Tag>
           ))}
         </div>
 
-        <Divider style={{ margin: '8px 0' }} />
+        <Divider className="my-0" />
 
         <Button
           type="primary"
@@ -388,7 +388,7 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
           onClick={handleFetchData}
           loading={generateReport.isPending}
           block
-          style={{ maxWidth: 300 }}
+          className="rb-max-w-300"
         >
           Fetch Project Data
         </Button>
@@ -398,7 +398,7 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
 
   const editTab = reportData ? (
     <Card size="small">
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      <Space direction="vertical" className="w-full" size="middle">
         {/* Data summary */}
         <div>
           <Text strong>Data Loaded:</Text>{' '}
@@ -407,7 +407,7 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
           <Tag>{reportData.weekLabel}</Tag>
         </div>
 
-        <Divider style={{ margin: '8px 0' }} />
+        <Divider className="my-0" />
 
         {/* Current & Next Week editors — only for weekly-status & executive-summary */}
         {(selectedTemplate === 'weekly-status' || selectedTemplate === 'executive-summary') && (
@@ -423,7 +423,7 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
           icon={<EyeOutlined />}
           onClick={handleGenerate}
           block
-          style={{ maxWidth: 300 }}
+          className="rb-max-w-300"
         >
           Generate Report
         </Button>
@@ -438,7 +438,7 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
   const previewTab = renderedHtml ? (
     <div>
       {/* Action bar */}
-      <Card size="small" style={{ marginBottom: 12 }}>
+      <Card size="small" className="rb-action-bar-card">
         <Space wrap>
           <Tooltip title="Copy rich HTML to clipboard for Outlook paste">
             <Button icon={<CopyOutlined />} onClick={handleCopy}>
@@ -456,13 +456,13 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
             </Button>
           </Tooltip>
           <Tooltip title="Export data to Excel spreadsheet">
-            <Button icon={<FileExcelOutlined />} onClick={handleExportExcel} style={{ color: '#217346' }}>
+            <Button icon={<FileExcelOutlined />} onClick={handleExportExcel} className="rb-excel-btn">
               Export Excel
             </Button>
           </Tooltip>
         </Space>
-        <div style={{ marginTop: 8 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+        <div className="mt-8">
+          <Text type="secondary" className="fs-12">
             Subject: <strong>{emailSubject}</strong>
           </Text>
         </div>
@@ -480,14 +480,7 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
       >
         <div
           dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderedHtml) }}
-          style={{
-            maxHeight: '60vh',
-            overflow: 'auto',
-            padding: 16,
-            backgroundColor: '#fff',
-            border: '1px solid #f0f0f0',
-            borderRadius: 6,
-          }}
+          className="rb-preview-scroll"
         />
       </Card>
     </div>
@@ -502,18 +495,18 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
       {!embedded && (
         <>
           <Title level={3}>
-            <FileTextOutlined style={{ marginRight: 8 }} />
+            <FileTextOutlined className="mr-8" />
             Weekly Report Builder
           </Title>
-          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+          <Text type="secondary" className="d-block mb-16">
             Generate professional Outlook-ready reports from your project data. Choose a template, customize, and send.
           </Text>
         </>
       )}
 
       {generateReport.isPending && (
-        <Card style={{ marginBottom: 16 }}>
-          <div style={{ textAlign: 'center', padding: 32 }}>
+        <Card className="mb-16">
+          <div className="rb-loading-box">
             <Spin size="large" />
             <br /><br />
             <Text type="secondary">Fetching project data...</Text>

@@ -15,9 +15,9 @@ const ReportsPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <FileTextOutlined style={{ marginRight: 8 }} />
+      <div className="reports-header">
+        <Title level={3} className="reports-title">
+          <FileTextOutlined className="reports-icon" />
           Reports
         </Title>
         <Text type="secondary">

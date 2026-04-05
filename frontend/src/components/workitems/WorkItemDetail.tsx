@@ -45,7 +45,7 @@ const WorkItemDetail: React.FC = () => {
 
   if (wiLoading) {
     return (
-      <div style={{ textAlign: 'center', padding: 80 }}>
+      <div className="text-center p-20">
         <Spin size="large" />
       </div>
     );
@@ -301,15 +301,12 @@ const WorkItemDetail: React.FC = () => {
         )}
       </Space>
 
-      <Row gutter={[16, 16]} align="middle" style={{ marginBottom: 16 }}>
+      <Row gutter={[16, 16]} align="middle" className="mb-16">
         <Col flex="auto">
           <Space align="center">
             <div
-              style={{
-                width: 16, height: 16, borderRadius: '50%',
-                backgroundColor: ragColors[rag],
-                display: 'inline-block',
-              }}
+              className="wi-rag-dot-detail"
+              style={{ backgroundColor: ragColors[rag] }}
             />
             <Title level={3} style={{ margin: 0 }}>{workItem.workItemName}</Title>
             <Tag color={WORK_TYPE_COLORS[workItem.workItemType] || 'default'}>
@@ -488,7 +485,7 @@ const WorkItemDetail: React.FC = () => {
           >
             {(workItem.testTotal || 0) > 0 ? (
               <>
-                <div style={{ textAlign: 'center', marginBottom: 12 }}>
+                <div className="wi-test-ring-box">
                   <Progress
                     type="dashboard"
                     percent={workItem.testCompletionPct || 0}
@@ -500,8 +497,8 @@ const WorkItemDetail: React.FC = () => {
                     }}
                     format={(pct) => (
                       <div>
-                        <div style={{ fontSize: 20, fontWeight: 'bold' }}>{pct}%</div>
-                        <div style={{ fontSize: 11, color: '#888' }}>Executed</div>
+                        <div className="wi-test-ring-pct">{pct}%</div>
+                        <div className="wi-test-ring-label">Executed</div>
                       </div>
                     )}
                   />
@@ -526,30 +523,30 @@ const WorkItemDetail: React.FC = () => {
                   <Descriptions.Item label="Skipped">{workItem.testSkipped || 0}</Descriptions.Item>
                 </Descriptions>
                 {/* Stacked bar visual */}
-                <div style={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden', marginTop: 8 }}>
+                <div className="wi-test-stacked-bar">
                   {workItem.testPassed > 0 && (
                     <Tooltip title={`Passed: ${workItem.testPassed}`}>
-                      <div style={{ width: `${(workItem.testPassed / workItem.testTotal) * 100}%`, background: '#52c41a' }} />
+                      <div className="bg-green" style={{ width: `${(workItem.testPassed / workItem.testTotal) * 100}%` }} />
                     </Tooltip>
                   )}
                   {workItem.testFailed > 0 && (
                     <Tooltip title={`Failed: ${workItem.testFailed}`}>
-                      <div style={{ width: `${(workItem.testFailed / workItem.testTotal) * 100}%`, background: '#ff4d4f' }} />
+                      <div className="bg-red" style={{ width: `${(workItem.testFailed / workItem.testTotal) * 100}%` }} />
                     </Tooltip>
                   )}
                   {workItem.testBlocked > 0 && (
                     <Tooltip title={`Blocked: ${workItem.testBlocked}`}>
-                      <div style={{ width: `${(workItem.testBlocked / workItem.testTotal) * 100}%`, background: '#faad14' }} />
+                      <div className="bg-amber" style={{ width: `${(workItem.testBlocked / workItem.testTotal) * 100}%` }} />
                     </Tooltip>
                   )}
                   {workItem.testTBD > 0 && (
                     <Tooltip title={`TBD: ${workItem.testTBD}`}>
-                      <div style={{ width: `${(workItem.testTBD / workItem.testTotal) * 100}%`, background: '#d9d9d9' }} />
+                      <div className="bg-gray-light" style={{ width: `${(workItem.testTBD / workItem.testTotal) * 100}%` }} />
                     </Tooltip>
                   )}
                   {workItem.testSkipped > 0 && (
                     <Tooltip title={`Skipped: ${workItem.testSkipped}`}>
-                      <div style={{ width: `${(workItem.testSkipped / workItem.testTotal) * 100}%`, background: '#bfbfbf' }} />
+                      <div className="bg-gray" style={{ width: `${(workItem.testSkipped / workItem.testTotal) * 100}%` }} />
                     </Tooltip>
                   )}
                 </div>
@@ -652,7 +649,7 @@ const WorkItemDetail: React.FC = () => {
         onCancel={() => setSpModalOpen(false)}
         okText="Save Link"
       >
-        <div style={{ marginBottom: 12 }}>
+        <div className="wi-modal-hint">
           <Text type="secondary">
             Paste the SharePoint URL to the Excel tracker for this project.
             Users will have read-only display access to view the tracker.
@@ -680,7 +677,7 @@ const WorkItemDetail: React.FC = () => {
         okText="Save Test Data"
         width={500}
       >
-        <div style={{ marginBottom: 12 }}>
+        <div className="wi-modal-hint">
           <Text type="secondary">
             Enter the test case counts from your SharePoint Excel tracker.
             The app will auto-calculate completion %, UAT status, and RAG impact.

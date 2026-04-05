@@ -198,11 +198,8 @@ const WorkItemList: React.FC = () => {
         return (
           <Tooltip title={`RAG: ${rag}`}>
             <div
-              style={{
-                width: 18, height: 18, borderRadius: '50%',
-                backgroundColor: colors[rag] || '#d9d9d9',
-                margin: '0 auto',
-              }}
+              className="wi-rag-dot"
+              style={{ backgroundColor: colors[rag] || '#d9d9d9' }}
             />
           </Tooltip>
         );
@@ -242,7 +239,7 @@ const WorkItemList: React.FC = () => {
         const days = daysFromNow(d);
         return (
           <Tooltip title={`${days} days remaining`}>
-            <span style={{ color: typeof days === 'number' && days <= 7 ? '#ff4d4f' : typeof days === 'number' && days <= 14 ? '#faad14' : undefined }}>
+            <span className={typeof days === 'number' && days <= 7 ? 'wi-golive-urgent' : typeof days === 'number' && days <= 14 ? 'wi-golive-soon' : ''}>
               {d.toLocaleDateString()}
             </span>
           </Tooltip>
@@ -262,13 +259,13 @@ const WorkItemList: React.FC = () => {
       render: (_: any, record: any) => (
         record.sharepointUrl ? (
           <Tooltip title="Open SharePoint Tracker">
-            <a href={record.sharepointUrl} target="_blank" rel="noopener noreferrer">
-              <FileExcelOutlined style={{ color: '#217346', fontSize: 16 }} />
+            <a href={record.sharepointUrl} target="_blank" rel="noopener noreferrer" title="Open SharePoint Tracker">
+              <FileExcelOutlined className="wi-icon-sp-linked" />
             </a>
           </Tooltip>
         ) : (
           <Tooltip title="No tracker linked">
-            <FileExcelOutlined style={{ color: '#d9d9d9', fontSize: 16 }} />
+            <FileExcelOutlined className="wi-icon-sp-none" />
           </Tooltip>
         )
       ),

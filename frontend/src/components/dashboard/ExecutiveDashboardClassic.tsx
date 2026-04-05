@@ -45,7 +45,7 @@ const ExecutiveDashboardClassic: React.FC = () => {
   );
   const activeProjects = workItems.filter((wi: any) => wi.status === 'Active');
 
-  // GöÇGöÇ Per-Application Breakdown GöÇGöÇ
+  // Gï¿½ï¿½Gï¿½ï¿½ Per-Application Breakdown Gï¿½ï¿½Gï¿½ï¿½
   const appBreakdown = useMemo(() => {
     const apps = ['SAP', 'Coupa', 'Commercial'].filter(a => allowedApps.includes(a));
     return apps.map(app => {
@@ -170,7 +170,7 @@ const ExecutiveDashboardClassic: React.FC = () => {
             {daysFromNow(d)}d
           </Tag>
         </Space>
-      ) : 'GÇö',
+      ) : 'Gï¿½ï¿½',
     },
     {
       title: 'Progress', key: 'progress', width: 130,
@@ -182,7 +182,7 @@ const ExecutiveDashboardClassic: React.FC = () => {
     },
     {
       title: 'Owner', dataIndex: 'businessOwner', key: 'owner', width: 120, ellipsis: true,
-      render: (t: string) => t || 'GÇö',
+      render: (t: string) => t || 'Gï¿½ï¿½',
     },
   ];
 
@@ -199,29 +199,29 @@ const ExecutiveDashboardClassic: React.FC = () => {
               <FundOutlined /> Executive Dashboard
             </Title>
             <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginTop: 4, display: 'block' }}>
-              Welcome, <strong>{user?.name || 'Executive'}</strong> GÇö Cross-application portfolio health
+              Welcome, <strong>{user?.name || 'Executive'}</strong> Gï¿½ï¿½ Cross-application portfolio health
             </Text>
           </Col>
           <Col>
             <Space size="large">
-              <div style={{ textAlign: 'center', padding: '4px 16px', cursor: 'pointer' }} onClick={() => navigate('/tracker?app=all')}>
-                <div style={{ color: '#fff', fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>
+              <div className="exec-banner-stat" onClick={() => navigate('/tracker?app=all')}>
+                <div className="exec-stat-value exec-stat-white">
                   {activeProjects.length}
                 </div>
-                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>Active Projects</div>
+                <div className="exec-banner-stat-label">Active Projects</div>
               </div>
-              <div style={{ textAlign: 'center', padding: '4px 16px', cursor: 'pointer' }} onClick={() => navigate('/tracker?app=all&status=completed')}>
-                <div style={{ color: '#52c41a', fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>
+              <div className="exec-banner-stat" onClick={() => navigate('/tracker?app=all&status=completed')}>
+                <div className="exec-stat-value exec-stat-green">
                   {completedCount}
                 </div>
-                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>Completed</div>
+                <div className="exec-banner-stat-label">Completed</div>
               </div>
               {atRiskProjects.length > 0 && (
-                <div style={{ textAlign: 'center', padding: '4px 16px', cursor: 'pointer' }} onClick={() => navigate('/tracker?app=all&rag=risk')}>
-                  <div style={{ color: '#faad14', fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>
+                <div className="exec-banner-stat" onClick={() => navigate('/tracker?app=all&rag=risk')}>
+                  <div className="exec-stat-value exec-stat-amber">
                     {atRiskProjects.length}
                   </div>
-                  <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>At Risk</div>
+                  <div className="exec-banner-stat-label">At Risk</div>
                 </div>
               )}
             </Space>
@@ -229,7 +229,7 @@ const ExecutiveDashboardClassic: React.FC = () => {
         </Row>
       </Card>
 
-      {/* GöÇGöÇ Per-Application Breakdown Cards GöÇGöÇ */}
+      {/* Gï¿½ï¿½Gï¿½ï¿½ Per-Application Breakdown Cards Gï¿½ï¿½Gï¿½ï¿½ */}
       <Row gutter={[12, 12]}>
         {appBreakdown.map(({ app, total, active, completed, rag, avgPct }) => (
           <Col xs={24} md={8} key={app}>
@@ -257,7 +257,7 @@ const ExecutiveDashboardClassic: React.FC = () => {
                   <Statistic title={<Text type="secondary" style={{ fontSize: 10 }}>Progress</Text>} value={avgPct} suffix="%" valueStyle={{ fontSize: 20 }} />
                 </Col>
               </Row>
-              <div style={{ display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden', marginTop: 8 }}>
+              <div className="rag-bar-sm">
                 {rag.GREEN > 0 && (
                   <Tooltip title={`On Track: ${rag.GREEN}`}>
                     <div style={{ width: `${(rag.GREEN / (active || 1)) * 100}%`, background: '#52c41a' }} />
@@ -348,7 +348,7 @@ const ExecutiveDashboardClassic: React.FC = () => {
       {/* RAG Health Bar */}
       {activeProjects.length > 0 && (
         <Card size="small" style={{ marginTop: 16 }} title={<Space><DashboardOutlined /> Portfolio Health Distribution</Space>}>
-          <div style={{ display: 'flex', height: 16, borderRadius: 8, overflow: 'hidden', marginBottom: 8 }}>
+          <div className="rag-bar-lg">
             {ragSummary.GREEN > 0 && (
               <Tooltip title={`On Track: ${ragSummary.GREEN}`}>
                 <div style={{ width: `${(ragSummary.GREEN / activeProjects.length) * 100}%`, background: '#52c41a', transition: 'width 0.3s' }} />
@@ -374,7 +374,7 @@ const ExecutiveDashboardClassic: React.FC = () => {
           <Card
             title={<Space><ProjectOutlined /> All Active Projects</Space>}
             size="small"
-            extra={<a onClick={() => navigate('/tracker?app=all')}>View All GåÆ</a>}
+            extra={<a onClick={() => navigate('/tracker?app=all')}>View All Gï¿½ï¿½</a>}
           >
             {activeProjects.length === 0 ? (
               <Empty description="No active projects" />
@@ -400,14 +400,14 @@ const ExecutiveDashboardClassic: React.FC = () => {
                 items={upcomingGoLives.slice(0, 8).map((wi: any) => ({
                   color: wi.daysLeft <= 0 ? 'red' : wi.daysLeft <= 14 ? 'orange' : 'blue',
                   children: (
-                    <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/workitem/${wi.ID}`)}>
+                    <div className="cursor-pointer" onClick={() => navigate(`/workitem/${wi.ID}`)}>
                       <Space size={4}>
                         <Tag color={APP_COLORS[wi.application] || 'default'} style={{ fontSize: 9, lineHeight: '14px', padding: '0 3px' }}>{wi.application}</Tag>
                         <Text strong style={{ fontSize: 12 }}>{wi.workItemName}</Text>
                       </Space>
                       <br />
                       <Text type="secondary" style={{ fontSize: 11 }}>
-                        {wi.goLiveDate} GÇö <Tag color={wi.daysLeft <= 7 ? 'red' : wi.daysLeft <= 14 ? 'orange' : 'blue'} style={{ fontSize: 10 }}>{wi.daysLeft}d</Tag>
+                        {wi.goLiveDate} Gï¿½ï¿½ <Tag color={wi.daysLeft <= 7 ? 'red' : wi.daysLeft <= 14 ? 'orange' : 'blue'} style={{ fontSize: 10 }}>{wi.daysLeft}d</Tag>
                       </Text>
                     </div>
                   ),

@@ -13,17 +13,17 @@ import { useModule } from '../../contexts/ModuleContext';
 const { Text } = Typography;
 
 const typeConfig: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
-  STUCK_TR: { color: 'orange', icon: <ClockCircleOutlined style={{ color: '#faad14' }} />, label: 'Stuck TR' },
-  FAILED_IMPORT: { color: 'red', icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />, label: 'Failed Import' },
-  GOLIVE_APPROACHING: { color: 'blue', icon: <WarningOutlined style={{ color: '#1677ff' }} />, label: 'Go-Live' },
-  TEST_FAILURES: { color: 'volcano', icon: <BugOutlined style={{ color: '#fa541c' }} />, label: 'Test Failures' },
+  STUCK_TR: { color: 'orange', icon: <ClockCircleOutlined className="icon-stuck" />, label: 'Stuck TR' },
+  FAILED_IMPORT: { color: 'red', icon: <ExclamationCircleOutlined className="icon-failed" />, label: 'Failed Import' },
+  GOLIVE_APPROACHING: { color: 'blue', icon: <WarningOutlined className="icon-golive" />, label: 'Go-Live' },
+  TEST_FAILURES: { color: 'volcano', icon: <BugOutlined className="icon-test" />, label: 'Test Failures' },
   // AI Risk Notification types
-  AI_RISK_SCHEDULE_RISK: { color: 'red', icon: <AlertOutlined style={{ color: '#ff4d4f' }} />, label: '🤖 Schedule Risk' },
-  AI_RISK_QUALITY_RISK: { color: 'orange', icon: <BugOutlined style={{ color: '#fa8c16' }} />, label: '🤖 Quality Risk' },
-  AI_RISK_RESOURCE_RISK: { color: 'purple', icon: <ApartmentOutlined style={{ color: '#722ed1' }} />, label: '🤖 Resource Risk' },
-  AI_RISK_DEPLOYMENT_RISK: { color: 'red', icon: <ThunderboltOutlined style={{ color: '#ff4d4f' }} />, label: '🤖 Deploy Risk' },
-  AI_RISK_INTEGRATION_RISK: { color: 'cyan', icon: <ApartmentOutlined style={{ color: '#13c2c2' }} />, label: '🤖 Integration Risk' },
-  AI_RISK_COMPLIANCE_RISK: { color: 'magenta', icon: <SafetyCertificateOutlined style={{ color: '#eb2f96' }} />, label: '🤖 Compliance Risk' },
+  AI_RISK_SCHEDULE_RISK: { color: 'red', icon: <AlertOutlined className="icon-risk-schedule" />, label: '🤖 Schedule Risk' },
+  AI_RISK_QUALITY_RISK: { color: 'orange', icon: <BugOutlined className="icon-risk-quality" />, label: '🤖 Quality Risk' },
+  AI_RISK_RESOURCE_RISK: { color: 'purple', icon: <ApartmentOutlined className="icon-risk-resource" />, label: '🤖 Resource Risk' },
+  AI_RISK_DEPLOYMENT_RISK: { color: 'red', icon: <ThunderboltOutlined className="icon-risk-deploy" />, label: '🤖 Deploy Risk' },
+  AI_RISK_INTEGRATION_RISK: { color: 'cyan', icon: <ApartmentOutlined className="icon-risk-integration" />, label: '🤖 Integration Risk' },
+  AI_RISK_COMPLIANCE_RISK: { color: 'magenta', icon: <SafetyCertificateOutlined className="icon-risk-compliance" />, label: '🤖 Compliance Risk' },
 };
 
 interface NotificationDrawerProps {
@@ -97,7 +97,7 @@ const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ open, onClose }
       }
     >
       {/* AI Risk Analysis Controls */}
-      <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div className="notif-controls">
         <Tooltip title="Run AI-powered predictive risk analysis on active projects">
           <Button
             type="primary"
@@ -105,7 +105,7 @@ const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ open, onClose }
             icon={<RobotOutlined />}
             onClick={handleRunRiskAnalysis}
             loading={riskLoading}
-            style={{ background: '#722ed1', borderColor: '#722ed1' }}
+            className="notif-risk-btn"
           >
             AI Risk Scan
           </Button>
@@ -114,7 +114,7 @@ const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ open, onClose }
           value={filterType}
           onChange={setFilterType}
           size="small"
-          style={{ width: 140 }}
+          className="notif-filter-select"
           options={[
             { value: 'all', label: `All (${notifications.length})` },
             { value: 'ai_risk', label: `🤖 AI Risks (${aiRiskNotifs.length})` },
@@ -136,27 +136,21 @@ const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ open, onClose }
             const isAIRisk = (n.type || '').startsWith('AI_RISK_');
             return (
               <List.Item
-                style={{
-                  opacity: n.isRead ? 0.55 : 1,
-                  cursor: n.isRead ? 'default' : 'pointer',
-                  padding: '10px 0',
-                  borderLeft: isAIRisk ? '3px solid #722ed1' : 'none',
-                  paddingLeft: isAIRisk ? 8 : 0,
-                }}
+                className={`notif-item ${n.isRead ? 'notif-item-read' : 'notif-item-unread'} ${isAIRisk ? 'notif-item-ai-risk' : ''}`}
                 onClick={() => !n.isRead && handleMarkRead(n.ID)}
               >
                 <List.Item.Meta
                   avatar={cfg.icon}
-                  title={<Text style={{ fontSize: 13 }}>{n.message}</Text>}
+                  title={<Text className="notif-message">{n.message}</Text>}
                   description={
                     <Space size={4}>
-                      <Tag color={cfg.color} style={{ fontSize: 10 }}>
+                      <Tag color={cfg.color} className="notif-tag">
                         {cfg.label}
                       </Tag>
                       {n.trNumber && (
-                        <Text type="secondary" style={{ fontSize: 11 }}>{n.trNumber}</Text>
+                        <Text type="secondary" className="notif-tr-ref">{n.trNumber}</Text>
                       )}
-                      {!n.isRead && <Tag color="blue" style={{ fontSize: 10 }}>New</Tag>}
+                      {!n.isRead && <Tag color="blue" className="notif-tag">New</Tag>}
                     </Space>
                   }
                 />

@@ -117,7 +117,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const userMenuItems = [
     { key: 'role', label: <Tag color={roleBadge.color}>{roleBadge.text}</Tag>, disabled: true },
-    { key: 'email', label: <Text type="secondary" style={{ fontSize: 12 }}>{user?.email}</Text>, disabled: true },
+    { key: 'email', label: <Text type="secondary" className="user-name">{user?.email}</Text>, disabled: true },
     { type: 'divider' as const },
     { key: 'settings', label: 'Settings', icon: <SettingOutlined /> },
     { key: 'logout', label: 'Logout', icon: <LogoutOutlined />, danger: true },
@@ -133,29 +133,21 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className="app-layout">
       <Sider
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
         theme="light"
         width={220}
-        style={{
-          overflow: 'auto',
-          height: '100vh',
-          position: 'fixed',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          borderRight: '1px solid #f0f0f0',
-        }}
+        className="app-sider"
       >
         {/* Sidebar header — logo + app switcher */}
-        <div style={{ padding: collapsed ? '12px 8px' : '12px 16px', borderBottom: '1px solid #f0f0f0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: hasMultipleApps && !collapsed ? 8 : 0 }}>
-            <AppstoreOutlined style={{ fontSize: 22, color: moduleDef.color, flexShrink: 0 }} />
+        <div className={`sider-header ${collapsed ? 'sider-header-collapsed' : 'sider-header-expanded'}`}>
+          <div className={`sider-brand ${hasMultipleApps && !collapsed ? 'mb-8' : 'mb-0'}`}>
+            <AppstoreOutlined className="sider-brand-icon" style={{ color: moduleDef.color }} />
             {!collapsed && (
-              <Text strong style={{ fontSize: 13, lineHeight: 1.2 }}>
+              <Text strong className="sider-brand-text">
                 Command Center
               </Text>
             )}
@@ -165,7 +157,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <Select
               value={activeModule}
               onChange={handleAppSwitch}
-              style={{ width: '100%' }}
+              className="w-full"
               size="small"
               suffixIcon={<SwapOutlined />}
               options={availableApps.map((k) => ({
@@ -173,7 +165,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 label: (
                   <Space size={4}>
                     {APP_ICONS[k]}
-                    <span style={{ fontSize: 12 }}>{MODULE_DEFINITIONS[k].shortName}</span>
+                    <span className="module-tag-sm">{MODULE_DEFINITIONS[k].shortName}</span>
                   </Space>
                 ),
               }))}
@@ -185,7 +177,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 size="small"
                 type="text"
                 icon={<SwapOutlined />}
-                style={{ width: '100%', marginTop: 4 }}
+                className="sider-cycle-btn"
                 onClick={() => {
                   // Cycle through apps
                   const idx = availableApps.indexOf(activeModule);
@@ -201,27 +193,17 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           selectedKeys={[location.pathname]}
           items={menuItems}
           onClick={handleMenuClick}
-          style={{ borderRight: 0 }}
+          className="sider-menu"
         />
       </Sider>
 
-      <Layout style={{ marginLeft: collapsed ? 80 : 220, transition: 'margin-left 0.2s' }}>
-        <Header
-          style={{
-            background: '#fff',
-            padding: '0 20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderBottom: '1px solid #f0f0f0',
-            height: 48,
-          }}
-        >
+      <Layout className={collapsed ? 'app-main-collapsed' : 'app-main-expanded'}>
+        <Header className="app-header">
           <Space size={8}>
-            <Text strong style={{ fontSize: 14, color: '#1f4e79' }}>
+            <Text strong className="app-header-title">
               Project Command Center
             </Text>
-            <Tag color={moduleDef.color} style={{ fontSize: 11 }}>{moduleDef.icon} {moduleDef.shortName}</Tag>
+            <Tag color={moduleDef.color} className="app-header-tag">{moduleDef.icon} {moduleDef.shortName}</Tag>
           </Space>
 
           <Space size={8}>
@@ -238,17 +220,17 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               <Button icon={<BellOutlined />} size="small" onClick={() => setNotifOpen(true)} />
             </Badge>
             <Dropdown menu={{ items: userMenuItems, onClick: ({ key }) => { if (key === 'settings') navigate('/settings'); if (key === 'logout') { window.location.href = '/api/v1/transport/logout'; } } }} trigger={['click']}>
-              <Button size="small" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Avatar size={20} style={{ backgroundColor: roleBadge.color, fontSize: 10 }}>
+              <Button size="small" className="user-menu-btn">
+                <Avatar size={20} className="user-avatar" style={{ backgroundColor: roleBadge.color }}>
                   {(user?.name || 'U')[0].toUpperCase()}
                 </Avatar>
-                <span style={{ fontSize: 12 }}>{user?.name || 'User'}</span>
+                <span className="user-name">{user?.name || 'User'}</span>
               </Button>
             </Dropdown>
           </Space>
         </Header>
 
-        <Content style={{ margin: '12px 16px', minHeight: 'calc(100vh - 72px)' }}>
+        <Content className="app-content">
           {children}
         </Content>
       </Layout>
@@ -263,16 +245,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           size="large"
           icon={<RobotOutlined />}
           onClick={() => setChatOpen(true)}
-          style={{
-            position: 'fixed',
-            bottom: 24,
-            right: 24,
-            width: 52,
-            height: 52,
-            fontSize: 22,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-            zIndex: 1000,
-          }}
+          className="app-fab"
         />
       </Tooltip>
     </Layout>

@@ -37,7 +37,7 @@ class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <div className="error-boundary-wrapper">
           <Result
             status="error"
             title="Something went wrong"

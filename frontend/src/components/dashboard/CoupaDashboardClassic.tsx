@@ -22,7 +22,7 @@ const RAG_COLORS: Record<string, string> = { GREEN: '#52c41a', AMBER: '#faad14',
 /**
  * Coupa Project Management Dashboard
  *
- * This dashboard tracks Coupa implementation PROJECTS GÇö not Coupa's operational
+ * This dashboard tracks Coupa implementation PROJECTS â€” not Coupa's operational
  * platform features. Coupa implementations follow a four-step methodology
  * (Source: Coupa Compass, compass.coupa.com) with three delivery models:
  * Direct Delivery, Expert Services, and Co-Delivery.
@@ -35,8 +35,8 @@ const RAG_COLORS: Record<string, string> = { GREEN: '#52c41a', AMBER: '#faad14',
  * - Supplier Enablement: Supplier onboarding programs & portal rollouts
  * - Upgrade / Optimization: Post-go-live improvements, release upgrades
  *
- * Phases: Design GåÆ Configure GåÆ Build GåÆ Test GåÆ Deploy GåÆ Optimize
- * Environments: Sandbox (dev/config) GåÆ Staging (UAT) GåÆ Production
+ * Phases: Design â†’ Configure â†’ Build â†’ Test â†’ Deploy â†’ Optimize
+ * Environments: Sandbox (dev/config) â†’ Staging (UAT) â†’ Production
  *
  * Source: Coupa Compass implementation documentation (2024),
  * SAFe LPM for portfolio governance, PMI Pulse 2025
@@ -119,33 +119,33 @@ const CoupaDashboardClassic: React.FC = () => {
     <div>
       {/* Banner */}
       <Card
-        style={{ marginBottom: 16, background: 'linear-gradient(135deg, #0070d2 0%, #004990 100%)', border: 'none' }}
+        className="mb-16 coupa-banner border-none"
         styles={{ body: { padding: '16px 24px' } }}
       >
         <Row align="middle" justify="space-between">
           <Col>
-            <Title level={3} style={{ color: '#fff', margin: 0 }}>
+            <Title level={3} className="banner-title">
               <ShoppingCartOutlined /> Coupa Project Command Center
             </Title>
-            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, marginTop: 4, display: 'block' }}>
-              Implementation &amp; Deployment Management GÇö <strong>{user?.name || 'User'}</strong>
-              {user?.roles && user.roles.length > 0 && <Tag color="gold" style={{ marginLeft: 8 }}>{user.roles[0]}</Tag>}
+            <Text className="banner-subtitle">
+              Implementation &amp; Deployment Management â€” <strong>{user?.name || 'User'}</strong>
+              {user?.roles && user.roles.length > 0 && <Tag color="gold" className="ml-8">{user.roles[0]}</Tag>}
             </Text>
           </Col>
           <Col>
             <Space size="large">
-              <div style={{ textAlign: 'center', padding: '4px 16px' }}>
-                <div style={{ color: '#fff', fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>{displayItems.length}</div>
-                <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}>Active Items</div>
+              <div className="banner-kpi">
+                <div className="banner-kpi-value text-white">{displayItems.length}</div>
+                <div className="banner-kpi-label">Active Items</div>
               </div>
-              <div style={{ textAlign: 'center', padding: '4px 16px' }}>
-                <div style={{ color: '#52c41a', fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>{ragSummary.GREEN}</div>
-                <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}>On Track</div>
+              <div className="banner-kpi">
+                <div className="banner-kpi-value text-green">{ragSummary.GREEN}</div>
+                <div className="banner-kpi-label">On Track</div>
               </div>
               {(ragSummary.AMBER + ragSummary.RED) > 0 && (
-                <div style={{ textAlign: 'center', padding: '4px 16px' }}>
-                  <div style={{ color: '#faad14', fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>{ragSummary.AMBER + ragSummary.RED}</div>
-                  <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}>Need Attention</div>
+                <div className="banner-kpi">
+                  <div className="banner-kpi-value text-amber">{ragSummary.AMBER + ragSummary.RED}</div>
+                  <div className="banner-kpi-label">Need Attention</div>
                 </div>
               )}
             </Space>
@@ -161,12 +161,12 @@ const CoupaDashboardClassic: React.FC = () => {
             <Col xs={12} sm={8} lg={4} key={area.name}>
               <Tooltip title={area.desc}>
                 <Card
-                  size="small" hoverable style={{ textAlign: 'center', cursor: 'pointer' }}
+                  size="small" hoverable className="text-center cursor-pointer"
                   onClick={() => navigate(`/tracker/${area.name}`)}
                 >
-                  <div style={{ fontSize: 24, color: area.color, marginBottom: 4 }}>{area.icon}</div>
-                  <Text style={{ fontSize: 11 }}>{area.name}</Text>
-                  {count > 0 && <Tag color={area.color} style={{ marginLeft: 4, fontSize: 10 }}>{count}</Tag>}
+                  <div className="fs-24 mb-4" style={{ color: area.color }}>{area.icon}</div>
+                  <Text className="fs-11">{area.name}</Text>
+                  {count > 0 && <Tag color={area.color} className="fs-10 ml-4">{count}</Tag>}
                 </Card>
               </Tooltip>
             </Col>
@@ -174,12 +174,12 @@ const CoupaDashboardClassic: React.FC = () => {
         })}
       </Row>
 
-      {/* Deployment Pipeline: Sandbox GåÆ Staging GåÆ Production */}
+      {/* Deployment Pipeline: Sandbox â†’ Staging â†’ Production */}
       <Card
         title={<Space><CloudServerOutlined /> Deployment Pipeline</Space>}
-        size="small" style={{ marginTop: 12 }}
+        size="small" className="mt-12"
       >
-        <div style={{ maxWidth: 700, margin: '0 auto', padding: '16px 0' }}>
+        <div className="steps-container">
           <Steps
             current={1}
             items={[
@@ -201,20 +201,20 @@ const CoupaDashboardClassic: React.FC = () => {
             ]}
           />
         </div>
-        <div style={{ textAlign: 'center', marginTop: 8 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+        <div className="text-center mt-8">
+          <Text type="secondary" className="fs-12">
             Environment flow: {moduleDef.terminology.environments}
           </Text>
         </div>
       </Card>
 
       {/* Active Items + Go-Lives */}
-      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
+      <Row gutter={[12, 12]} className="mt-12">
         <Col xs={24} lg={14}>
           <Card
             title={<Space><ShoppingCartOutlined /> Active Deliverables</Space>}
             size="small"
-            extra={<a onClick={() => navigate('/tracker')}>View All GåÆ</a>}
+            extra={<a onClick={() => navigate('/tracker')}>View All â†’</a>}
           >
             {displayItems.length === 0 ? (
               <Empty description="No active Coupa deliverables. Create one from the Tracker page." />
@@ -229,29 +229,29 @@ const CoupaDashboardClassic: React.FC = () => {
                   });
                   return (
                     <List.Item
-                      style={{ cursor: 'pointer', padding: '8px 0' }}
+                      className="cursor-pointer py-8"
                       onClick={() => navigate(`/workitem/${wi.ID}`)}
                     >
                       <List.Item.Meta
                         avatar={
-                          <div style={{
-                            width: 12, height: 12, borderRadius: '50%', marginTop: 4,
-                            background: RAG_COLORS[rag] || '#d9d9d9',
-                          }} />
+                          <div
+                            className="rag-dot mt-4"
+                            style={{ background: RAG_COLORS[rag] || '#d9d9d9' }}
+                          />
                         }
                         title={
                           <Space size={4}>
-                            <Text strong style={{ fontSize: 13 }}>{wi.workItemName}</Text>
-                            <Tag style={{ fontSize: 10 }}>{wi.workItemType}</Tag>
+                            <Text strong className="fs-13">{wi.workItemName}</Text>
+                            <Tag className="fs-10">{wi.workItemType}</Tag>
                           </Space>
                         }
                         description={
                           <Space size={8}>
-                            <Tag color="processing" style={{ fontSize: 10 }}>{wi.currentPhase || 'Design'}</Tag>
-                            <Progress percent={wi.deploymentPct || 0} size="small" style={{ width: 120 }} />
+                            <Tag color="processing" className="fs-10">{wi.currentPhase || 'Design'}</Tag>
+                            <Progress percent={wi.deploymentPct || 0} size="small" className="w-120" />
                             {wi.goLiveDate && (
-                              <Text type="secondary" style={{ fontSize: 11 }}>
-                                =ƒÜÇ {wi.goLiveDate} ({daysFromNow(wi.goLiveDate)}d)
+                              <Text type="secondary" className="fs-11">
+                                â†’ {wi.goLiveDate} ({daysFromNow(wi.goLiveDate)}d)
                               </Text>
                             )}
                           </Space>
@@ -265,7 +265,7 @@ const CoupaDashboardClassic: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} lg={10}>
-          <Card title={<Space><RocketOutlined /> Upcoming Go-Lives</Space>} size="small" style={{ marginBottom: 16 }}>
+          <Card title={<Space><RocketOutlined /> Upcoming Go-Lives</Space>} size="small" className="mb-16">
             {upcomingGoLives.length === 0 ? (
               <Empty description="No upcoming go-lives" image={Empty.PRESENTED_IMAGE_SIMPLE} />
             ) : (
@@ -273,11 +273,11 @@ const CoupaDashboardClassic: React.FC = () => {
                 items={upcomingGoLives.slice(0, 6).map((wi: any) => ({
                   color: wi.daysLeft <= 0 ? 'red' : wi.daysLeft <= 14 ? 'orange' : 'blue',
                   children: (
-                    <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/workitem/${wi.ID}`)}>
-                      <Text strong style={{ fontSize: 12 }}>{wi.workItemName}</Text>
+                    <div className="cursor-pointer" onClick={() => navigate(`/workitem/${wi.ID}`)}>
+                      <Text strong className="fs-12">{wi.workItemName}</Text>
                       <br />
-                      <Text type="secondary" style={{ fontSize: 11 }}>
-                        {wi.goLiveDate} GÇö <Tag color={wi.daysLeft <= 7 ? 'red' : 'blue'} style={{ fontSize: 10 }}>{wi.daysLeft}d</Tag>
+                      <Text type="secondary" className="fs-11">
+                        {wi.goLiveDate} â€” <Tag color={wi.daysLeft <= 7 ? 'red' : 'blue'} className="fs-10">{wi.daysLeft}d</Tag>
                       </Text>
                     </div>
                   ),
@@ -292,14 +292,14 @@ const CoupaDashboardClassic: React.FC = () => {
               <Empty description="No data" image={Empty.PRESENTED_IMAGE_SIMPLE} />
             ) : (
               categoryBreakdown.map(([cat, count]) => (
-                <div key={cat} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                  <Text style={{ fontSize: 12 }}>{cat}</Text>
+                <div key={cat} className="flex-between py-4">
+                  <Text className="fs-12">{cat}</Text>
                   <Space size={4}>
                     <Progress
                       percent={Math.round((count / (displayItems.length || 1)) * 100)}
-                      size="small" style={{ width: 80 }} showInfo={false}
+                      size="small" className="w-80" showInfo={false}
                     />
-                    <Text strong style={{ fontSize: 12, width: 20, textAlign: 'right' }}>{count}</Text>
+                    <Text strong className="fs-12 text-right w-20">{count}</Text>
                   </Space>
                 </div>
               ))
@@ -311,7 +311,7 @@ const CoupaDashboardClassic: React.FC = () => {
       {/* Phase Distribution */}
       <Card
         title={<Space><DashboardOutlined /> Phase Distribution</Space>}
-        size="small" style={{ marginTop: 12 }}
+        size="small" className="mt-12"
       >
         {displayItems.length === 0 ? (
           <Empty description="No active deliverables" image={Empty.PRESENTED_IMAGE_SIMPLE} />
@@ -322,10 +322,10 @@ const CoupaDashboardClassic: React.FC = () => {
               const pct = displayItems.length > 0 ? Math.round((count / displayItems.length) * 100) : 0;
               return (
                 <Col xs={12} sm={8} lg={4} key={phase}>
-                  <div style={{ textAlign: 'center', padding: '8px 0' }}>
-                    <Text style={{ fontSize: 11, color: '#8c8c8c' }}>{phase}</Text>
-                    <div style={{ fontSize: 20, fontWeight: 600 }}>{count}</div>
-                    <Progress percent={pct} size="small" showInfo={false} style={{ width: '80%', margin: '0 auto' }} />
+                  <div className="text-center py-8">
+                    <Text className="fs-11 text-sec">{phase}</Text>
+                    <div className="fs-20 fw-600">{count}</div>
+                    <Progress percent={pct} size="small" showInfo={false} className="w-80pct-center" />
                   </div>
                 </Col>
               );

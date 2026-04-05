@@ -183,8 +183,8 @@ const HomeDashboard: React.FC = () => {
     { title: 'Health', key: 'rag', width: 70, align: 'center' as const,
       render: (_: any, r: any) => {
         const rag = getRAG(r);
-        const color = rag === 'GREEN' ? C.green : rag === 'AMBER' ? C.amber : C.red;
-        return <div style={{ width: 12, height: 12, borderRadius: '50%', background: color, margin: '0 auto' }} />;
+        const ragClass = rag === 'GREEN' ? 'rag-dot-green' : rag === 'AMBER' ? 'rag-dot-amber' : 'rag-dot-red';
+        return <div className={`rag-dot ${ragClass}`} />;
       },
     },
     { title: 'Progress', dataIndex: 'deploymentPct', key: 'pct', width: 100,
@@ -210,8 +210,8 @@ const HomeDashboard: React.FC = () => {
   if (viewMode === 'classic') {
     return (
       <div>
-        <div className="dashboard-view-toggle" style={{ padding: '12px 0' }}>
-          <Title level={4} style={{ margin: 0 }}>SAP PM Command Center</Title>
+        <div className="dashboard-view-toggle dashboard-toggle-classic">
+          <Title level={4} className="m-0">SAP PM Command Center</Title>
           <Segmented
             options={[
               { label: <span><AppstoreOutlined /> Classic</span>, value: 'classic' },
@@ -231,8 +231,8 @@ const HomeDashboard: React.FC = () => {
       {/* ── Toggle & Breadcrumb ── */}
       <div className="dashboard-view-toggle">
         <div>
-          <Text style={{ color: C.textSec, fontSize: 13 }}>
-            SAP PM Command Center / <Text strong style={{ fontSize: 13 }}>SAP Projects Analytics</Text>
+          <Text className="dashboard-breadcrumb">
+            SAP PM Command Center / <Text strong className="dashboard-breadcrumb-active">SAP Projects Analytics</Text>
           </Text>
         </div>
         <Segmented
@@ -252,21 +252,21 @@ const HomeDashboard: React.FC = () => {
           onChange={(dates) => setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)}
         />
         <Select placeholder="Priority" allowClear value={filterPriority}
-          onChange={setFilterPriority} style={{ width: 120 }}
+          onChange={setFilterPriority} className="filter-select-sm"
           options={priorities.map((p: string) => ({ value: p, label: p }))} />
         <Select placeholder="Status" allowClear value={filterStatus}
-          onChange={setFilterStatus} style={{ width: 140 }}
+          onChange={setFilterStatus} className="filter-select-md"
           options={statuses.map((s: string) => ({ value: s, label: s }))} />
         <Select placeholder="Module" allowClear value={filterModule}
-          onChange={setFilterModule} style={{ width: 140 }}
+          onChange={setFilterModule} className="filter-select-md"
           options={modules.map((m: string) => ({ value: m, label: m }))} />
         <Button icon={<FilterOutlined />}>Filters</Button>
       </div>
 
       {/* ── KPI Cards ── */}
-      <Row gutter={16} style={{ marginBottom: 20 }}>
+      <Row gutter={16} className="mb-20">
         <Col xs={12} lg={6}>
-          <div className="analytics-kpi" onClick={() => navigate('/tracker')} style={{ cursor: 'pointer' }}>
+          <div className="analytics-kpi analytics-kpi-clickable" onClick={() => navigate('/tracker')}>
             <div className="kpi-label"><RocketOutlined /> Active Work Items</div>
             <div className="kpi-value">{activeItems.length}</div>
             <div className="kpi-delta positive">
@@ -277,7 +277,7 @@ const HomeDashboard: React.FC = () => {
         <Col xs={12} lg={6}>
           <div className="analytics-kpi">
             <div className="kpi-label">
-              <ThunderboltOutlined /> Risk Score <Tooltip title="Sum of risk scores across active items"><InfoCircleOutlined style={{ fontSize: 11 }} /></Tooltip>
+              <ThunderboltOutlined /> Risk Score <Tooltip title="Sum of risk scores across active items"><InfoCircleOutlined className="kpi-info-icon" /></Tooltip>
             </div>
             <div className="kpi-value">{totalRiskScore}</div>
             <div className={`kpi-delta ${totalRiskScore > 200 ? 'negative' : 'positive'}`}>
@@ -288,9 +288,9 @@ const HomeDashboard: React.FC = () => {
         <Col xs={12} lg={6}>
           <div className="analytics-kpi">
             <div className="kpi-label">
-              <ClockCircleOutlined /> Avg Deployment <Tooltip title="Average deployment % across active items"><InfoCircleOutlined style={{ fontSize: 11 }} /></Tooltip>
+              <ClockCircleOutlined /> Avg Deployment <Tooltip title="Average deployment % across active items"><InfoCircleOutlined className="kpi-info-icon" /></Tooltip>
             </div>
-            <div className="kpi-value">{avgDeployment}<span style={{ fontSize: 18, opacity: 0.5 }}>%</span></div>
+            <div className="kpi-value">{avgDeployment}<span className="kpi-pct-suffix">%</span></div>
             <div className="kpi-delta neutral">
               Transport Pipeline: {pipeline.prd}/{pipeline.total} in PRD
             </div>
@@ -301,80 +301,80 @@ const HomeDashboard: React.FC = () => {
             <div className="kpi-label">Total Work Items</div>
             <div className="kpi-value">{workItems.length}</div>
             <div className="rag-bar">
-              {ragDist.GREEN > 0 && <Tooltip title={`On Track: ${ragDist.GREEN}`}><div style={{ flex: ragDist.GREEN, background: C.green }} /></Tooltip>}
-              {ragDist.AMBER > 0 && <Tooltip title={`At Risk: ${ragDist.AMBER}`}><div style={{ flex: ragDist.AMBER, background: C.amber }} /></Tooltip>}
-              {ragDist.RED > 0 && <Tooltip title={`Critical: ${ragDist.RED}`}><div style={{ flex: ragDist.RED, background: C.red }} /></Tooltip>}
+              {ragDist.GREEN > 0 && <Tooltip title={`On Track: ${ragDist.GREEN}`}><div className="bg-green" style={{ flex: ragDist.GREEN }} /></Tooltip>}
+              {ragDist.AMBER > 0 && <Tooltip title={`At Risk: ${ragDist.AMBER}`}><div className="bg-amber" style={{ flex: ragDist.AMBER }} /></Tooltip>}
+              {ragDist.RED > 0 && <Tooltip title={`Critical: ${ragDist.RED}`}><div className="bg-red" style={{ flex: ragDist.RED }} /></Tooltip>}
             </div>
             <div className="rag-bar-legend">
-              <span><span style={{ color: C.green }}>●</span> On Track</span>
-              <span><span style={{ color: C.amber }}>●</span> At Risk</span>
-              <span><span style={{ color: C.red }}>●</span> Critical</span>
+              <span><span className="text-green">●</span> On Track</span>
+              <span><span className="text-amber">●</span> At Risk</span>
+              <span><span className="text-red">●</span> Critical</span>
             </div>
           </div>
         </Col>
       </Row>
 
       {/* ── Mini Stats Row ── */}
-      <Row gutter={16} style={{ marginBottom: 20 }}>
+      <Row gutter={16} className="mb-20">
         <Col xs={8} lg={4}>
-          <div className="analytics-kpi" style={{ textAlign: 'center', padding: '14px 12px' }}>
-            <div className="kpi-label" style={{ justifyContent: 'center' }}><BugOutlined /> Test Pass Rate</div>
-            <div className="kpi-value" style={{ fontSize: 24 }}>{testSummary.rate}%</div>
-            <Text type="secondary" style={{ fontSize: 11 }}>{testSummary.passed}/{testSummary.total}</Text>
+          <div className="analytics-kpi analytics-kpi-mini">
+            <div className="kpi-label"><BugOutlined /> Test Pass Rate</div>
+            <div className="kpi-value">{testSummary.rate}%</div>
+            <Text type="secondary" className="fs-11">{testSummary.passed}/{testSummary.total}</Text>
           </div>
         </Col>
         <Col xs={8} lg={4}>
-          <div className="analytics-kpi" style={{ textAlign: 'center', padding: '14px 12px' }}>
-            <div className="kpi-label" style={{ justifyContent: 'center' }}>Completed</div>
-            <div className="kpi-value" style={{ fontSize: 24, color: C.green }}>{completedItems.length}</div>
-            <Text type="secondary" style={{ fontSize: 11 }}>of {workItems.length} total</Text>
+          <div className="analytics-kpi analytics-kpi-mini">
+            <div className="kpi-label">Completed</div>
+            <div className="kpi-value text-green">{completedItems.length}</div>
+            <Text type="secondary" className="fs-11">of {workItems.length} total</Text>
           </div>
         </Col>
         <Col xs={8} lg={4}>
-          <div className="analytics-kpi" style={{ textAlign: 'center', padding: '14px 12px' }}>
-            <div className="kpi-label" style={{ justifyContent: 'center' }}>Critical Items</div>
-            <div className="kpi-value" style={{ fontSize: 24, color: C.red }}>{ragDist.RED}</div>
-            <Text type="secondary" style={{ fontSize: 11 }}>need attention</Text>
+          <div className="analytics-kpi analytics-kpi-mini">
+            <div className="kpi-label">Critical Items</div>
+            <div className="kpi-value text-red">{ragDist.RED}</div>
+            <Text type="secondary" className="fs-11">need attention</Text>
           </div>
         </Col>
         <Col xs={8} lg={4}>
-          <div className="analytics-kpi" style={{ textAlign: 'center', padding: '14px 12px' }}>
-            <div className="kpi-label" style={{ justifyContent: 'center' }}>At Risk</div>
-            <div className="kpi-value" style={{ fontSize: 24, color: C.amber }}>{ragDist.AMBER}</div>
-            <Text type="secondary" style={{ fontSize: 11 }}>being monitored</Text>
+          <div className="analytics-kpi analytics-kpi-mini">
+            <div className="kpi-label">At Risk</div>
+            <div className="kpi-value text-amber">{ragDist.AMBER}</div>
+            <Text type="secondary" className="fs-11">being monitored</Text>
           </div>
         </Col>
         <Col xs={8} lg={4}>
-          <div className="analytics-kpi" style={{ textAlign: 'center', padding: '14px 12px' }}>
-            <div className="kpi-label" style={{ justifyContent: 'center' }}>Transports</div>
-            <div className="kpi-value" style={{ fontSize: 24 }}>{pipeline.total}</div>
-            <Text type="secondary" style={{ fontSize: 11 }}>DEV:{pipeline.dev} QAS:{pipeline.qas} PRD:{pipeline.prd}</Text>
+          <div className="analytics-kpi analytics-kpi-mini">
+            <div className="kpi-label">Transports</div>
+            <div className="kpi-value">{pipeline.total}</div>
+            <Text type="secondary" className="fs-11">DEV:{pipeline.dev} QAS:{pipeline.qas} PRD:{pipeline.prd}</Text>
           </div>
         </Col>
         <Col xs={8} lg={4}>
-          <div className="analytics-kpi" style={{ textAlign: 'center', padding: '14px 12px' }}>
-            <div className="kpi-label" style={{ justifyContent: 'center' }}>Go-Lives ≤90d</div>
-            <div className="kpi-value" style={{ fontSize: 24 }}>{upcomingGoLives.length}</div>
-            <Text type="secondary" style={{ fontSize: 11 }}>upcoming</Text>
+          <div className="analytics-kpi analytics-kpi-mini">
+            <div className="kpi-label">Go-Lives ≤90d</div>
+            <div className="kpi-value">{upcomingGoLives.length}</div>
+            <Text type="secondary" className="fs-11">upcoming</Text>
           </div>
         </Col>
       </Row>
 
       {/* ── Overall Trends: Phase & Type ── */}
-      <div className="analytics-chart-card" style={{ marginBottom: 20 }}>
+      <div className="analytics-chart-card chart-card-mb">
         <div className="chart-title">Project Phase & Type Analysis</div>
         <Row gutter={24}>
           <Col xs={24} lg={14}>
-            <div style={{ marginBottom: 12 }}>
-              <Text strong style={{ fontSize: 14 }}>Work Items by Phase & Health</Text>
+            <div className="chart-section-header">
+              <Text strong className="fs-14">Work Items by Phase & Health</Text>
               <br />
-              <Text type="secondary" style={{ fontSize: 12 }}>Active items grouped by SAP implementation phase</Text>
+              <Text type="secondary" className="fs-12">Active items grouped by SAP implementation phase</Text>
             </div>
-            <Space size={16} style={{ marginBottom: 12 }}>
+            <Space size={16} className="mb-12">
               {[['On Track', C.green], ['At Risk', C.amber], ['Critical', C.red]].map(([label, color]) => (
                 <Space key={label as string} size={4}>
-                  <div style={{ width: 12, height: 12, borderRadius: 2, background: color as string }} />
-                  <Text type="secondary" style={{ fontSize: 12 }}>{label}</Text>
+                  <div className="legend-swatch" style={{ background: color as string }} />{/* dynamic color */}
+                  <Text type="secondary" className="fs-12">{label}</Text>
                 </Space>
               ))}
             </Space>
@@ -396,20 +396,20 @@ const HomeDashboard: React.FC = () => {
                 legend={false}
               />
             ) : (
-              <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="chart-empty-placeholder">
                 <Empty description="No data" />
               </div>
             )}
           </Col>
 
           <Col xs={24} lg={10}>
-            <div style={{ marginBottom: 12 }}>
-              <Text strong style={{ fontSize: 14 }}>Work Items by Type</Text>
+            <div className="chart-section-header">
+              <Text strong className="fs-14">Work Items by Type</Text>
               <br />
-              <Text type="secondary" style={{ fontSize: 12 }}>Distribution across SAP project categories</Text>
+              <Text type="secondary" className="fs-12">Distribution across SAP project categories</Text>
             </div>
             {typeDonutData.length > 0 ? (
-              <div style={{ position: 'relative' }}>
+              <div className="donut-chart-wrapper">
                 <Pie
                   data={typeDonutData}
                   angleField="value"
@@ -425,11 +425,11 @@ const HomeDashboard: React.FC = () => {
                   <div className="donut-value">{workItems.length}</div>
                   <div className="donut-sub">Items</div>
                 </div>
-                <div style={{ position: 'absolute', right: 0, top: 24 }}>
+                <div className="donut-legend-right">
                   <div className="analytics-legend">
                     {typeDonutData.map(({ type, value }) => (
                       <div key={type} className="analytics-legend-item">
-                        <div className="analytics-legend-dot" style={{ background: typeColorMap[type] }} />
+                        <div className="analytics-legend-dot" style={{ background: typeColorMap[type] }} />{/* dynamic color */}
                         <span>{type}: {Math.round((value / (workItems.length || 1)) * 100)}%</span>
                       </div>
                     ))}
@@ -437,7 +437,7 @@ const HomeDashboard: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="chart-empty-placeholder">
                 <Empty description="No data" />
               </div>
             )}
@@ -446,14 +446,14 @@ const HomeDashboard: React.FC = () => {
       </div>
 
       {/* ── Module Comparison ── */}
-      <div className="analytics-chart-card" style={{ marginBottom: 20 }}>
+      <div className="analytics-chart-card chart-card-mb">
         <div className="chart-title">SAP Module Analysis</div>
         <Row gutter={24}>
           <Col xs={24} lg={12}>
-            <div style={{ marginBottom: 12 }}>
-              <Text strong style={{ fontSize: 14 }}>Items by SAP Module</Text>
+            <div className="chart-section-header">
+              <Text strong className="fs-14">Items by SAP Module</Text>
               <br />
-              <Text type="secondary" style={{ fontSize: 12 }}>Active work items per functional area</Text>
+              <Text type="secondary" className="fs-12">Active work items per functional area</Text>
             </div>
             {moduleBarData.length > 0 ? (
               <Bar
@@ -475,10 +475,10 @@ const HomeDashboard: React.FC = () => {
             )}
           </Col>
           <Col xs={24} lg={12}>
-            <div style={{ marginBottom: 12 }}>
-              <Text strong style={{ fontSize: 14 }}>Risk Score by Module</Text>
+            <div className="chart-section-header">
+              <Text strong className="fs-14">Risk Score by Module</Text>
               <br />
-              <Text type="secondary" style={{ fontSize: 12 }}>Average risk score per functional area</Text>
+              <Text type="secondary" className="fs-12">Average risk score per functional area</Text>
             </div>
             {moduleRiskData.length > 0 ? (
               <Bar
@@ -503,14 +503,14 @@ const HomeDashboard: React.FC = () => {
       </div>
 
       {/* ── Priority & Transport Analysis ── */}
-      <div className="analytics-chart-card" style={{ marginBottom: 20 }}>
+      <div className="analytics-chart-card chart-card-mb">
         <div className="chart-title">Priority & Transport Pipeline</div>
         <Row gutter={24}>
           <Col xs={24} lg={12}>
-            <div style={{ marginBottom: 12 }}>
-              <Text strong style={{ fontSize: 14 }}>Priority Distribution</Text>
+            <div className="chart-section-header">
+              <Text strong className="fs-14">Priority Distribution</Text>
               <br />
-              <Text type="secondary" style={{ fontSize: 12 }}>Active work items by priority level</Text>
+              <Text type="secondary" className="fs-12">Active work items by priority level</Text>
             </div>
             {priorityData.length > 0 ? (
               <Bar
@@ -530,10 +530,10 @@ const HomeDashboard: React.FC = () => {
             ) : <Empty description="No data" />}
           </Col>
           <Col xs={24} lg={12}>
-            <div style={{ marginBottom: 12 }}>
-              <Text strong style={{ fontSize: 14 }}>Transport Pipeline</Text>
+            <div className="chart-section-header">
+              <Text strong className="fs-14">Transport Pipeline</Text>
               <br />
-              <Text type="secondary" style={{ fontSize: 12 }}>Current transport distribution across SAP systems</Text>
+              <Text type="secondary" className="fs-12">Current transport distribution across SAP systems</Text>
             </div>
             {pipelineData.some(d => d.count > 0) ? (
               <Column
@@ -559,9 +559,9 @@ const HomeDashboard: React.FC = () => {
       {/* ── Upcoming Go-Lives Table ── */}
       {upcomingGoLives.length > 0 && (
         <div className="analytics-chart-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <div className="chart-title" style={{ marginBottom: 0 }}>Upcoming Go-Lives (Next 90 Days)</div>
-            <Button type="link" style={{ padding: 0 }} onClick={() => navigate('/tracker')}>
+          <div className="chart-header-actions">
+            <div className="chart-title mb-0">Upcoming Go-Lives (Next 90 Days)</div>
+            <Button type="link" className="p-0" onClick={() => navigate('/tracker')}>
               View All →
             </Button>
           </div>

@@ -17,7 +17,7 @@ import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
 const { Title, Text } = Typography;
 
 const RAG_COLORS: Record<string, string> = { GREEN: '#52c41a', AMBER: '#faad14', RED: '#ff4d4f' };
-const RAG_ICONS: Record<string, string> = { GREEN: '=ƒƒó', AMBER: '=ƒƒí', RED: '=ƒö¦' };
+const RAG_ICONS: Record<string, string> = { GREEN: 'ğŸŸ¢', AMBER: 'ğŸŸ¡', RED: 'ğŸ”´' };
 const SYS_COLORS: Record<string, string> = { DEV: 'blue', QAS: 'orange', PRD: 'green' };
 
 const HomeDashboardClassic: React.FC = () => {
@@ -43,7 +43,7 @@ const HomeDashboardClassic: React.FC = () => {
   const failedTRs = transports.filter((tr: any) => tr.importRC >= 8);
   const needAttention = stuckTRs.length + failedTRs.length;
 
-  // GöÇGöÇ Transport Pipeline stats GöÇGöÇ
+  // ğŸ”„ Transport Pipeline stats ğŸ”„
   const pipeline = useMemo(() => {
     const dev = transports.filter((t: any) => t.currentSystem === 'DEV').length;
     const qas = transports.filter((t: any) => t.currentSystem === 'QAS').length;
@@ -60,7 +60,7 @@ const HomeDashboardClassic: React.FC = () => {
     return transports.filter((t: any) => t.currentSystem === pipelineFilter);
   }, [transports, pipelineFilter, stuckTRs, failedTRs]);
 
-  // GöÇGöÇ Test Status summary (aggregated from WorkItem-level test fields) GöÇGöÇ
+  // ğŸ§ª Test Status summary (aggregated from WorkItem-level test fields) ğŸ§ª
   const testSummary = useMemo(() => {
     const activeWIs = workItems.filter((w: any) => w.status === 'Active');
     let passed = 0, failed = 0, blocked = 0, tbd = 0, skipped = 0, totalCases = 0;
@@ -78,7 +78,7 @@ const HomeDashboardClassic: React.FC = () => {
     return { passed, failed, blocked, tbd, skipped, notRun, totalCases, passRate: Math.round((passed / total) * 100), executionRate: Math.round((executed / total) * 100) };
   }, [workItems]);
 
-  // GöÇGöÇ Upcoming go-lives (within 30 days) GöÇGöÇ
+  // ğŸš€ Upcoming go-lives (within 30 days) ğŸš€
   const upcomingGoLives = useMemo(() => {
     return workItems
       .filter((wi: any) => wi.goLiveDate && wi.status === 'Active')
@@ -90,18 +90,18 @@ const HomeDashboardClassic: React.FC = () => {
   // Pending items: stuck + unassigned + failed (with navigation data)
   const pendingItems = useMemo(() => [
     ...failedTRs.map((tr: any) => ({
-      icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />,
-      text: `${tr.trNumber} GÇö failed import (RC=${tr.importRC}) in ${tr.currentSystem}`,
+      icon: <ExclamationCircleOutlined className="text-red" />,
+      text: `${tr.trNumber} â€” failed import (RC=${tr.importRC}) in ${tr.currentSystem}`,
       type: 'error', trNumber: tr.trNumber, workItem_ID: tr.workItem_ID,
     })),
     ...stuckTRs.slice(0, 10).map((tr: any) => ({
-      icon: <ClockCircleOutlined style={{ color: '#faad14' }} />,
-      text: `${tr.trNumber} GÇö stuck in ${tr.currentSystem} > 5 days (${tr.ownerFullName || tr.trOwner})`,
+      icon: <ClockCircleOutlined className="text-amber" />,
+      text: `${tr.trNumber} â€” stuck in ${tr.currentSystem} > 5 days (${tr.ownerFullName || tr.trOwner})`,
       type: 'warning', trNumber: tr.trNumber, workItem_ID: tr.workItem_ID,
     })),
     ...unassigned.slice(0, 5).map((tr: any) => ({
-      icon: <WarningOutlined style={{ color: '#1677ff' }} />,
-      text: `${tr.trNumber} GÇö unassigned (${tr.trDescription?.substring(0, 50) || 'no description'})`,
+      icon: <WarningOutlined className="text-accent" />,
+      text: `${tr.trNumber} â€” unassigned (${tr.trDescription?.substring(0, 50) || 'no description'})`,
       type: 'info', trNumber: tr.trNumber, workItem_ID: null as any,
     })),
   ], [failedTRs, stuckTRs, unassigned]);
@@ -114,7 +114,7 @@ const HomeDashboardClassic: React.FC = () => {
     { title: 'Description', dataIndex: 'trDescription', key: 'desc', ellipsis: true, width: 260 },
     { title: 'System', dataIndex: 'currentSystem', key: 'sys', width: 80, render: (s: string) => <Tag color={SYS_COLORS[s] || 'default'}>{s}</Tag> },
     { title: 'Status', dataIndex: 'trStatus', key: 'st', width: 100, render: (s: string) => <Tag color={s === 'Released' ? 'green' : 'orange'}>{s}</Tag> },
-    { title: 'RC', dataIndex: 'importRC', key: 'rc', width: 60, render: (rc: number | null) => rc == null ? 'GÇö' : rc === 0 ? <Tag color="success">0</Tag> : rc <= 4 ? <Tag color="warning">{rc}</Tag> : <Tag color="error">{rc}</Tag> },
+    { title: 'RC', dataIndex: 'importRC', key: 'rc', width: 60, render: (rc: number | null) => rc == null ? 'â€”' : rc === 0 ? <Tag color="success">0</Tag> : rc <= 4 ? <Tag color="warning">{rc}</Tag> : <Tag color="error">{rc}</Tag> },
     { title: 'Owner', dataIndex: 'ownerFullName', key: 'own', render: (t: string, r: any) => t || r.trOwner },
   ];
 
@@ -125,12 +125,12 @@ const HomeDashboardClassic: React.FC = () => {
   // Reusable banner KPI with click
   const bannerKpi = (label: string, value: number | string, color: string, onClick?: () => void) => (
     <Tooltip title={onClick ? `Click to view ${label}` : undefined}>
-      <div style={{ textAlign: 'center', cursor: onClick ? 'pointer' : 'default', padding: '4px 16px', borderRadius: 8, transition: 'background 0.2s' }}
+      <div className="banner-kpi" style={{ cursor: onClick ? 'pointer' : 'default' }}
         onClick={onClick}
         onMouseEnter={(e) => onClick && (e.currentTarget.style.background = 'rgba(255,255,255,0.15)')}
         onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
-        <div style={{ color, fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>{value}</div>
-        <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}>{label}</div>
+        <div className="banner-kpi-value" style={{ color }}>{value}</div>
+        <div className="banner-kpi-label">{label}</div>
       </div>
     </Tooltip>
   );
@@ -140,13 +140,11 @@ const HomeDashboardClassic: React.FC = () => {
     const isActive = pipelineFilter === sys;
     return (
       <Tooltip title={`Click to view ${sys} transports`}>
-        <div style={{ textAlign: 'center', flex: 1, cursor: 'pointer' }}
+        <div className="text-center flex-1 cursor-pointer"
           onClick={() => setPipelineFilter(isActive ? null : sys)}>
-          <div style={{
-            background: isActive ? activeBg : bg, borderRadius: 8, padding: '12px 8px',
-            border: `2px solid ${isActive ? activeBg : borderColor}`, transition: 'all 0.2s',
-          }}>
-            <Text strong style={{ fontSize: 24, color: isActive ? '#fff' : textColor }}>{count}</Text>
+          <div className="pipeline-box"
+            style={{ background: isActive ? activeBg : bg, border: `2px solid ${isActive ? activeBg : borderColor}` }}>
+            <Text strong className="fs-24" style={{ color: isActive ? '#fff' : textColor }}>{count}</Text>
             <br /><Text style={{ color: isActive ? 'rgba(255,255,255,.8)' : undefined }} type={isActive ? undefined : 'secondary'}>{sys}</Text>
           </div>
         </div>
@@ -156,19 +154,19 @@ const HomeDashboardClassic: React.FC = () => {
 
   return (
     <div>
-      {/* GöÇGöÇ Welcome Banner with clickable KPIs GöÇGöÇ */}
+      {/* ğŸ¯ Welcome Banner with clickable KPIs ğŸ¯ */}
       <Card
-        style={{ marginBottom: 16, background: 'linear-gradient(135deg, #1677ff 0%, #0958d9 100%)', border: 'none' }}
+        className="banner-card"
         styles={{ body: { padding: '16px 24px' } }}
       >
         <Row align="middle" justify="space-between">
           <Col>
-            <Title level={3} style={{ color: '#fff', margin: 0 }}>
+            <Title level={3} className="banner-title">
               <DashboardOutlined /> Command Center
             </Title>
-            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, marginTop: 4, display: 'block' }}>
+            <Text className="banner-subtitle">
               Welcome back, <strong>{user?.name || 'User'}</strong>
-              {user?.roles && user.roles.length > 0 && <Tag color="gold" style={{ marginLeft: 8 }}>{user.roles[0]}</Tag>}
+              {user?.roles && user.roles.length > 0 && <Tag color="gold" className="ml-8">{user.roles[0]}</Tag>}
             </Text>
           </Col>
           <Col>
@@ -185,8 +183,8 @@ const HomeDashboardClassic: React.FC = () => {
         </Row>
       </Card>
 
-      {/* GöÇGöÇ Summary Cards GöÇGöÇ */}
-      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
+      {/* ğŸ“Š Summary Cards ğŸ“Š */}
+      <Row gutter={[12, 12]} className="mt-12">
         <Col xs={12} sm={8} lg={5}>
           <Card hoverable onClick={() => navigate('/tracker/Project')} size="small">
             <Statistic title="Projects" value={summaryLoading ? '-' : (summary?.activeProjects ?? workItems.filter((w: any) => w.workItemType === 'Project').length)}
@@ -219,28 +217,26 @@ const HomeDashboardClassic: React.FC = () => {
         </Col>
       </Row>
 
-      {/* GöÇGöÇ Transport Pipeline (clickable, inline results) GöÇGöÇ */}
-      <Card title={<Space><CloudServerOutlined /> Transport Pipeline</Space>} size="small" style={{ marginTop: 12 }}
+      {/* ğŸ”„ Transport Pipeline (clickable, inline results) ğŸ”„ */}
+      <Card title={<Space><CloudServerOutlined /> Transport Pipeline</Space>} size="small" className="mt-12"
         extra={pipelineFilter && <a onClick={() => setPipelineFilter(null)}>Clear filter</a>}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 0' }}>
+        <div className="pipeline-flow">
           {pipelineBox('DEV', pipeline.dev, '#e6f4ff', '#91caff', '#1677ff', '#1677ff')}
-          <ArrowRightOutlined style={{ fontSize: 18, color: '#bbb' }} />
+          <ArrowRightOutlined className="fs-18 text-disabled" />
           {pipelineBox('QAS', pipeline.qas, '#fff7e6', '#ffd591', '#fa8c16', '#fa8c16')}
-          <ArrowRightOutlined style={{ fontSize: 18, color: '#bbb' }} />
+          <ArrowRightOutlined className="fs-18 text-disabled" />
           {pipelineBox('PRD', pipeline.prd, '#f6ffed', '#b7eb8f', '#52c41a', '#52c41a')}
           {/* Stuck / Failed quick-filters */}
           {stuckTRs.length > 0 && (
             <>
-              <div style={{ width: 1, height: 40, background: '#f0f0f0', margin: '0 4px' }} />
+              <div className="pipeline-divider" />
               <Tooltip title="Stuck TRs (>5 days not in PRD)">
-                <div style={{ textAlign: 'center', cursor: 'pointer', minWidth: 64 }}
+                <div className="text-center cursor-pointer min-w-64"
                   onClick={() => setPipelineFilter(pipelineFilter === 'STUCK' ? null : 'STUCK')}>
-                  <div style={{
-                    background: pipelineFilter === 'STUCK' ? '#faad14' : '#fffbe6', borderRadius: 8, padding: '12px 8px',
-                    border: `2px solid ${pipelineFilter === 'STUCK' ? '#faad14' : '#ffe58f'}`, transition: 'all 0.2s',
-                  }}>
-                    <Text strong style={{ fontSize: 24, color: pipelineFilter === 'STUCK' ? '#fff' : '#faad14' }}>{stuckTRs.length}</Text>
-                    <br /><Text style={{ color: pipelineFilter === 'STUCK' ? 'rgba(255,255,255,.8)' : undefined, fontSize: 12 }} type={pipelineFilter === 'STUCK' ? undefined : 'secondary'}>Stuck</Text>
+                  <div className="pipeline-box"
+                    style={{ background: pipelineFilter === 'STUCK' ? '#faad14' : '#fffbe6', border: `2px solid ${pipelineFilter === 'STUCK' ? '#faad14' : '#ffe58f'}` }}>
+                    <Text strong className="fs-24" style={{ color: pipelineFilter === 'STUCK' ? '#fff' : '#faad14' }}>{stuckTRs.length}</Text>
+                    <br /><Text className="fs-12" style={{ color: pipelineFilter === 'STUCK' ? 'rgba(255,255,255,.8)' : undefined }} type={pipelineFilter === 'STUCK' ? undefined : 'secondary'}>Stuck</Text>
                   </div>
                 </div>
               </Tooltip>
@@ -248,31 +244,29 @@ const HomeDashboardClassic: React.FC = () => {
           )}
           {failedTRs.length > 0 && (
             <Tooltip title="Failed imports (RC >= 8)">
-              <div style={{ textAlign: 'center', cursor: 'pointer', minWidth: 64 }}
+              <div className="text-center cursor-pointer min-w-64"
                 onClick={() => setPipelineFilter(pipelineFilter === 'FAILED' ? null : 'FAILED')}>
-                <div style={{
-                  background: pipelineFilter === 'FAILED' ? '#ff4d4f' : '#fff2f0', borderRadius: 8, padding: '12px 8px',
-                  border: `2px solid ${pipelineFilter === 'FAILED' ? '#ff4d4f' : '#ffccc7'}`, transition: 'all 0.2s',
-                }}>
-                  <Text strong style={{ fontSize: 24, color: pipelineFilter === 'FAILED' ? '#fff' : '#ff4d4f' }}>{failedTRs.length}</Text>
-                  <br /><Text style={{ color: pipelineFilter === 'FAILED' ? 'rgba(255,255,255,.8)' : undefined, fontSize: 12 }} type={pipelineFilter === 'FAILED' ? undefined : 'secondary'}>Failed</Text>
+                <div className="pipeline-box"
+                  style={{ background: pipelineFilter === 'FAILED' ? '#ff4d4f' : '#fff2f0', border: `2px solid ${pipelineFilter === 'FAILED' ? '#ff4d4f' : '#ffccc7'}` }}>
+                  <Text strong className="fs-24" style={{ color: pipelineFilter === 'FAILED' ? '#fff' : '#ff4d4f' }}>{failedTRs.length}</Text>
+                  <br /><Text className="fs-12" style={{ color: pipelineFilter === 'FAILED' ? 'rgba(255,255,255,.8)' : undefined }} type={pipelineFilter === 'FAILED' ? undefined : 'secondary'}>Failed</Text>
                 </div>
               </div>
             </Tooltip>
           )}
         </div>
-        <div style={{ textAlign: 'center', marginTop: 8, marginBottom: pipelineFilter ? 12 : 0 }}>
+        <div className="text-center mt-8" style={{ marginBottom: pipelineFilter ? 12 : 0 }}>
           <Progress
             percent={Math.round((pipeline.prd / pipeline.total) * 100)}
             strokeColor={{ '0%': '#1677ff', '100%': '#52c41a' }}
             format={(pct) => `${pct}% deployed`}
-            style={{ maxWidth: 400, margin: '0 auto' }}
+            className="pipeline-progress"
           />
         </div>
         {/* Inline pipeline results */}
         {pipelineFilter && (
-          <div style={{ marginTop: 4 }}>
-            <Text strong style={{ marginBottom: 8, display: 'block' }}>
+          <div className="mt-4">
+            <Text strong className="mb-8 d-block">
               {pipelineFilter === 'STUCK' ? `Stuck Transports (${pipelineResults.length})` :
                pipelineFilter === 'FAILED' ? `Failed Imports (${pipelineResults.length})` :
                `${pipelineFilter} Transports (${pipelineResults.length})`}
@@ -283,40 +277,40 @@ const HomeDashboardClassic: React.FC = () => {
         )}
       </Card>
 
-      {/* GöÇGöÇ Test Status + Upcoming Go-Lives GöÇGöÇ */}
-      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
+      {/* ğŸ§ª Test Status + Upcoming Go-Lives ğŸ§ª */}
+      <Row gutter={[12, 12]} className="mt-12">
         <Col xs={24} lg={14}>
           <Card title={<Space><ExperimentOutlined /> Test Status (All Active Items)</Space>} size="small">
             <Row gutter={16} align="middle">
-              <Col span={6} style={{ textAlign: 'center' }}>
+              <Col span={6} className="text-center">
                 <Progress type="circle" percent={testSummary.passRate} size={80}
                   strokeColor={testSummary.passRate >= 80 ? '#52c41a' : testSummary.passRate >= 50 ? '#faad14' : '#ff4d4f'} />
-                <br /><Text type="secondary" style={{ fontSize: 11 }}>Pass Rate</Text>
+                <br /><Text type="secondary" className="fs-11">Pass Rate</Text>
               </Col>
-              <Col span={6} style={{ textAlign: 'center' }}>
+              <Col span={6} className="text-center">
                 <Progress type="circle" percent={testSummary.executionRate} size={80}
                   strokeColor="#1677ff" format={(pct) => `${pct}%`} />
-                <br /><Text type="secondary" style={{ fontSize: 11 }}>Executed</Text>
+                <br /><Text type="secondary" className="fs-11">Executed</Text>
               </Col>
               <Col span={12}>
-                <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text><CheckCircleOutlined style={{ color: '#52c41a' }} /> Passed</Text>
-                    <Text strong style={{ color: '#52c41a' }}>{testSummary.passed}</Text>
+                <Space direction="vertical" size={4} className="w-full">
+                  <div className="flex-between">
+                    <Text><CheckCircleOutlined className="text-green" /> Passed</Text>
+                    <Text strong className="text-green">{testSummary.passed}</Text>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text><ExclamationCircleOutlined style={{ color: '#ff4d4f' }} /> Failed</Text>
+                  <div className="flex-between">
+                    <Text><ExclamationCircleOutlined className="text-red" /> Failed</Text>
                     <Text strong style={{ color: testSummary.failed > 0 ? '#ff4d4f' : undefined }}>{testSummary.failed}</Text>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text><StopOutlined style={{ color: '#faad14' }} /> Blocked</Text>
+                  <div className="flex-between">
+                    <Text><StopOutlined className="text-amber" /> Blocked</Text>
                     <Text strong style={{ color: testSummary.blocked > 0 ? '#faad14' : undefined }}>{testSummary.blocked}</Text>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text><ClockCircleOutlined style={{ color: '#bbb' }} /> TBD / Not Run</Text>
+                  <div className="flex-between">
+                    <Text><ClockCircleOutlined className="text-disabled" /> TBD / Not Run</Text>
                     <Text strong>{testSummary.tbd + testSummary.notRun}</Text>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f0f0f0', paddingTop: 4 }}>
+                  <div className="test-total-row">
                     <Text strong>Total Cases</Text>
                     <Text strong>{testSummary.totalCases}</Text>
                   </div>
@@ -325,12 +319,12 @@ const HomeDashboardClassic: React.FC = () => {
             </Row>
             {/* Stacked bar */}
             {testSummary.totalCases > 0 && (
-              <div style={{ display: 'flex', height: 10, borderRadius: 5, overflow: 'hidden', marginTop: 12 }}>
-                {testSummary.passed > 0 && <Tooltip title={`Passed: ${testSummary.passed}`}><div style={{ width: `${(testSummary.passed / testSummary.totalCases) * 100}%`, background: '#52c41a' }} /></Tooltip>}
-                {testSummary.failed > 0 && <Tooltip title={`Failed: ${testSummary.failed}`}><div style={{ width: `${(testSummary.failed / testSummary.totalCases) * 100}%`, background: '#ff4d4f' }} /></Tooltip>}
-                {testSummary.blocked > 0 && <Tooltip title={`Blocked: ${testSummary.blocked}`}><div style={{ width: `${(testSummary.blocked / testSummary.totalCases) * 100}%`, background: '#faad14' }} /></Tooltip>}
-                {(testSummary.tbd + testSummary.notRun) > 0 && <Tooltip title={`TBD/Not Run: ${testSummary.tbd + testSummary.notRun}`}><div style={{ width: `${((testSummary.tbd + testSummary.notRun) / testSummary.totalCases) * 100}%`, background: '#d9d9d9' }} /></Tooltip>}
-                {testSummary.skipped > 0 && <Tooltip title={`Skipped: ${testSummary.skipped}`}><div style={{ width: `${(testSummary.skipped / testSummary.totalCases) * 100}%`, background: '#bfbfbf' }} /></Tooltip>}
+              <div className="test-stacked-bar">
+                {testSummary.passed > 0 && <Tooltip title={`Passed: ${testSummary.passed}`}><div className="bg-green" style={{ width: `${(testSummary.passed / testSummary.totalCases) * 100}%` }} /></Tooltip>}
+                {testSummary.failed > 0 && <Tooltip title={`Failed: ${testSummary.failed}`}><div className="bg-red" style={{ width: `${(testSummary.failed / testSummary.totalCases) * 100}%` }} /></Tooltip>}
+                {testSummary.blocked > 0 && <Tooltip title={`Blocked: ${testSummary.blocked}`}><div className="bg-amber" style={{ width: `${(testSummary.blocked / testSummary.totalCases) * 100}%` }} /></Tooltip>}
+                {(testSummary.tbd + testSummary.notRun) > 0 && <Tooltip title={`TBD/Not Run: ${testSummary.tbd + testSummary.notRun}`}><div className="bg-gray-light" style={{ width: `${((testSummary.tbd + testSummary.notRun) / testSummary.totalCases) * 100}%` }} /></Tooltip>}
+                {testSummary.skipped > 0 && <Tooltip title={`Skipped: ${testSummary.skipped}`}><div className="bg-gray" style={{ width: `${(testSummary.skipped / testSummary.totalCases) * 100}%` }} /></Tooltip>}
               </div>
             )}
           </Card>
@@ -344,10 +338,10 @@ const HomeDashboardClassic: React.FC = () => {
                 items={upcomingGoLives.slice(0, 5).map((wi: any) => ({
                   color: wi.daysLeft <= 0 ? 'red' : wi.daysLeft <= 7 ? 'orange' : 'blue',
                   children: (
-                    <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/workitem/${wi.ID}`)}>
+                    <div className="cursor-pointer" onClick={() => navigate(`/workitem/${wi.ID}`)}>
                       <Text strong>{wi.workItemName}</Text>
                       <br />
-                      <Text type="secondary">{wi.goLiveDate} GÇö <Tag color={wi.daysLeft <= 7 ? 'red' : 'blue'}>{wi.daysLeft}d left</Tag></Text>
+                      <Text type="secondary">{wi.goLiveDate} â€” <Tag color={wi.daysLeft <= 7 ? 'red' : 'blue'}>{wi.daysLeft}d left</Tag></Text>
                     </div>
                   ),
                 }))}
@@ -357,9 +351,9 @@ const HomeDashboardClassic: React.FC = () => {
         </Col>
       </Row>
 
-      {/* GöÇGöÇ Active Work Items GöÇGöÇ */}
-      <Card title={<Space><ProjectOutlined /> Active Work Items</Space>} style={{ marginTop: 12 }} size="small"
-        extra={<a onClick={() => navigate('/tracker')}>View All GåÆ</a>}>
+      {/* ğŸ“‹ Active Work Items ğŸ“‹ */}
+      <Card title={<Space><ProjectOutlined /> Active Work Items</Space>} className="mt-12" size="small"
+        extra={<a onClick={() => navigate('/tracker')}>View All â†’</a>}>
         {wiLoading ? <Skeleton active /> : activeProjects.length === 0 ? (
           <Empty description="No active items" />
         ) : (
@@ -378,24 +372,24 @@ const HomeDashboardClassic: React.FC = () => {
               const projectFailed = projectTRs.filter((t: any) => t.importRC >= 8);
 
               return (
-                <List.Item style={{ cursor: 'pointer', padding: '10px 0' }} onClick={() => navigate(`/workitem/${project.ID}`)}>
+                <List.Item className="cursor-pointer py-10 px-0" onClick={() => navigate(`/workitem/${project.ID}`)}>
                   <List.Item.Meta
-                    avatar={<span style={{ fontSize: 18 }}>{RAG_ICONS[rag]}</span>}
+                    avatar={<span className="fs-18">{RAG_ICONS[rag]}</span>}
                     title={
                       <Space size={4}>
-                        <Text strong style={{ fontSize: 13 }}>{project.workItemName}</Text>
-                        <Tag color={project.workItemType === 'Project' ? 'blue' : project.workItemType === 'Enhancement' ? 'cyan' : project.workItemType === 'Break-fix' ? 'red' : 'default'} style={{ fontSize: 10 }}>
+                        <Text strong className="fs-13">{project.workItemName}</Text>
+                        <Tag color={project.workItemType === 'Project' ? 'blue' : project.workItemType === 'Enhancement' ? 'cyan' : project.workItemType === 'Break-fix' ? 'red' : 'default'} className="fs-10">
                           {project.workItemType}
                         </Tag>
-                        {project.goLiveDate && <Tag color={daysFromNow(project.goLiveDate) <= 7 ? 'red' : 'blue'} style={{ fontSize: 10 }}>=ƒÜÇ {project.goLiveDate} ({daysFromNow(project.goLiveDate)}d)</Tag>}
+                        {project.goLiveDate && <Tag color={daysFromNow(project.goLiveDate) <= 7 ? 'red' : 'blue'} className="fs-10">ğŸ“… {project.goLiveDate} ({daysFromNow(project.goLiveDate)}d)</Tag>}
                       </Space>
                     }
                     description={
                       <Space size={8}>
-                        <Progress percent={deployPct} size="small" style={{ width: 160 }} strokeColor={RAG_COLORS[rag]} />
-                        <Text type="secondary" style={{ fontSize: 12 }}>{prdCount}/{totalCount} PRD</Text>
-                        {projectStuck.length > 0 && <Tag color="warning" style={{ fontSize: 10 }}>GÜá {projectStuck.length} stuck</Tag>}
-                        {projectFailed.length > 0 && <Tag color="error" style={{ fontSize: 10 }}>G¥î {projectFailed.length} failed</Tag>}
+                        <Progress percent={deployPct} size="small" className="w-160" strokeColor={RAG_COLORS[rag]} />
+                        <Text type="secondary" className="fs-12">{prdCount}/{totalCount} PRD</Text>
+                        {projectStuck.length > 0 && <Tag color="warning" className="fs-10">â³ {projectStuck.length} stuck</Tag>}
+                        {projectFailed.length > 0 && <Tag color="error" className="fs-10">âŒ {projectFailed.length} failed</Tag>}
                       </Space>
                     }
                   />
@@ -406,22 +400,22 @@ const HomeDashboardClassic: React.FC = () => {
         )}
       </Card>
 
-      {/* GöÇGöÇ Pending Items (clickable) GöÇGöÇ */}
+      {/* âš ï¸ Pending Items (clickable) âš ï¸ */}
       <div id="pending-items">
         {pendingItems.length > 0 && (
-          <Card title={<Space><WarningOutlined /> Pending Items ({pendingItems.length})</Space>} style={{ marginTop: 12 }} size="small">
+          <Card title={<Space><WarningOutlined /> Pending Items ({pendingItems.length})</Space>} className="mt-12" size="small">
             <List
               size="small"
               dataSource={pendingItems}
               renderItem={(item: any) => (
-                <List.Item style={{ cursor: 'pointer', padding: '6px 0' }}
+                <List.Item className="cursor-pointer py-6 px-0"
                   onClick={() => {
                     if (item.workItem_ID) navigate(`/workitem/${item.workItem_ID}`);
                     else navigate(`/tracker/tr-search?q=${item.trNumber}`);
                   }}>
                   <Space>
                     {item.icon}
-                    <Text style={{ fontSize: 13 }}>{item.text}</Text>
+                    <Text className="fs-13">{item.text}</Text>
                   </Space>
                 </List.Item>
               )}
@@ -430,15 +424,15 @@ const HomeDashboardClassic: React.FC = () => {
         )}
       </div>
 
-      {/* GöÇGöÇ Recently Deployed to PRD GöÇGöÇ */}
+      {/* âœ… Recently Deployed to PRD âœ… */}
       {completedPrd.length > 0 && (
-        <Card title={<Space><CheckCircleOutlined style={{ color: '#52c41a' }} /> Recently Deployed to PRD</Space>} style={{ marginTop: 12 }} size="small">
+        <Card title={<Space><CheckCircleOutlined className="text-green" /> Recently Deployed to PRD</Space>} className="mt-12" size="small">
           <List size="small" dataSource={completedPrd.slice(0, 5)}
             renderItem={(tr: any) => (
-              <List.Item style={{ padding: '4px 0' }}>
-                <Text style={{ fontSize: 13 }}>
-                  <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 4 }} />
-                  <Text copyable={{ text: tr.trNumber }} style={{ fontSize: 13 }}>{tr.trNumber}</Text> GÇö {tr.trDescription?.substring(0, 80)}
+              <List.Item className="py-4 px-0">
+                <Text className="fs-13">
+                  <CheckCircleOutlined className="text-green mr-4" />
+                  <Text copyable={{ text: tr.trNumber }} className="fs-13">{tr.trNumber}</Text> â€” {tr.trDescription?.substring(0, 80)}
                 </Text>
               </List.Item>
             )} />

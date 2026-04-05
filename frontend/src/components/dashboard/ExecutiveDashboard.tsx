@@ -178,12 +178,12 @@ const ExecutiveDashboard: React.FC = () => {
       title: 'Health', key: 'rag', width: 70, align: 'center' as const,
       render: (_: any, r: any) => {
         const rag = getRAG(r);
-        return <Tooltip title={RAG_LABELS[rag]}><div style={{ width: 12, height: 12, borderRadius: '50%', background: RAG_COLORS[rag], margin: '0 auto' }} /></Tooltip>;
+        return <Tooltip title={RAG_LABELS[rag]}><div className={`rag-dot rag-dot-${rag.toLowerCase()}`} /></Tooltip>;
       },
     },
     {
       title: 'Go-Live', dataIndex: 'goLiveDate', key: 'gl', width: 120,
-      render: (d: string) => d ? <Text type="secondary" style={{ fontSize: 12 }}>{d} ({daysFromNow(d)}d)</Text> : <Text type="secondary">—</Text>,
+      render: (d: string) => d ? <Text type="secondary" className="fs-12">{d} ({daysFromNow(d)}d)</Text> : <Text type="secondary">—</Text>,
     },
     {
       title: 'Progress', dataIndex: 'deploymentPct', key: 'pct', width: 120,
@@ -200,8 +200,8 @@ const ExecutiveDashboard: React.FC = () => {
   if (viewMode === 'classic') {
     return (
       <div>
-        <div className="dashboard-view-toggle" style={{ padding: '12px 0' }}>
-          <Title level={4} style={{ margin: 0 }}><TrophyOutlined /> Executive Overview</Title>
+        <div className="dashboard-view-toggle dashboard-toggle-classic">
+          <Title level={4} className="m-0"><TrophyOutlined /> Executive Overview</Title>
           <Segmented
             options={[
               { label: <span><AppstoreOutlined /> Classic</span>, value: 'classic' },
@@ -220,8 +220,8 @@ const ExecutiveDashboard: React.FC = () => {
     <div className="analytics-dashboard">
       <div className="dashboard-view-toggle">
         <div>
-          <Text style={{ color: C.textSec, fontSize: 13 }}>
-            SAP PM Command Center / <Text strong style={{ fontSize: 13 }}>Executive Portfolio Analytics</Text>
+          <Text className="dashboard-breadcrumb">
+            SAP PM Command Center / <Text strong className="dashboard-breadcrumb-active">Executive Portfolio Analytics</Text>
           </Text>
         </div>
         <Segmented
@@ -237,14 +237,14 @@ const ExecutiveDashboard: React.FC = () => {
       <div className="analytics-filter-bar">
         <RangePicker size="middle" onChange={(dates) => setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)} />
         <Select placeholder="Application" allowClear value={filterApp} onChange={setFilterApp}
-          style={{ width: 160 }} options={availableApps.map(a => ({ value: a, label: a }))} />
+          className="filter-select-lg" options={availableApps.map(a => ({ value: a, label: a }))} />
         <Button icon={<FilterOutlined />}>Filters</Button>
       </div>
 
       {/* KPI Cards */}
-      <Row gutter={16} style={{ marginBottom: 20 }}>
+      <Row gutter={16} className="mb-20">
         <Col xs={12} lg={6}>
-          <div className="analytics-kpi" onClick={() => navigate('/tracker?app=all')} style={{ cursor: 'pointer' }}>
+          <div className="analytics-kpi analytics-kpi-clickable" onClick={() => navigate('/tracker?app=all')}>
             <div className="kpi-label"><TrophyOutlined /> Active Projects</div>
             <div className="kpi-value">{activeProjects.length}</div>
             <div className="kpi-delta positive"><CaretUpOutlined /> {ragDist.GREEN} on track</div>
@@ -253,14 +253,14 @@ const ExecutiveDashboard: React.FC = () => {
         <Col xs={12} lg={6}>
           <div className="analytics-kpi">
             <div className="kpi-label"><CheckCircleOutlined /> Completed</div>
-            <div className="kpi-value" style={{ color: C.green }}>{completedCount}</div>
+            <div className="kpi-value text-green">{completedCount}</div>
             <div className="kpi-delta neutral">Across all applications</div>
           </div>
         </Col>
         <Col xs={12} lg={6}>
           <div className="analytics-kpi">
             <div className="kpi-label">Avg Progress</div>
-            <div className="kpi-value">{avgDeployment}<span style={{ fontSize: 18, opacity: 0.5 }}>%</span></div>
+            <div className="kpi-value">{avgDeployment}<span className="kpi-pct-suffix">%</span></div>
             <div className="kpi-delta neutral">Test pass: {testSummary.rate}%</div>
           </div>
         </Col>
@@ -269,72 +269,72 @@ const ExecutiveDashboard: React.FC = () => {
             <div className="kpi-label">Portfolio Health</div>
             <div className="kpi-value">{activeProjects.length}</div>
             <div className="rag-bar">
-              {ragDist.GREEN > 0 && <Tooltip title={`On Track: ${ragDist.GREEN}`}><div style={{ flex: ragDist.GREEN, background: C.green }} /></Tooltip>}
-              {ragDist.AMBER > 0 && <Tooltip title={`At Risk: ${ragDist.AMBER}`}><div style={{ flex: ragDist.AMBER, background: C.amber }} /></Tooltip>}
-              {ragDist.RED > 0 && <Tooltip title={`Critical: ${ragDist.RED}`}><div style={{ flex: ragDist.RED, background: C.red }} /></Tooltip>}
+              {ragDist.GREEN > 0 && <Tooltip title={`On Track: ${ragDist.GREEN}`}><div className="bg-green" style={{ flex: ragDist.GREEN }} /></Tooltip>}
+              {ragDist.AMBER > 0 && <Tooltip title={`At Risk: ${ragDist.AMBER}`}><div className="bg-amber" style={{ flex: ragDist.AMBER }} /></Tooltip>}
+              {ragDist.RED > 0 && <Tooltip title={`Critical: ${ragDist.RED}`}><div className="bg-red" style={{ flex: ragDist.RED }} /></Tooltip>}
             </div>
             <div className="rag-bar-legend">
-              <span><span style={{ color: C.green }}>●</span> On Track</span>
-              <span><span style={{ color: C.amber }}>●</span> At Risk</span>
-              <span><span style={{ color: C.red }}>●</span> Critical</span>
+              <span><span className="text-green">●</span> On Track</span>
+              <span><span className="text-amber">●</span> At Risk</span>
+              <span><span className="text-red">●</span> Critical</span>
             </div>
           </div>
         </Col>
       </Row>
 
       {/* Mini Stats: Per-App Breakdown */}
-      <Row gutter={16} style={{ marginBottom: 20 }}>
+      <Row gutter={16} className="mb-20">
         {appBreakdown.map(({ app, active, completed, total }) => (
           <Col xs={8} lg={8} key={app}>
-            <div className="analytics-kpi" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px' }}>
-              <div style={{ fontSize: 28, color: APP_COLORS[app] }}>{APP_ICONS[app]}</div>
-              <div style={{ flex: 1 }}>
-                <Text strong style={{ fontSize: 14 }}>{app}</Text>
-                <div style={{ display: 'flex', gap: 16, marginTop: 4 }}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Active: <Text strong>{active}</Text></Text>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Done: <Text strong style={{ color: C.green }}>{completed}</Text></Text>
+            <div className="analytics-kpi app-breakdown-card">
+              <div className="app-breakdown-icon" style={{ color: APP_COLORS[app] }}>{APP_ICONS[app]}</div>
+              <div className="flex-1">
+                <Text strong className="fs-14">{app}</Text>
+                <div className="app-breakdown-stats">
+                  <Text type="secondary" className="fs-12">Active: <Text strong>{active}</Text></Text>
+                  <Text type="secondary" className="fs-12">Done: <Text strong className="text-green">{completed}</Text></Text>
                 </div>
               </div>
             </div>
           </Col>
         ))}
         <Col xs={8} lg={4}>
-          <div className="analytics-kpi" style={{ textAlign: 'center', padding: '14px 12px' }}>
-            <div className="kpi-label" style={{ justifyContent: 'center' }}><WarningOutlined /> Critical</div>
-            <div className="kpi-value" style={{ fontSize: 24, color: C.red }}>{ragDist.RED}</div>
-            <Text type="secondary" style={{ fontSize: 11 }}>need attention</Text>
+          <div className="analytics-kpi analytics-kpi-mini">
+            <div className="kpi-label"><WarningOutlined /> Critical</div>
+            <div className="kpi-value text-red">{ragDist.RED}</div>
+            <Text type="secondary" className="fs-11">need attention</Text>
           </div>
         </Col>
         <Col xs={8} lg={4}>
-          <div className="analytics-kpi" style={{ textAlign: 'center', padding: '14px 12px' }}>
-            <div className="kpi-label" style={{ justifyContent: 'center' }}>Risk Score</div>
-            <div className="kpi-value" style={{ fontSize: 24 }}>{totalRiskScore}</div>
-            <Text type="secondary" style={{ fontSize: 11 }}>aggregate</Text>
+          <div className="analytics-kpi analytics-kpi-mini">
+            <div className="kpi-label">Risk Score</div>
+            <div className="kpi-value">{totalRiskScore}</div>
+            <Text type="secondary" className="fs-11">aggregate</Text>
           </div>
         </Col>
         <Col xs={8} lg={4}>
-          <div className="analytics-kpi" style={{ textAlign: 'center', padding: '14px 12px' }}>
-            <div className="kpi-label" style={{ justifyContent: 'center' }}>Go-Lives ≤90d</div>
-            <div className="kpi-value" style={{ fontSize: 24 }}>{upcomingGoLives.length}</div>
-            <Text type="secondary" style={{ fontSize: 11 }}>upcoming</Text>
+          <div className="analytics-kpi analytics-kpi-mini">
+            <div className="kpi-label">Go-Lives ≤90d</div>
+            <div className="kpi-value">{upcomingGoLives.length}</div>
+            <Text type="secondary" className="fs-11">upcoming</Text>
           </div>
         </Col>
       </Row>
 
       {/* Portfolio Overview */}
-      <div className="analytics-chart-card" style={{ marginBottom: 20 }}>
+      <div className="analytics-chart-card chart-card-mb">
         <div className="chart-title">Portfolio Overview</div>
         <Row gutter={24}>
           <Col xs={24} lg={14}>
-            <div style={{ marginBottom: 12 }}>
-              <Text strong style={{ fontSize: 14 }}>Projects by Application & Health</Text>
-              <br /><Text type="secondary" style={{ fontSize: 12 }}>Cross-platform portfolio distribution</Text>
+            <div className="chart-section-header">
+              <Text strong className="fs-14">Projects by Application & Health</Text>
+              <br /><Text type="secondary" className="fs-12">Cross-platform portfolio distribution</Text>
             </div>
-            <Space size={16} style={{ marginBottom: 12 }}>
+            <Space size={16} className="mb-12">
               {[['On Track', C.green], ['At Risk', C.amber], ['Critical', C.red]].map(([label, color]) => (
                 <Space key={label as string} size={4}>
-                  <div style={{ width: 12, height: 12, borderRadius: 2, background: color as string }} />
-                  <Text type="secondary" style={{ fontSize: 12 }}>{label}</Text>
+                  <div className="legend-swatch" style={{ background: color as string }} />
+                  <Text type="secondary" className="fs-12">{label}</Text>
                 </Space>
               ))}
             </Space>
@@ -346,18 +346,18 @@ const ExecutiveDashboard: React.FC = () => {
                 axis={{ x: { title: false, line: null, tick: null }, y: { title: false, gridStroke: '#f0f0f0', gridLineDash: [3, 3] } }}
                 legend={false} />
             ) : (
-              <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="chart-empty-placeholder">
                 <Empty description="No data" />
               </div>
             )}
           </Col>
           <Col xs={24} lg={10}>
-            <div style={{ marginBottom: 12 }}>
-              <Text strong style={{ fontSize: 14 }}>Health Distribution</Text>
-              <br /><Text type="secondary" style={{ fontSize: 12 }}>RAG status across all projects</Text>
+            <div className="chart-section-header">
+              <Text strong className="fs-14">Health Distribution</Text>
+              <br /><Text type="secondary" className="fs-12">RAG status across all projects</Text>
             </div>
             {ragDonutData.length > 0 ? (
-              <div style={{ position: 'relative' }}>
+              <div className="donut-chart-wrapper">
                 <Pie data={ragDonutData} angleField="value" colorField="status"
                   innerRadius={0.65} height={280} theme="classic"
                   scale={{ color: { domain: ['On Track', 'At Risk', 'Critical'], range: [C.green, C.amber, C.red] } }}
@@ -366,7 +366,7 @@ const ExecutiveDashboard: React.FC = () => {
                   <div className="donut-value">{activeProjects.length}</div>
                   <div className="donut-sub">Active</div>
                 </div>
-                <div style={{ position: 'absolute', right: 0, top: 24 }}>
+                <div className="donut-legend-right">
                   <div className="analytics-legend">
                     {ragDonutData.map(({ status, value }) => (
                       <div key={status} className="analytics-legend-item">
@@ -378,7 +378,7 @@ const ExecutiveDashboard: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="chart-empty-placeholder">
                 <Empty description="No data" />
               </div>
             )}
@@ -387,13 +387,13 @@ const ExecutiveDashboard: React.FC = () => {
       </div>
 
       {/* Application Comparison */}
-      <div className="analytics-chart-card" style={{ marginBottom: 20 }}>
+      <div className="analytics-chart-card chart-card-mb">
         <div className="chart-title">Application Comparison</div>
         <Row gutter={24}>
           <Col xs={24} lg={8}>
-            <div style={{ marginBottom: 12 }}>
-              <Text strong style={{ fontSize: 14 }}>Progress by Application</Text>
-              <br /><Text type="secondary" style={{ fontSize: 12 }}>Average deployment % per platform</Text>
+            <div className="chart-section-header">
+              <Text strong className="fs-14">Progress by Application</Text>
+              <br /><Text type="secondary" className="fs-12">Average deployment % per platform</Text>
             </div>
             {appProgressData.length > 0 ? (
               <Bar data={appProgressData} xField="app" yField="progress"
@@ -404,9 +404,9 @@ const ExecutiveDashboard: React.FC = () => {
             ) : <Empty description="No data" />}
           </Col>
           <Col xs={24} lg={8}>
-            <div style={{ marginBottom: 12 }}>
-              <Text strong style={{ fontSize: 14 }}>Risk by Application</Text>
-              <br /><Text type="secondary" style={{ fontSize: 12 }}>Average risk per platform</Text>
+            <div className="chart-section-header">
+              <Text strong className="fs-14">Risk by Application</Text>
+              <br /><Text type="secondary" className="fs-12">Average risk per platform</Text>
             </div>
             {appRiskData.length > 0 ? (
               <Bar data={appRiskData} xField="app" yField="riskScore"
@@ -417,9 +417,9 @@ const ExecutiveDashboard: React.FC = () => {
             ) : <Empty description="No data" />}
           </Col>
           <Col xs={24} lg={8}>
-            <div style={{ marginBottom: 12 }}>
-              <Text strong style={{ fontSize: 14 }}>Priority Distribution</Text>
-              <br /><Text type="secondary" style={{ fontSize: 12 }}>All active projects by priority</Text>
+            <div className="chart-section-header">
+              <Text strong className="fs-14">Priority Distribution</Text>
+              <br /><Text type="secondary" className="fs-12">All active projects by priority</Text>
             </div>
             {priorityData.length > 0 ? (
               <Bar data={priorityData} xField="priority" yField="count"
@@ -434,9 +434,9 @@ const ExecutiveDashboard: React.FC = () => {
 
       {/* All Projects Table */}
       <div className="analytics-chart-card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div className="chart-title" style={{ marginBottom: 0 }}>All Active Projects</div>
-          <Button type="link" style={{ padding: 0 }} onClick={() => navigate('/tracker?app=all')}>
+        <div className="chart-header-actions">
+          <div className="chart-title">All Active Projects</div>
+          <Button type="link" className="p-0" onClick={() => navigate('/tracker?app=all')}>
             View All →
           </Button>
         </div>
