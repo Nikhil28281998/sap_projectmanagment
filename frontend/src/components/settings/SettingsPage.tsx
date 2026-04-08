@@ -6,7 +6,7 @@ import {
 import {
   SettingOutlined, SaveOutlined, RobotOutlined, SyncOutlined,
   ClockCircleOutlined, ThunderboltOutlined, CheckCircleOutlined,
-  CloseCircleOutlined, LinkOutlined, ApiOutlined, CloudOutlined
+  CloseCircleOutlined, ApiOutlined, CloudOutlined
 } from '@ant-design/icons';
 import { configApi, aiApi, sharePointApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -15,10 +15,10 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 
 const AI_PROVIDERS = [
-  { value: 'openrouter', label: 'OpenRouter (Multi-model, FREE)', hint: 'sk-or-v1-...', url: 'https://openrouter.ai/keys' },
-  { value: 'gemini',     label: 'Gemini (Google, FREE)',          hint: 'AIzaSy...',     url: 'https://aistudio.google.com/apikey' },
-  { value: 'claude',     label: 'Claude (Anthropic)',             hint: 'sk-ant-api03-...', url: 'https://console.anthropic.com/settings/keys' },
-  { value: 'chatgpt',    label: 'ChatGPT (OpenAI)',              hint: 'sk-proj-...',   url: 'https://platform.openai.com/api-keys' },
+  { value: 'openrouter', label: 'OpenRouter (Multi-model, FREE)' },
+  { value: 'gemini',     label: 'Gemini (Google, FREE)' },
+  { value: 'claude',     label: 'Claude (Anthropic)' },
+  { value: 'chatgpt',    label: 'ChatGPT (OpenAI)' },
 ];
 
 const SettingsPage: React.FC = () => {
@@ -27,8 +27,6 @@ const SettingsPage: React.FC = () => {
   const [aiTestResult, setAiTestResult] = useState<{ success: boolean; message: string; provider?: string } | null>(null);
   const [aiTesting, setAiTesting] = useState(false);
   const [aiProvider, setAiProvider] = useState<string>('openrouter');
-  const [aiApiKey, setAiApiKey] = useState('');
-  const [aiSaving, setAiSaving] = useState(false);
   const { canConfigure, canWrite } = useAuth();
 
   // SharePoint configuration state
@@ -92,8 +90,6 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const selectedProvider = AI_PROVIDERS.find(p => p.value === aiProvider);
-
   return (
     <div>
       <Title level={3}>
@@ -151,86 +147,57 @@ const SettingsPage: React.FC = () => {
           </Divider>
 
           <Alert type="info" showIcon icon={<ApiOutlined />} style={{ marginBottom: 16 }}
-            message="Connect an AI Provider"
+            message="AI Provider (BTP Destination)"
             description={
               <Text style={{ fontSize: 12 }}>
-                Choose your AI provider from the dropdown below. Your company IT admin provisions the API key.
-                <strong> OpenRouter</strong> and <strong>Gemini</strong> have free tiers — no credit card needed.
+                Select which AI provider the backend should use. API keys are managed securely via
+                <strong> SAP BTP Destinations</strong> — configure them in the BTP Cockpit under
+                Connectivity → Destinations (e.g. <code>SAP_PM_AI_OPENROUTER</code>).
+                No API keys are stored in the frontend.
               </Text>
             }
           />
 
-          {/* Single Dropdown for AI Provider */}
+          {/* AI Provider Dropdown */}
           <Form.Item label="AI Provider">
             <Select
               value={aiProvider}
-              onChange={(val) => { setAiProvider(val); setAiTestResult(null); }}
+              onChange={async (val) => {
+                setAiProvider(val);
+                setAiTestResult(null);
+                try {
+                  await aiApi.saveConfig(val, '__BTP_DESTINATION__');
+                  message.success(`AI provider set to ${AI_PROVIDERS.find(p => p.value === val)?.label || val}`);
+                } catch { message.error('Failed to update provider'); }
+              }}
               style={{ width: 400 }}
               size="large"
+              disabled={!canConfigure}
             >
               {AI_PROVIDERS.map(p => (
                 <Option key={p.value} value={p.value}>{p.label}</Option>
               ))}
             </Select>
-          </Form.Item>
-
-          {/* API Key Input */}
-          <Form.Item label={
-            <Space>
-              <span>API Key</span>
-              {selectedProvider && (
-                <a href={selectedProvider.url} target="_blank" rel="noopener noreferrer" className="settings-link-sm">
-                  Get key →
-                </a>
-              )}
-            </Space>
-          }>
-            <Input.Password
-              value={aiApiKey}
-              onChange={e => setAiApiKey(e.target.value)}
-              placeholder={selectedProvider?.hint || 'Enter API key...'}
-              className="settings-api-key-input"
-              addonBefore={<LinkOutlined />}
-              disabled={!canConfigure}
-            />
             {!canConfigure && (
               <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
-                Only Admin can change AI configuration.
+                Only Admin can change AI provider.
               </Text>
             )}
           </Form.Item>
 
-          {/* Connect & Test Buttons */}
+          {/* Test Connection */}
           <Space style={{ marginBottom: 16 }}>
-            <Button type="primary" icon={<ThunderboltOutlined />} loading={aiSaving}
-              disabled={!aiApiKey.trim() || !canConfigure}
-              onClick={async () => {
-                setAiSaving(true); setAiTestResult(null);
-                try {
-                  const saveResult = await aiApi.saveConfig(aiProvider, aiApiKey);
-                  if (!saveResult.success) { setAiTestResult({ success: false, message: saveResult.message }); return; }
-                  setAiTesting(true);
-                  const testResult = await aiApi.testConnection();
-                  setAiTestResult(testResult);
-                  if (testResult.success) {
-                    const name = AI_PROVIDERS.find(p => p.value === aiProvider)?.label || aiProvider;
-                    message.success(`${name} connected successfully!`);
-                  }
-                } catch (err: any) { setAiTestResult({ success: false, message: err.message || 'Connection failed' }); }
-                finally { setAiSaving(false); setAiTesting(false); }
-              }}>
-              Save & Test
-            </Button>
-            <Button icon={<ThunderboltOutlined />} loading={aiTesting && !aiSaving}
+            <Button icon={<ThunderboltOutlined />} loading={aiTesting}
               onClick={async () => {
                 setAiTesting(true); setAiTestResult(null);
                 try {
                   const result = await aiApi.testConnection();
                   setAiTestResult(result);
+                  if (result.success) message.success('AI connection verified!');
                 } catch (err: any) { setAiTestResult({ success: false, message: err.message || 'Test failed' }); }
                 finally { setAiTesting(false); }
               }}>
-              Test Existing
+              Test Connection
             </Button>
           </Space>
 
