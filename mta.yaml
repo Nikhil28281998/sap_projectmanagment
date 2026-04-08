@@ -22,6 +22,8 @@ modules:
       buildpack: nodejs_buildpack
       memory: 256M
       disk-quota: 512M
+    properties:
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
     build-parameters:
       builder: npm
     provides:
@@ -31,6 +33,8 @@ modules:
     requires:
       - name: sap-pm-db
       - name: sap-pm-auth
+      - name: sap-pm-destination
+      - name: sap-pm-connectivity
 
   # ─── HANA Cloud Database Deployer ──────────────────
   - name: sap-pm-db-deployer
@@ -93,3 +97,49 @@ resources:
       service: xsuaa
       service-plan: application
       path: ./xs-security.json
+
+  # ─── BTP Destination Service (AI, RFC, SharePoint) ─
+  - name: sap-pm-destination
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: destination
+      service-plan: lite
+      config:
+        version: 1.0.0
+        HTML5Runtime_enabled: false
+        init_data:
+          instance:
+            existing_destinations_policy: update
+            destinations:
+              - Name: SAP_PM_AI_OPENROUTER
+                Description: OpenRouter AI Proxy (Free models)
+                URL: https://openrouter.ai/api/v1
+                Type: HTTP
+                ProxyType: Internet
+                Authentication: NoAuthentication
+                # API key passed as bearer token in code
+              - Name: SAP_PM_AI_CLAUDE
+                Description: Anthropic Claude API
+                URL: https://api.anthropic.com/v1
+                Type: HTTP
+                ProxyType: Internet
+                Authentication: NoAuthentication
+              - Name: SAP_PM_AI_OPENAI
+                Description: OpenAI ChatGPT API
+                URL: https://api.openai.com/v1
+                Type: HTTP
+                ProxyType: Internet
+                Authentication: NoAuthentication
+              - Name: SAP_PM_AI_GEMINI
+                Description: Google Gemini API
+                URL: https://generativelanguage.googleapis.com/v1beta
+                Type: HTTP
+                ProxyType: Internet
+                Authentication: NoAuthentication
+
+  # ─── BTP Connectivity Service (Cloud Connector → SAP on-prem) ─
+  - name: sap-pm-connectivity
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: connectivity
+      service-plan: lite

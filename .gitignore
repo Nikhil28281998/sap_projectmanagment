@@ -11,3 +11,6 @@ db.sqlite-wal
 *.log
 coverage/
 approuter/webapp/
+
+frontend/test-results/
+frontend/playwright-report/

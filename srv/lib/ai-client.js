@@ -1,16 +1,30 @@
 /**
  * Unified AI Client — Supports Claude, ChatGPT, Gemini, and OpenRouter
  * 
+ * BTP Deployment: AI providers are configured as BTP Destinations.
+ *   - The backend uses @sap-cloud-sdk/connectivity to resolve destinations
+ *   - API keys live in the BTP Destination (never exposed to the frontend)
+ *   - Fallback: encrypted keys in AppConfig DB table (AES-256-GCM)
+ *   - Fallback: env vars for local development
+ * 
  * Users connect their account in Settings → AI Integration:
  *   - Choose provider: Claude, ChatGPT, Gemini, or OpenRouter
- *   - Enter API key from the provider's console
+ *   - Enter API key from the provider's console (stored encrypted on backend)
  *   - OpenRouter: FREE models via openrouter.ai — no credit card needed
- *   - Enterprise orgs: admin provisions keys billed to the org
- * 
- * API keys are stored encrypted (AES-256-GCM) and decrypted on read.
+ *   - Enterprise orgs: admin provisions BTP Destinations billed to the org
  */
 
 const { decrypt } = require('./crypto-utils');
+
+// ── BTP Destination names (configured in BTP cockpit) ──
+const DESTINATION_NAMES = {
+  claude:     'SAP_PM_AI_CLAUDE',
+  chatgpt:    'SAP_PM_AI_OPENAI',
+  gemini:     'SAP_PM_AI_GEMINI',
+  openrouter: 'SAP_PM_AI_OPENROUTER',
+  rfc:        'SAP_PM_RFC_S4HANA',
+  sharepoint: 'SAP_PM_SHAREPOINT',
+};
 
 const PROVIDERS = {
   claude: {
@@ -53,12 +67,16 @@ class AIClient {
   }
 
   /**
-   * Factory — loads provider + API key from AppConfig or env
+   * Factory — loads provider + API key from:
+   *   1. BTP Destination service (production)
+   *   2. AppConfig DB table (encrypted)
+   *   3. Environment variables (dev fallback)
    */
   static async create(db, entities) {
     // Check which provider is configured
     let provider = 'claude';
     let apiKey = null;
+    let destUrl = null;
 
     if (db && entities?.AppConfig) {
       try {
@@ -69,18 +87,33 @@ class AIClient {
           provider = providerConfig.configValue;
         }
 
-        // Read the API key for the chosen provider
-        const keyConfigName = PROVIDERS[provider]?.configKey || 'CLAUDE_API_KEY';
-        const keyConfig = await SELECT.one.from(entities.AppConfig)
-          .where({ configKey: keyConfigName });
-        if (keyConfig?.configValue && !keyConfig.configValue.startsWith('YOUR_')) {
-          // Decrypt if encrypted (enc: prefix), pass-through if plain
-          apiKey = decrypt(keyConfig.configValue);
+        // ── Strategy 1: Try BTP Destination (production) ──
+        if (process.env.NODE_ENV === 'production' || process.env.VCAP_SERVICES) {
+          try {
+            const destResult = await AIClient._resolveDestination(provider);
+            if (destResult) {
+              apiKey = destResult.apiKey;
+              destUrl = destResult.url;
+              console.log(`[AI] Using BTP Destination "${DESTINATION_NAMES[provider]}" for ${provider}`);
+            }
+          } catch (destErr) {
+            console.warn(`[AI] BTP Destination not found for ${provider}: ${destErr.message}. Falling back to AppConfig.`);
+          }
+        }
+
+        // ── Strategy 2: AppConfig encrypted key ──
+        if (!apiKey) {
+          const keyConfigName = PROVIDERS[provider]?.configKey || 'CLAUDE_API_KEY';
+          const keyConfig = await SELECT.one.from(entities.AppConfig)
+            .where({ configKey: keyConfigName });
+          if (keyConfig?.configValue && !keyConfig.configValue.startsWith('YOUR_')) {
+            apiKey = decrypt(keyConfig.configValue);
+          }
         }
       } catch { /* table may not exist yet */ }
     }
 
-    // Fallback to env vars
+    // ── Strategy 3: Fallback to env vars ──
     if (!apiKey) {
       if (provider === 'chatgpt') {
         apiKey = process.env.OPENAI_API_KEY;
@@ -93,7 +126,74 @@ class AIClient {
       }
     }
 
-    return new AIClient({ provider, apiKey });
+    const client = new AIClient({ provider, apiKey });
+    if (destUrl) client._destUrl = destUrl;
+    return client;
+  }
+
+  /**
+   * Resolve API key from BTP Destination service
+   * Destinations are configured in BTP cockpit with the API key as password
+   */
+  static async _resolveDestination(provider) {
+    const destName = DESTINATION_NAMES[provider];
+    if (!destName) return null;
+
+    try {
+      // Try @sap-cloud-sdk/connectivity (preferred for BTP)
+      const { getDestination } = require('@sap-cloud-sdk/connectivity');
+      const dest = await getDestination({ destinationName: destName });
+      if (dest) {
+        return {
+          url: dest.url || null,
+          apiKey: dest.password || dest.authTokens?.[0]?.value || null,
+        };
+      }
+    } catch {
+      // SDK not available — try VCAP_SERVICES directly
+      try {
+        const vcap = JSON.parse(process.env.VCAP_SERVICES || '{}');
+        const destService = vcap.destination?.[0];
+        if (destService) {
+          // Use destination service REST API
+          const destServiceUrl = destService.credentials.uri;
+          const token = await AIClient._getDestServiceToken(destService.credentials);
+          const res = await fetch(`${destServiceUrl}/destination-configuration/v1/destinations/${destName}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const destConfig = await res.json();
+            return {
+              url: destConfig.destinationConfiguration?.URL || null,
+              apiKey: destConfig.destinationConfiguration?.Password
+                || destConfig.authTokens?.[0]?.value || null,
+            };
+          }
+        }
+      } catch (vcapErr) {
+        console.warn(`[AI] VCAP destination lookup failed: ${vcapErr.message}`);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Get OAuth token for the BTP Destination service instance
+   */
+  static async _getDestServiceToken(credentials) {
+    const tokenUrl = `${credentials.url}/oauth/token`;
+    const res = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: credentials.clientid,
+        client_secret: credentials.clientsecret,
+      }).toString(),
+    });
+    if (!res.ok) throw new Error(`Destination token request failed: ${res.status}`);
+    const data = await res.json();
+    return data.access_token;
   }
 
   /**
@@ -437,4 +537,4 @@ Provide: risk level, key concerns, recommended actions.`,
   }
 }
 
-module.exports = { AIClient, PROVIDERS };
+module.exports = { AIClient, PROVIDERS, DESTINATION_NAMES };

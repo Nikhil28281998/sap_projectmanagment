@@ -207,6 +207,8 @@
 .app-content {
   margin: 12px 16px;
   min-height: calc(100vh - 72px);
+  max-width: 1600px;
+  padding-bottom: 60px; /* clearance for AI FAB button */
 }
 
 .app-main-expanded {
@@ -606,6 +608,8 @@
 .banner-title       { color: #fff; margin: 0; }
 .banner-subtitle    { color: rgba(255,255,255,0.85); font-size: 14px; margin-top: 4px; display: block; }
 .banner-kpi         { text-align: center; padding: 4px 16px; border-radius: 8px; transition: background 0.2s; }
+.banner-kpi-clickable { cursor: pointer; }
+.banner-kpi-clickable:hover { background: rgba(255,255,255,0.15); }
 .banner-kpi-value   { font-size: 28px; font-weight: 700; line-height: 1.2; }
 .banner-kpi-label   { color: rgba(255,255,255,0.65); font-size: 12px; }
 
@@ -616,6 +620,11 @@
 
 .test-stacked-bar   { display: flex; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 12px; }
 .test-total-row     { display: flex; justify-content: space-between; border-top: 1px solid #f0f0f0; padding-top: 4px; }
+
+/* Tab-Card seamless connection */
+.tab-card-body      { margin-bottom: 16px; border-top: none; border-top-left-radius: 0; border-top-right-radius: 0; }
+.tracker-tabs        { margin-bottom: 0; }
+.tracker-title       { margin-bottom: 8px; }
 
 .bg-gray-light      { background: #d9d9d9; }
 .bg-gray            { background: #bfbfbf; }
@@ -876,6 +885,24 @@
   .analytics-filter-bar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  /* Digest layout — stack on mobile */
+  .digest-layout {
+    flex-direction: column;
+  }
+  .digest-sidebar {
+    width: 100% !important;
+    max-height: 300px;
+    overflow: auto;
+  }
+
+  /* Header controls — prevent overflow */
+  .app-header {
+    overflow: hidden;
+  }
+  .app-header .ant-space {
+    flex-wrap: wrap;
   }
 
   .filter-select-sm,

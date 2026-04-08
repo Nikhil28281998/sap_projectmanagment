@@ -111,7 +111,7 @@ const TransportPipeline: React.FC = () => {
 
       {/* Summary Stats */}
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col span={4}>
+        <Col xs={12} sm={8} lg={4}>
           <Card size="small">
             <Statistic
               title="DEV"
@@ -120,7 +120,7 @@ const TransportPipeline: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={4}>
+        <Col xs={12} sm={8} lg={4}>
           <Card size="small">
             <Statistic
               title="QAS"
@@ -129,7 +129,7 @@ const TransportPipeline: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={4}>
+        <Col xs={12} sm={8} lg={4}>
           <Card size="small">
             <Statistic
               title="PRD"
@@ -138,7 +138,7 @@ const TransportPipeline: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={4}>
+        <Col xs={12} sm={8} lg={4}>
           <Card size="small">
             <Statistic
               title="Stuck >5d"
@@ -148,7 +148,7 @@ const TransportPipeline: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={4}>
+        <Col xs={12} sm={8} lg={4}>
           <Card size="small">
             <Statistic
               title="Failed"
@@ -158,7 +158,7 @@ const TransportPipeline: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={4}>
+        <Col xs={12} sm={8} lg={4}>
           <Card size="small">
             <Statistic
               title="Total"

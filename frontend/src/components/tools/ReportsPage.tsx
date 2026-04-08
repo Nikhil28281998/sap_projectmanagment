@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Tabs, Typography, Space } from 'antd';
+import { Tabs, Typography, Space, Alert } from 'antd';
 import { FileTextOutlined, RobotOutlined, CalendarOutlined } from '@ant-design/icons';
 import ReportBuilder from './ReportBuilder';
 import WeeklyDigestPage from './WeeklyDigestPage';
+import ErrorBoundary from '../layout/ErrorBoundary';
 
 const { Title, Text } = Typography;
 
@@ -39,7 +40,7 @@ const ReportsPage: React.FC = () => {
                 Report Builder
               </Space>
             ),
-            children: <ReportBuilder embedded />,
+            children: <ErrorBoundary><ReportBuilder embedded /></ErrorBoundary>,
           },
           {
             key: 'digest',
@@ -49,7 +50,7 @@ const ReportsPage: React.FC = () => {
                 AI Weekly Digest
               </Space>
             ),
-            children: <WeeklyDigestPage embedded />,
+            children: <ErrorBoundary><WeeklyDigestPage embedded /></ErrorBoundary>,
           },
         ]}
       />

@@ -125,10 +125,8 @@ const HomeDashboardClassic: React.FC = () => {
   // Reusable banner KPI with click
   const bannerKpi = (label: string, value: number | string, color: string, onClick?: () => void) => (
     <Tooltip title={onClick ? `Click to view ${label}` : undefined}>
-      <div className="banner-kpi" style={{ cursor: onClick ? 'pointer' : 'default' }}
-        onClick={onClick}
-        onMouseEnter={(e) => onClick && (e.currentTarget.style.background = 'rgba(255,255,255,0.15)')}
-        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
+      <div className={`banner-kpi${onClick ? ' banner-kpi-clickable' : ''}`}
+        onClick={onClick}>
         <div className="banner-kpi-value" style={{ color }}>{value}</div>
         <div className="banner-kpi-label">{label}</div>
       </div>

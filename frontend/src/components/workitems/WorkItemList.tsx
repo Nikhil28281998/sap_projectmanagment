@@ -348,7 +348,7 @@ const WorkItemList: React.FC = () => {
 
   return (
     <div>
-      <Title level={3} style={{ marginBottom: 8 }}>
+      <Title level={3} className="tracker-title">
         <ProjectOutlined /> Tracker
       </Title>
 
@@ -356,7 +356,7 @@ const WorkItemList: React.FC = () => {
         activeKey={activeTab || ''}
         onChange={handleTabChange}
         type="card"
-        style={{ marginBottom: 0 }}
+        className="tracker-tabs"
         items={(TAB_CONFIGS[activeModule] || TAB_CONFIGS.sap).map(tab => ({
           key: tab.key,
           label: (
@@ -379,7 +379,7 @@ const WorkItemList: React.FC = () => {
       {activeTab === 'tr-search' ? (
         /* ── TR Search Tab ── */
         <>
-          <Card size="small" style={{ marginBottom: 16, borderTop: 'none', borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
+          <Card size="small" className="tab-card-body">
             <Row gutter={[12, 12]}>
               <Col xs={24} md={12}>
                 <Input
@@ -439,7 +439,7 @@ const WorkItemList: React.FC = () => {
       ) : (
         /* ── Work Items Table ── */
         <>
-          <Card size="small" style={{ marginBottom: 16, borderTop: 'none', borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
+          <Card size="small" className="tab-card-body">
             <Space wrap>
               <Input
                 placeholder="Search name, owner, SNOW, developer..."
