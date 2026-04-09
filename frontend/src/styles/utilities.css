@@ -145,6 +145,8 @@
    ═══════════════════════════════════════════ */
 .app-layout {
   min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .app-sider {
@@ -193,6 +195,7 @@
   justify-content: space-between;
   border-bottom: 1px solid #f0f0f0;
   height: var(--header-height);
+  flex-shrink: 0;
 }
 
 .app-header-title {
@@ -206,19 +209,30 @@
 
 .app-content {
   margin: 12px 16px;
-  min-height: calc(100vh - 72px);
+  flex: 1 1 auto;
+  width: 100%;
   max-width: 1600px;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding-bottom: 60px; /* clearance for AI FAB button */
 }
 
 .app-main-expanded {
   margin-left: var(--sider-width);
   transition: margin-left 0.2s;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .app-main-collapsed {
   margin-left: var(--sider-collapsed);
   transition: margin-left 0.2s;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .app-fab {
