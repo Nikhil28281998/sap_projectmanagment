@@ -20,12 +20,13 @@ import '../../styles/dashboard-analytics.css';
 const { Text, Title } = Typography;
 const { RangePicker } = DatePicker;
 
-// Light theme color palette
+// Dark theme color palette
 const C = {
-  bg: '#f0f2f5', card: '#ffffff', border: '#e8e8e8',
-  text: 'rgba(0,0,0,0.88)', textSec: 'rgba(0,0,0,0.45)',
-  accent: '#1677ff', green: '#52c41a', red: '#ff4d4f', amber: '#faad14',
-  orange: '#fa8c16', purple: '#722ed1', cyan: '#13c2c2', pink: '#eb2f96',
+  bg: '#0d1117', card: '#161b22', border: '#30363d',
+  text: 'rgba(255,255,255,0.87)', textSec: 'rgba(255,255,255,0.45)',
+  accent: '#58a6ff', green: '#3fb950', red: '#f85149', amber: '#d29922',
+  orange: '#f0883e', purple: '#a371f7', cyan: '#39d2c0', pink: '#f778ba',
+  grid: '#21262d',
 };
 
 function getRAG(wi: any): string {
@@ -386,12 +387,12 @@ const HomeDashboard: React.FC = () => {
                 colorField="status"
                 stack={true}
                 height={280}
-                theme="classic"
+                theme="classicDark"
                 scale={{ color: { domain: ['On Track', 'At Risk', 'Critical'], range: [C.green, C.amber, C.red] } }}
                 style={{ maxWidth: 40, radiusTopLeft: 4, radiusTopRight: 4 }}
                 axis={{
-                  x: { title: false, line: null, tick: null },
-                  y: { title: false, gridStroke: '#f0f0f0', gridLineDash: [3, 3] },
+                  x: { title: false, line: null, tick: null, labelFill: C.textSec },
+                  y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3], labelFill: C.textSec },
                 }}
                 legend={false}
               />
@@ -416,7 +417,7 @@ const HomeDashboard: React.FC = () => {
                   colorField="type"
                   innerRadius={0.65}
                   height={280}
-                  theme="classic"
+                  theme="classicDark"
                   scale={{ color: { range: typeDonutData.map(d => typeColorMap[d.type]) } }}
                   label={false}
                   legend={false}
@@ -461,13 +462,13 @@ const HomeDashboard: React.FC = () => {
                 xField="module"
                 yField="count"
                 height={Math.max(200, moduleBarData.length * 48)}
-                theme="classic"
+                theme="classicDark"
                 style={{ fill: C.accent, radiusTopRight: 4, radiusBottomRight: 4 }}
                 axis={{
-                  x: { title: false },
-                  y: { title: false, gridStroke: '#f0f0f0', gridLineDash: [3, 3] },
+                  x: { title: false, labelFill: C.textSec },
+                  y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3], labelFill: C.textSec },
                 }}
-                label={{ text: 'count', fontSize: 11 }}
+                label={{ text: 'count', fontSize: 11, fill: C.textSec }}
                 legend={false}
               />
             ) : (
@@ -486,13 +487,13 @@ const HomeDashboard: React.FC = () => {
                 xField="module"
                 yField="riskScore"
                 height={Math.max(200, moduleRiskData.length * 48)}
-                theme="classic"
+                theme="classicDark"
                 style={{ fill: C.red, radiusTopRight: 4, radiusBottomRight: 4 }}
                 axis={{
-                  x: { title: false },
-                  y: { title: false, gridStroke: '#f0f0f0', gridLineDash: [3, 3] },
+                  x: { title: false, labelFill: C.textSec },
+                  y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3], labelFill: C.textSec },
                 }}
-                label={{ text: 'riskScore', fontSize: 11 }}
+                label={{ text: 'riskScore', fontSize: 11, fill: C.textSec }}
                 legend={false}
               />
             ) : (
@@ -518,13 +519,13 @@ const HomeDashboard: React.FC = () => {
                 xField="priority"
                 yField="count"
                 height={Math.max(180, priorityData.length * 48)}
-                theme="classic"
+                theme="classicDark"
                 style={{ fill: C.purple, radiusTopRight: 4, radiusBottomRight: 4 }}
                 axis={{
-                  x: { title: false },
-                  y: { title: false, gridStroke: '#f0f0f0', gridLineDash: [3, 3] },
+                  x: { title: false, labelFill: C.textSec },
+                  y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3], labelFill: C.textSec },
                 }}
-                label={{ text: 'count', fontSize: 11 }}
+                label={{ text: 'count', fontSize: 11, fill: C.textSec }}
                 legend={false}
               />
             ) : <Empty description="No data" />}
@@ -541,14 +542,14 @@ const HomeDashboard: React.FC = () => {
                 xField="system"
                 yField="count"
                 height={220}
-                theme="classic"
+                theme="classicDark"
                 style={{ maxWidth: 60, radiusTopLeft: 4, radiusTopRight: 4 }}
                 scale={{ color: { range: [C.accent] } }}
                 axis={{
-                  x: { title: false, line: null, tick: null },
-                  y: { title: false, gridStroke: '#f0f0f0', gridLineDash: [3, 3] },
+                  x: { title: false, line: null, tick: null, labelFill: C.textSec },
+                  y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3], labelFill: C.textSec },
                 }}
-                label={{ text: 'count', fontSize: 12 }}
+                label={{ text: 'count', fontSize: 12, fill: C.textSec }}
                 legend={false}
               />
             ) : <Empty description="No transports" />}

@@ -208,7 +208,8 @@
 }
 
 .app-content {
-  margin: 12px 16px;
+  margin: 12px auto;
+  padding: 0 16px;
   flex: 1 1 auto;
   width: 100%;
   max-width: 1600px;
@@ -879,6 +880,27 @@
 /* ═══════════════════════════════════════════
    RESPONSIVE ADJUSTMENTS
    ═══════════════════════════════════════════ */
+
+/* Tablet / small laptop breakpoint */
+@media (max-width: 1024px) {
+  .analytics-dashboard {
+    padding: 16px;
+  }
+
+  .analytics-kpi .kpi-value {
+    font-size: 28px;
+  }
+
+  .analytics-kpi-mini .kpi-value {
+    font-size: 22px;
+  }
+
+  .donut-legend-right {
+    position: static;
+    margin-top: 12px;
+  }
+}
+
 @media (max-width: 768px) {
   .app-content {
     margin: 8px;

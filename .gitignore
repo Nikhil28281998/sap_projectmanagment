@@ -14,3 +14,6 @@ approuter/webapp/
 
 frontend/test-results/
 frontend/playwright-report/
+
+# Playwright screenshots
+frontend/e2e/screenshots/

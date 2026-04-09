@@ -1,13 +1,15 @@
 /* ════════════════════════════════════════════════════════════════
-   Analytics Dashboard Theme — Light / Modern
+   Analytics Dashboard Theme — Dark / Professional
    Applied via .analytics-dashboard wrapper class
+   Color palette: GitHub-dark inspired with SAP accent blue
    ════════════════════════════════════════════════════════════════ */
 
 .analytics-dashboard {
-  background: #f0f2f5;
-  min-height: calc(100vh - 72px);
+  background: #0d1117;
+  min-height: calc(100vh - var(--header-height, 48px) - 24px);
   margin: -12px -16px;
   padding: 20px 24px;
+  color: rgba(255, 255, 255, 0.87);
 }
 
 /* ── Toggle Bar ── */
@@ -24,6 +26,36 @@
   gap: 12px;
 }
 
+/* ── Breadcrumb text in dark mode ── */
+.analytics-dashboard .dashboard-breadcrumb,
+.analytics-dashboard .dashboard-breadcrumb .ant-typography {
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
+.analytics-dashboard .dashboard-breadcrumb-active,
+.analytics-dashboard .dashboard-breadcrumb .ant-typography-strong {
+  color: rgba(255, 255, 255, 0.87) !important;
+}
+
+/* ── Segmented toggle dark ── */
+.analytics-dashboard .ant-segmented {
+  background: #161b22 !important;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.analytics-dashboard .ant-segmented-item-selected {
+  background: #21262d !important;
+  color: #ffffff !important;
+}
+
+.analytics-dashboard .ant-segmented-item {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.analytics-dashboard .ant-segmented-item:hover {
+  color: rgba(255, 255, 255, 0.75);
+}
+
 /* ── Filter Bar ── */
 .analytics-filter-bar {
   display: flex;
@@ -35,8 +67,8 @@
 
 /* ── KPI Stat Cards ── */
 .analytics-kpi {
-  background: #ffffff;
-  border: 1px solid #e8e8e8;
+  background: #161b22;
+  border: 1px solid #30363d;
   border-radius: 12px;
   padding: 20px;
   height: 100%;
@@ -44,12 +76,12 @@
 }
 
 .analytics-kpi:hover {
-  border-color: #1677ff;
-  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.12);
+  border-color: #58a6ff;
+  box-shadow: 0 0 0 1px rgba(88, 166, 255, 0.25);
 }
 
 .analytics-kpi .kpi-label {
-  color: rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.45);
   font-size: 13px;
   font-weight: 500;
   margin-bottom: 8px;
@@ -59,7 +91,7 @@
 }
 
 .analytics-kpi .kpi-value {
-  color: rgba(0, 0, 0, 0.88);
+  color: #ffffff;
   font-size: 32px;
   font-weight: 700;
   line-height: 1.1;
@@ -75,35 +107,57 @@
 }
 
 .analytics-kpi .kpi-delta.positive {
-  color: #52c41a;
+  color: #3fb950;
 }
 
 .analytics-kpi .kpi-delta.negative {
-  color: #ff4d4f;
+  color: #f85149;
 }
 
 .analytics-kpi .kpi-delta.neutral {
-  color: rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.45);
 }
 
 /* ── Chart Cards ── */
 .analytics-chart-card {
-  background: #ffffff;
-  border: 1px solid #e8e8e8;
+  background: #161b22;
+  border: 1px solid #30363d;
   border-radius: 12px;
   padding: 20px 24px;
 }
 
 .analytics-chart-card .chart-title {
-  color: rgba(0, 0, 0, 0.88);
+  color: rgba(255, 255, 255, 0.87);
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 16px;
 }
 
 .analytics-chart-card .chart-subtitle {
-  color: rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.35);
   font-size: 12px;
+}
+
+/* ── Section headers in charts ── */
+.analytics-dashboard .chart-section-header .ant-typography {
+  color: rgba(255, 255, 255, 0.87) !important;
+}
+
+.analytics-dashboard .chart-section-header .ant-typography-secondary {
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
+/* ── General text overrides in analytics ── */
+.analytics-dashboard .ant-typography {
+  color: rgba(255, 255, 255, 0.87);
+}
+
+.analytics-dashboard .ant-typography-secondary {
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
+.analytics-dashboard .ant-typography strong {
+  color: rgba(255, 255, 255, 0.87);
 }
 
 /* ── Donut Center Overlay ── */
@@ -119,13 +173,13 @@
 .donut-center-label .donut-value {
   font-size: 32px;
   font-weight: 700;
-  color: rgba(0, 0, 0, 0.88);
+  color: #ffffff;
   line-height: 1.1;
 }
 
 .donut-center-label .donut-sub {
   font-size: 12px;
-  color: rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.45);
   margin-top: 2px;
 }
 
@@ -141,7 +195,7 @@
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: rgba(0, 0, 0, 0.65);
+  color: rgba(255, 255, 255, 0.65);
 }
 
 .analytics-legend-dot {
@@ -171,7 +225,7 @@
   gap: 10px;
   margin-top: 6px;
   font-size: 10px;
-  color: rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.45);
 }
 
 /* ── Mini Stat Section ── */
@@ -183,8 +237,8 @@
 }
 
 .analytics-mini-stat {
-  background: #fafafa;
-  border: 1px solid #f0f0f0;
+  background: #0d1117;
+  border: 1px solid #21262d;
   border-radius: 8px;
   padding: 12px;
   text-align: center;
@@ -192,22 +246,130 @@
 
 .analytics-mini-stat .mini-label {
   font-size: 11px;
-  color: rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.45);
   margin-bottom: 4px;
 }
 
 .analytics-mini-stat .mini-value {
   font-size: 20px;
   font-weight: 700;
-  color: rgba(0, 0, 0, 0.88);
+  color: #ffffff;
 }
 
 /* ── Table inside analytics ── */
 .analytics-dashboard .ant-table {
-  background: transparent;
+  background: transparent !important;
+  color: rgba(255, 255, 255, 0.87);
 }
 
-.analytics-dashboard .ant-table-thead > tr > th {
-  background: #fafafa;
-  border-bottom: 1px solid #f0f0f0;
+.analytics-dashboard .ant-table-thead > tr > th,
+.analytics-dashboard .ant-table-thead > tr > td {
+  background: #21262d !important;
+  border-bottom: 1px solid #30363d !important;
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.analytics-dashboard .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #21262d !important;
+  color: rgba(255, 255, 255, 0.87) !important;
+}
+
+.analytics-dashboard .ant-table-tbody > tr:hover > td {
+  background: #1c2128 !important;
+}
+
+.analytics-dashboard .ant-table-cell {
+  background: transparent !important;
+}
+
+/* ── Ant Design Overrides inside dark analytics ── */
+.analytics-dashboard .ant-select-selector {
+  background: #161b22 !important;
+  border-color: #30363d !important;
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.analytics-dashboard .ant-select-arrow {
+  color: rgba(255, 255, 255, 0.35) !important;
+}
+
+.analytics-dashboard .ant-select-selection-placeholder {
+  color: rgba(255, 255, 255, 0.35) !important;
+}
+
+.analytics-dashboard .ant-select-clear {
+  background: #161b22 !important;
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
+.analytics-dashboard .ant-picker {
+  background: #161b22 !important;
+  border-color: #30363d !important;
+}
+
+.analytics-dashboard .ant-picker input {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.analytics-dashboard .ant-picker-suffix,
+.analytics-dashboard .ant-picker-separator {
+  color: rgba(255, 255, 255, 0.35) !important;
+}
+
+.analytics-dashboard .ant-btn-default {
+  background: #161b22 !important;
+  border-color: #30363d !important;
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.analytics-dashboard .ant-btn-default:hover {
+  border-color: #58a6ff !important;
+  color: #58a6ff !important;
+}
+
+.analytics-dashboard .ant-btn-link {
+  color: #58a6ff !important;
+}
+
+.analytics-dashboard .ant-btn-link:hover {
+  color: #79c0ff !important;
+}
+
+.analytics-dashboard .ant-empty-description {
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
+.analytics-dashboard .ant-tag {
+  background: #21262d;
+  border-color: #30363d;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.analytics-dashboard .ant-progress-text {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+/* ── Scrollbar in dark mode ── */
+.analytics-dashboard ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.analytics-dashboard ::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+
+.analytics-dashboard ::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 3px;
+}
+
+.analytics-dashboard ::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}
+
+/* ── Tooltip in chart cards ── */
+.analytics-dashboard .ant-tooltip-inner {
+  background: #1c2128;
+  color: rgba(255, 255, 255, 0.87);
 }
