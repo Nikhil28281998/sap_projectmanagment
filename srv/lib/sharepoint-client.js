@@ -6,7 +6,8 @@
  * In dev/test: Returns mock data from fixtures
  */
 
-const MOCK_PROJECTS = require('../../test/fixtures/sharepoint-projects-response.json');
+let MOCK_PROJECTS = [];
+try { MOCK_PROJECTS = require('../../test/fixtures/sharepoint-projects-response.json'); } catch { /* not available in prod */ }
 
 class SharePointClient {
   constructor() {
