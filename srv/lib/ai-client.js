@@ -239,48 +239,196 @@ class AIClient {
   }
 
   // ── SAP AI Core (Generative AI Hub) — OpenAI-compatible ──
-  // Uses @sap-cloud-sdk/http-client which handles OAuth + tenant ID automatically
+  // Three strategies to handle auth, tried in order:
+  //   1. executeHttpRequest (Cloud SDK — handles OAuth automatically)
+  //   2. getDestination + manual fetch with token
+  //   3. Direct fetch with VCAP_SERVICES credentials
   async _callAICore(systemPrompt, userMessage, maxTokens) {
     const deploymentId = process.env.AI_CORE_DEPLOYMENT_ID || 'd8e31dc8207d4ea9';
     const destName = AI_DEST_OVERRIDE || 'Ai_Core';
-    const path = `/deployments/${deploymentId}/chat/completions`;
+    const resourceGroup = process.env.AI_CORE_RESOURCE_GROUP || 'default';
+    const baseUrl = this._destUrl.replace(/\/+$/, '');
+    const fullUrl = `${baseUrl}/deployments/${deploymentId}/chat/completions`;
 
-    console.log(`[AI] SAP AI Core → dest=${destName}, path=${path}`);
+    const body = JSON.stringify({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage }
+      ],
+      max_tokens: maxTokens,
+    });
 
-    let executeHttpRequest;
+    // ── Strategy 1: Cloud SDK executeHttpRequest ──
     try {
-      ({ executeHttpRequest } = require('@sap-cloud-sdk/http-client'));
-    } catch {
-      throw new Error('SAP AI Core requires @sap-cloud-sdk/http-client. Install it with: npm install @sap-cloud-sdk/http-client');
-    }
-
-    try {
+      console.log(`[AI] Strategy 1: executeHttpRequest → dest=${destName}`);
+      const { executeHttpRequest } = require('@sap-cloud-sdk/http-client');
       const response = await executeHttpRequest(
         { destinationName: destName },
         {
           method: 'POST',
-          url: path,
+          url: `/deployments/${deploymentId}/chat/completions`,
           headers: {
             'Content-Type': 'application/json',
-            'AI-Resource-Group': process.env.AI_CORE_RESOURCE_GROUP || 'default',
+            'AI-Resource-Group': resourceGroup,
           },
-          data: {
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userMessage }
-            ],
-            max_tokens: maxTokens,
-          },
+          data: JSON.parse(body),
           timeout: 60000,
         }
       );
+      console.log(`[AI] Strategy 1 succeeded`);
+      return response.data?.choices?.[0]?.message?.content || '';
+    } catch (err1) {
+      console.warn(`[AI] Strategy 1 failed: ${err1.message}`);
 
-      const data = response.data;
-      return data.choices?.[0]?.message?.content || '';
-    } catch (err) {
-      const status = err.response?.status || err.code || 'unknown';
-      const body = err.response?.data ? JSON.stringify(err.response.data).substring(0, 300) : err.message;
-      throw new Error(`SAP AI Core ${status}: ${body}`);
+      // ── Strategy 2: getDestination + manual fetch ──
+      try {
+        console.log(`[AI] Strategy 2: getDestination + fetch → ${fullUrl}`);
+        const { getDestination } = require('@sap-cloud-sdk/connectivity');
+        const dest = await getDestination({ destinationName: destName });
+
+        // Log destination details for debugging (no secrets)
+        console.log(`[AI] Destination resolved: url=${dest?.url}, authType=${dest?.authentication}, hasTokens=${!!dest?.authTokens?.length}, hasPassword=${!!dest?.password}`);
+
+        let token = dest?.authTokens?.[0]?.value || dest?.password || null;
+
+        // If no token from destination, try to get one from XSUAA bound to the destination
+        if (!token && dest?.originalProperties?.Authentication === 'OAuth2ClientCredentials') {
+          console.log(`[AI] Fetching OAuth token from destination credentials...`);
+          const tokenUrl = dest.originalProperties.tokenServiceURL || dest.originalProperties.URL?.replace(/\/v2.*/, '/oauth/token');
+          if (tokenUrl && dest.originalProperties.clientId) {
+            const tokenRes = await fetch(tokenUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({
+                grant_type: 'client_credentials',
+                client_id: dest.originalProperties.clientId,
+                client_secret: dest.originalProperties.clientSecret,
+              }).toString(),
+            });
+            if (tokenRes.ok) {
+              const tokenData = await tokenRes.json();
+              token = tokenData.access_token;
+              console.log(`[AI] OAuth token obtained (${token.substring(0, 20)}...)`);
+            } else {
+              console.warn(`[AI] OAuth token fetch failed: ${tokenRes.status}`);
+            }
+          }
+        }
+
+        if (!token) {
+          throw new Error('No auth token available from destination');
+        }
+
+        const response = await fetch(fullUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'AI-Resource-Group': resourceGroup,
+          },
+          body,
+          signal: AbortSignal.timeout(60000),
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`${response.status}: ${errText.substring(0, 300)}`);
+        }
+
+        const data = await response.json();
+        console.log(`[AI] Strategy 2 succeeded`);
+        return data.choices?.[0]?.message?.content || '';
+      } catch (err2) {
+        console.warn(`[AI] Strategy 2 failed: ${err2.message}`);
+
+        // ── Strategy 3: VCAP_SERVICES direct credentials ──
+        try {
+          console.log(`[AI] Strategy 3: VCAP_SERVICES direct credentials`);
+          const vcap = JSON.parse(process.env.VCAP_SERVICES || '{}');
+
+          // Find AI Core service binding (could be under 'aicore' or 'user-provided')
+          const aiCoreBinding = vcap.aicore?.[0] || vcap['user-provided']?.find(s => s.name?.toLowerCase().includes('ai'));
+          const destBinding = vcap.destination?.[0];
+
+          let token = null;
+
+          if (aiCoreBinding?.credentials) {
+            // Direct AI Core service binding
+            const creds = aiCoreBinding.credentials;
+            console.log(`[AI] Found AI Core binding: ${creds.serviceurls?.AI_API_URL || 'no url'}`);
+            const tokenRes = await fetch(`${creds.url}/oauth/token`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({
+                grant_type: 'client_credentials',
+                client_id: creds.clientid,
+                client_secret: creds.clientsecret,
+              }).toString(),
+            });
+            if (tokenRes.ok) {
+              token = (await tokenRes.json()).access_token;
+            }
+          } else if (destBinding?.credentials) {
+            // Get token via destination service REST API
+            const destCreds = destBinding.credentials;
+            const destTokenRes = await fetch(`${destCreds.url}/oauth/token`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({
+                grant_type: 'client_credentials',
+                client_id: destCreds.clientid,
+                client_secret: destCreds.clientsecret,
+              }).toString(),
+            });
+            if (destTokenRes.ok) {
+              const destToken = (await destTokenRes.json()).access_token;
+              // Use destination service to get the actual AI Core destination + token
+              const destLookup = await fetch(
+                `${destCreds.uri}/destination-configuration/v1/destinations/${destName}`,
+                { headers: { 'Authorization': `Bearer ${destToken}` } }
+              );
+              if (destLookup.ok) {
+                const destConfig = await destLookup.json();
+                token = destConfig.authTokens?.[0]?.value;
+                console.log(`[AI] Got token from destination service lookup`);
+              }
+            }
+          }
+
+          if (!token) {
+            throw new Error('No credentials available in VCAP_SERVICES');
+          }
+
+          const response = await fetch(fullUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+              'AI-Resource-Group': resourceGroup,
+            },
+            body,
+            signal: AbortSignal.timeout(60000),
+          });
+
+          if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`${response.status}: ${errText.substring(0, 300)}`);
+          }
+
+          const data = await response.json();
+          console.log(`[AI] Strategy 3 succeeded`);
+          return data.choices?.[0]?.message?.content || '';
+        } catch (err3) {
+          console.error(`[AI] All 3 strategies failed.`);
+          console.error(`[AI]   Strategy 1: ${err1.message}`);
+          console.error(`[AI]   Strategy 2: ${err2.message}`);
+          console.error(`[AI]   Strategy 3: ${err3.message}`);
+          throw new Error(
+            `SAP AI Core connection failed. Check destination "${destName}" configuration.\n` +
+            `Last error: ${err3.message}`
+          );
+        }
+      }
     }
   }
 
