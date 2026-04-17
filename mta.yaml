@@ -81,7 +81,7 @@ modules:
         - npm ci
         - npm run build
       supported-platforms: []
-      build-result: dist
+      build-result: ../approuter/webapp
 
 resources:
   # ─── HANA Cloud HDI Container ──────────────────────
