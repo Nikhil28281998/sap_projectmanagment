@@ -68,6 +68,8 @@ class TransportService extends cds.ApplicationService {
     this.on('createWorkItem', this._onCreateWorkItem.bind(this));
     this.on('deleteWorkItem', this._onDeleteWorkItem.bind(this));
     this.on('changeWorkItemStatus', this._onChangeWorkItemStatus.bind(this));
+    this.on('sendReport', this._onSendReport.bind(this));
+    this.on('purgeActivityLog', this._onPurgeActivityLog.bind(this));
 
     await super.init();
   }
@@ -1565,17 +1567,51 @@ Apply the user's instruction precisely. Preserve all fields that weren't asked t
 
       await sp._ensureToken();
 
-      const siteUrl = cfg.SHAREPOINT_SITE_URL || '';
+      const rawSiteUrl = cfg.SHAREPOINT_SITE_URL || '';
       const driveId = cfg.SHAREPOINT_DRIVE_ID || '';
-      const path = folderPath ? `/root:/${folderPath}:/children` : '/root/children';
-      const url = `https://graph.microsoft.com/v1.0/sites/${siteUrl}/drives/${driveId}${path}`;
+
+      // siteUrl may be stored as a full URL (https://tenant.sharepoint.com/sites/IT)
+      // or as a Graph site ID (tenant.sharepoint.com,siteGuid,webGuid).
+      // Normalise: if it starts with http, resolve via /sites?$filter=siteCollection/hostname
+      let siteSegment;
+      if (rawSiteUrl.startsWith('http')) {
+        const parsed = new URL(rawSiteUrl);
+        // Graph API lookup by hostname + relative path
+        const hostname = parsed.hostname;
+        const sitePath = parsed.pathname.replace(/^\/+|\/+$/g, '');
+        siteSegment = `${hostname}:/${sitePath}:`;
+      } else {
+        // Already a site ID or hostname:path — use as-is
+        siteSegment = rawSiteUrl;
+      }
+
+      // If no driveId, use the site's default document library
+      let driveSegment;
+      if (driveId) {
+        driveSegment = `drives/${driveId}`;
+      } else {
+        // Resolve default drive for this site
+        const driveListRes = await fetch(
+          `https://graph.microsoft.com/v1.0/sites/${siteSegment}/drive`,
+          { headers: { 'Authorization': `Bearer ${sp.accessToken}` } }
+        );
+        if (!driveListRes.ok) throw new Error(`Could not resolve SharePoint drive: ${driveListRes.status}`);
+        const driveData = await driveListRes.json();
+        driveSegment = `drives/${driveData.id}`;
+      }
+
+      const itemPath = folderPath
+        ? `/root:/${encodeURIComponent(folderPath).replace(/%2F/g, '/')}:/children`
+        : '/root/children';
+      const url = `https://graph.microsoft.com/v1.0/sites/${siteSegment}/${driveSegment}${itemPath}?$top=100&$select=id,name,size,folder,file,lastModifiedDateTime,webUrl`;
 
       const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${sp.accessToken}`, 'Content-Type': 'application/json' }
       });
 
       if (!response.ok) {
-        throw new Error(`Graph API ${response.status}: ${await response.text()}`);
+        const errText = await response.text();
+        throw new Error(`Graph API ${response.status}: ${errText}`);
       }
 
       const data = await response.json();
@@ -1634,8 +1670,11 @@ Apply the user's instruction precisely. Preserve all fields that weren't asked t
       sp.useMock = false;
       await sp._ensureToken();
 
-      const driveId = cfg.SHAREPOINT_DRIVE_ID || '';
-      const url = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${documentId}/content`;
+      // Use driveId if available; otherwise fall back to /me/drive (less ideal but works)
+      const driveId = cfg.SHAREPOINT_DRIVE_ID;
+      const url = driveId
+        ? `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${documentId}/content`
+        : `https://graph.microsoft.com/v1.0/drive/items/${documentId}/content`;
 
       const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${sp.accessToken}` }
@@ -2008,6 +2047,97 @@ ${JSON.stringify(projectData, null, 2)}`;
       return { success: true, message: `Work item "${wi.workItemName}" deleted.` };
     } catch (err) {
       return { success: false, message: `Delete failed: ${err.message}` };
+    }
+  }
+
+  // ─── Send Report via Email (Outlook/Graph API) ───
+  async _onSendReport(req) {
+    const { htmlBody, subject, toRecipients, ccRecipients } = req.data;
+
+    if (!htmlBody?.trim()) {
+      return req.reject(400, 'htmlBody is required');
+    }
+    if (!subject?.trim()) {
+      return req.reject(400, 'subject is required');
+    }
+
+    let toList, ccList;
+    try {
+      toList = JSON.parse(toRecipients || '[]');
+      ccList = JSON.parse(ccRecipients || '[]');
+    } catch {
+      return req.reject(400, 'toRecipients and ccRecipients must be valid JSON arrays of email strings');
+    }
+
+    if (!Array.isArray(toList) || toList.length === 0) {
+      return req.reject(400, 'At least one recipient email is required in toRecipients');
+    }
+
+    try {
+      const { OutlookClient } = require('./lib/outlook-client');
+      const client = new OutlookClient();
+      const result = await client.sendMail({
+        to: toList,
+        cc: ccList,
+        subject,
+        htmlBody,
+        importance: 'normal',
+      });
+
+      // Audit log
+      const { ActivityLog } = this._e;
+      await INSERT.into(ActivityLog).entries({
+        userEmail: req.user.id,
+        action: 'SEND_REPORT',
+        entityType: 'REPORT',
+        entityId: new Date().toISOString().split('T')[0],
+        newValue: `Email sent to: ${toList.join(', ')} | Subject: ${subject}`,
+        createdAt: new Date().toISOString(),
+      });
+
+      return {
+        success: result.success,
+        messageId: result.messageId || '',
+        message: result.message,
+      };
+    } catch (err) {
+      console.error('sendReport failed:', err.message);
+      return { success: false, messageId: '', message: `Email send failed: ${err.message}` };
+    }
+  }
+
+  // ─── GDPR: Purge old activity and sync logs ───
+  async _onPurgeActivityLog(req) {
+    const { retentionDays } = req.data;
+    const days = retentionDays != null ? Number(retentionDays) : 90;
+
+    if (isNaN(days) || days < 1) {
+      return req.reject(400, 'retentionDays must be a positive integer');
+    }
+
+    const { ActivityLog, SyncLog } = this._e;
+    const cutoffDate = new Date(Date.now() - days * 86400000).toISOString();
+
+    try {
+      // Count before delete
+      const oldLogs = await SELECT.from(ActivityLog).where(`createdAt < '${cutoffDate}'`);
+      const oldSyncs = await SELECT.from(SyncLog).where(`startedAt < '${cutoffDate}'`);
+
+      await DELETE.from(ActivityLog).where(`createdAt < '${cutoffDate}'`);
+      await DELETE.from(SyncLog).where(`startedAt < '${cutoffDate}'`);
+
+      const deleted = (oldLogs.length || 0) + (oldSyncs.length || 0);
+
+      console.info(`[GDPR] Purged ${oldLogs.length} activity log entries and ${oldSyncs.length} sync log entries older than ${days} days`);
+
+      return {
+        success: true,
+        deleted,
+        message: `Purged ${oldLogs.length} activity log entries and ${oldSyncs.length} sync log entries older than ${days} days (before ${cutoffDate.split('T')[0]}).`,
+      };
+    } catch (err) {
+      console.error('purgeActivityLog failed:', err.message);
+      return { success: false, deleted: 0, message: `Purge failed: ${err.message}` };
     }
   }
 

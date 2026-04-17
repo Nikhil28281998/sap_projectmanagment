@@ -6,10 +6,15 @@
   "private": true,
   "dependencies": {
     "@cap-js/sqlite": "^1",
+    "@sap-cloud-sdk/http-client": "^3",
+    "@sap-cloud-sdk/connectivity": "^3",
     "@sap/cds": "^8",
     "@sap/xssec": "^4",
     "express": "^4",
-    "passport": "^0.7"
+    "express-rate-limit": "^7",
+    "passport": "^0.7",
+    "pino": "^9",
+    "pino-http": "^10"
   },
   "devDependencies": {
     "@cap-js/hana": "^1",

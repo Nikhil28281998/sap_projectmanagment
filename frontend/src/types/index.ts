@@ -29,6 +29,7 @@ export interface WorkItem {
   workItemType: string;
   snowTicket: string;
   veevaCCNumber: string;
+  amsTicket?: string | null;
   businessOwner: string;
   systemOwner: string;
   leadDeveloper: string;
@@ -48,12 +49,23 @@ export interface WorkItem {
   priority: string;
   status: string;
   currentPhase: string;
-  overallRAG: 'GREEN' | 'AMBER' | 'RED' | null;
+  overallRAG: 'GREEN' | 'AMBER' | 'RED' | undefined;
   riskScore: number;
   deploymentPct: number;
   notes: string;
   sharepointSync: boolean;
+  sharepointUrl?: string | null;
   lastSynced: string;
+  application?: string | null;
+  methodology?: string | null;
+  uatStatus?: string | null;
+  testPassed?: number | null;
+  testFailed?: number | null;
+  testBlocked?: number | null;
+  testTBD?: number | null;
+  testSkipped?: number | null;
+  testTotal?: number | null;
+  testCompletionPct?: number | null;
   transports?: Transport[];
   milestones?: Milestone[];
 }
@@ -145,4 +157,129 @@ export interface RefreshResult extends ActionResult {
 
 export interface ReportResult extends ActionResult {
   report: string | null;
+}
+
+// ─── SyncLog ───
+export interface SyncLog {
+  ID: string;
+  source: 'RFC' | 'SHAREPOINT' | 'CLAUDE';
+  startedAt: string;
+  completedAt: string;
+  status: 'SUCCESS' | 'FAILED' | 'PARTIAL' | 'IN_PROGRESS';
+  recordsFetched: number;
+  recordsUpdated: number;
+  errorMessage: string | null;
+  durationMs: number;
+}
+
+// ─── AppConfig ───
+export interface AppConfig {
+  configKey: string;
+  configValue: string;
+  description: string;
+}
+
+// ─── ReportTemplate ───
+export interface ReportTemplate {
+  ID: string;
+  templateName: string;
+  description: string;
+  templateHtml: string;
+  scope: 'single' | 'multi' | 'both';
+  visibility: 'private' | 'public';
+  isDefault: boolean;
+  ownerEmail: string;
+  sourceType: 'manual' | 'ai-generated';
+  createdAt: string;
+}
+
+// ─── WeeklyDigest ───
+export interface WeeklyDigest {
+  ID: string;
+  weekLabel: string;
+  application: string;
+  digestHtml: string;
+  digestText: string;
+  projectCount: number;
+  riskCount: number;
+  highlights: string;
+  generatedBy: string;
+  aiProvider: string;
+  createdAt: string;
+}
+
+// ─── Test Status Result ───
+export interface TestStatusResult extends ActionResult {
+  testCompletionPct: number;
+  uatStatus: string;
+  ragImpact: 'GREEN' | 'AMBER' | 'RED';
+}
+
+// ─── AI Action Results ───
+export interface AIChatResult {
+  success: boolean;
+  answer: string;
+  provider: string;
+}
+
+export interface AIAnalyzeResult {
+  success: boolean;
+  proposals: string;   // JSON string of Proposal[]
+  summary: string;
+  message?: string;
+  provider: string;
+}
+
+export interface AITemplateResult {
+  success: boolean;
+  templateHtml: string;
+  message: string;
+  provider: string;
+}
+
+export interface AIDigestResult {
+  success: boolean;
+  digestId: string;
+  digestHtml: string;
+  message: string;
+  provider: string;
+}
+
+export interface AIRiskResult {
+  success: boolean;
+  risks: string;        // JSON string
+  generated: number;
+  message: string;
+  provider: string;
+}
+
+// ─── SharePoint Document ───
+export interface SPDocument {
+  id: string;
+  name: string;
+  type: 'file' | 'folder';
+  size: number;
+  lastModified: string;
+  webUrl: string;
+  mimeType: string;
+}
+
+// ─── Methodology Template ───
+export interface MethodologyTemplate {
+  name: string;
+  phases: string[];
+  description: string;
+}
+
+// ─── Create/Delete Work Item results ───
+export interface CreateWorkItemResult extends ActionResult {
+  workItemId: string;
+}
+
+export interface AutoDetectResult extends ActionResult {
+  phase: string;
+}
+
+export interface AutoLinkResult extends ActionResult {
+  linked: number;
 }

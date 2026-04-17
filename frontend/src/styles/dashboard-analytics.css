@@ -6,10 +6,13 @@
 
 .analytics-dashboard {
   background: #0d1117;
-  min-height: calc(100vh - var(--header-height, 48px) - 24px);
-  margin: -12px -16px;
-  padding: 20px 24px;
+  /* Negate all app-content padding so dashboard fills edge-to-edge */
+  margin: -12px -16px -60px;
+  padding: 20px 24px 60px;
+  /* Fill at least the full remaining height of the scroll container */
+  min-height: calc(100% + 12px + 60px);
   color: rgba(255, 255, 255, 0.87);
+  box-sizing: border-box;
 }
 
 /* ── Toggle Bar ── */
@@ -168,17 +171,18 @@
   transform: translate(-50%, -50%);
   text-align: center;
   pointer-events: none;
+  z-index: 1;
 }
 
 .donut-center-label .donut-value {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 700;
   color: #ffffff;
   line-height: 1.1;
 }
 
 .donut-center-label .donut-sub {
-  font-size: 12px;
+  font-size: 11px;
   color: rgba(255, 255, 255, 0.45);
   margin-top: 2px;
 }
@@ -186,16 +190,17 @@
 /* ── Legend items ── */
 .analytics-legend {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 4px 12px;
 }
 
 .analytics-legend-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
+  gap: 6px;
+  font-size: 11px;
   color: rgba(255, 255, 255, 0.65);
+  white-space: nowrap;
 }
 
 .analytics-legend-dot {
@@ -366,6 +371,21 @@
 
 .analytics-dashboard ::-webkit-scrollbar-thumb:hover {
   background: #484f58;
+}
+
+/* ── Chart containment — prevent charts from overflowing card boundaries ── */
+.analytics-chart-card .ant-col {
+  min-width: 0; /* allow flex children to shrink below content size */
+  overflow: hidden;
+}
+/* Pie/Donut chart container must not exceed its column */
+.donut-chart-wrapper > div:first-child {
+  max-width: 100%;
+  overflow: hidden;
+}
+/* Ensure G2 canvas containers are responsive */
+.analytics-chart-card canvas {
+  max-width: 100% !important;
 }
 
 /* ── Tooltip in chart cards ── */

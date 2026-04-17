@@ -134,6 +134,8 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   return (
     <Layout className="app-layout">
+      {/* §1 skip-links: Skip to main content for keyboard users */}
+      <a href="#main-content" className="skip-to-content">Skip to main content</a>
       <Sider
         collapsible
         collapsed={collapsed}
@@ -230,7 +232,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </Space>
         </Header>
 
-        <Content className="app-content">
+        <Content className="app-content" id="main-content" role="main">
           {children}
         </Content>
       </Layout>
@@ -246,6 +248,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           icon={<RobotOutlined />}
           onClick={() => setChatOpen(true)}
           className="app-fab"
+          aria-label="Open AI Assistant"
         />
       </Tooltip>
     </Layout>

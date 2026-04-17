@@ -122,24 +122,34 @@ const HomeDashboardClassic: React.FC = () => {
     return <Alert message="Failed to load dashboard" description={String(summaryError)} type="error" showIcon />;
   }
 
-  // Reusable banner KPI with click
+  // Reusable banner KPI with click (§1 aria-labels, §1 keyboard-nav)
   const bannerKpi = (label: string, value: number | string, color: string, onClick?: () => void) => (
     <Tooltip title={onClick ? `Click to view ${label}` : undefined}>
       <div className={`banner-kpi${onClick ? ' banner-kpi-clickable' : ''}`}
-        onClick={onClick}>
+        role={onClick ? 'button' : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        aria-label={onClick ? `${label}: ${value}. Click to view` : `${label}: ${value}`}
+        onClick={onClick}
+        onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}>
         <div className="banner-kpi-value" style={{ color }}>{value}</div>
         <div className="banner-kpi-label">{label}</div>
       </div>
     </Tooltip>
   );
 
-  // Reusable pipeline box
+  // Reusable pipeline box (§1 keyboard-nav, §1 aria-labels, §2 touch-target-size)
   const pipelineBox = (sys: string, count: number, bg: string, borderColor: string, activeBg: string, textColor: string) => {
     const isActive = pipelineFilter === sys;
+    const toggle = () => setPipelineFilter(isActive ? null : sys);
     return (
       <Tooltip title={`Click to view ${sys} transports`}>
         <div className="text-center flex-1 cursor-pointer"
-          onClick={() => setPipelineFilter(isActive ? null : sys)}>
+          role="button"
+          tabIndex={0}
+          aria-label={`${sys}: ${count} transports${isActive ? ' (active filter)' : '. Click to filter'}`}
+          aria-pressed={isActive}
+          onClick={toggle}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } }}>
           <div className="pipeline-box"
             style={{ background: isActive ? activeBg : bg, border: `2px solid ${isActive ? activeBg : borderColor}` }}>
             <Text strong className="fs-24" style={{ color: isActive ? '#fff' : textColor }}>{count}</Text>
@@ -151,7 +161,7 @@ const HomeDashboardClassic: React.FC = () => {
   };
 
   return (
-    <div>
+    <div className="dashboard-classic">
       {/* 🎯 Welcome Banner with clickable KPIs 🎯 */}
       <Card
         className="banner-card"
@@ -182,7 +192,7 @@ const HomeDashboardClassic: React.FC = () => {
       </Card>
 
       {/* 📊 Summary Cards 📊 */}
-      <Row gutter={[12, 12]} className="mt-12">
+      <Row gutter={[12, 12]} className="mt-12 summary-cards-row">
         <Col xs={12} sm={8} lg={5}>
           <Card hoverable onClick={() => navigate('/tracker/Project')} size="small">
             <Statistic title="Projects" value={summaryLoading ? '-' : (summary?.activeProjects ?? workItems.filter((w: any) => w.workItemType === 'Project').length)}
@@ -276,8 +286,8 @@ const HomeDashboardClassic: React.FC = () => {
       </Card>
 
       {/* 🧪 Test Status + Upcoming Go-Lives 🧪 */}
-      <Row gutter={[12, 12]} className="mt-12">
-        <Col xs={24} lg={14}>
+      <Row gutter={[12, 12]} className="mt-12 equal-height-row">
+        <Col xs={24} xl={14}>
           <Card title={<Space><ExperimentOutlined /> Test Status (All Active Items)</Space>} size="small">
             <Row gutter={16} align="middle">
               <Col span={6} className="text-center">
@@ -327,7 +337,7 @@ const HomeDashboardClassic: React.FC = () => {
             )}
           </Card>
         </Col>
-        <Col xs={24} lg={10}>
+        <Col xs={24} xl={10}>
           <Card title={<Space><RocketOutlined /> Upcoming Go-Lives</Space>} size="small">
             {upcomingGoLives.length === 0 ? (
               <Empty description="No go-lives in the next 30 days" image={Empty.PRESENTED_IMAGE_SIMPLE} />
@@ -350,7 +360,7 @@ const HomeDashboardClassic: React.FC = () => {
       </Row>
 
       {/* 📋 Active Work Items 📋 */}
-      <Card title={<Space><ProjectOutlined /> Active Work Items</Space>} className="mt-12" size="small"
+      <Card title={<Space><ProjectOutlined /> Active Work Items</Space>} className="mt-12 active-items-card" size="small"
         extra={<a onClick={() => navigate('/tracker')}>View All →</a>}>
         {wiLoading ? <Skeleton active /> : activeProjects.length === 0 ? (
           <Empty description="No active items" />

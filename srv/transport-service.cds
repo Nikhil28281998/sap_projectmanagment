@@ -346,4 +346,22 @@ service TransportService {
     workItemId : String,
     status     : String
   ) returns { success: Boolean; message: String };
+
+  // ─── Send Report via Email (Outlook/Graph API) ───
+  // Sends an already-generated report HTML to one or more recipients via Microsoft Graph API.
+  // Falls back to mock mode when OUTLOOK_* env vars are not set.
+  @requires: ['Admin', 'Manager']
+  action sendReport(
+    htmlBody    : LargeString,
+    subject     : String,
+    toRecipients: LargeString,   // JSON string array of email addresses
+    ccRecipients: LargeString    // JSON string array — optional
+  ) returns { success: Boolean; messageId: String; message: String };
+
+  // ─── GDPR: Purge old activity/sync logs ───
+  // Deletes ActivityLog entries older than retentionDays (default 90)
+  @requires: 'Admin'
+  action purgeActivityLog(
+    retentionDays: Integer
+  ) returns { success: Boolean; deleted: Integer; message: String };
 }

@@ -32,9 +32,8 @@ export function useTransports() {
       const res = await transportApi.getAll();
       return res.value || [];
     },
-    staleTime: 5 * 60 * 1000,   // 5 min
-    gcTime: 30 * 60 * 1000,     // 30 min cache
-    refetchOnWindowFocus: true,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 
@@ -64,7 +63,7 @@ export function useDashboardSummary(application?: string) {
     queryKey: ['dashboardSummary', application],
     queryFn: () => dashboardApi.getSummary(application),
     staleTime: 2 * 60 * 1000,
-    refetchOnWindowFocus: true,
+    // Dashboard data is aggregated — 2 min stale time is sufficient; no focus refetch needed
   });
 }
 

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Card, Button, Typography, Space, Spin, Divider, message, Select, Input, Tag, Tooltip, Tabs,
+  Card, Button, Typography, Space, Spin, Divider, message, Select, Input, Tag, Tooltip, Tabs, Modal,
 } from 'antd';
 import {
   FileTextOutlined, DownloadOutlined, CopyOutlined,
@@ -10,6 +10,7 @@ import {
 } from '@ant-design/icons';
 import DOMPurify from 'dompurify';
 import { useGenerateReport, useWorkItems, useReportTemplates } from '../../hooks/useData';
+import { reportApi } from '../../services/api';
 import {
   weeklyStatusTemplate, executiveSummaryTemplate, goLiveReadinessTemplate,
   coupaWeeklyTemplate, commercialWeeklyTemplate, steeringCommitteeTemplate,
@@ -86,7 +87,7 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
       const result = await generateReport.mutateAsync({
         workItemId: selectedProject || undefined,
       });
-      const data: ReportData = JSON.parse(result.data);
+      const data: ReportData = JSON.parse(result.data ?? '{}');
       setReportData(data);
 
       // Auto-populate current/next week suggestions
@@ -207,6 +208,42 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
     const mailto = `mailto:?subject=${encodeURIComponent(emailSubject)}`;
     window.open(mailto, '_blank');
     message.info('Report copied to clipboard! Press Ctrl+V in the email body to paste.');
+  };
+
+  // ── Send via Graph API / Outlook (C8 fix) ──────────────────────────────────
+  const [sendModalOpen,   setSendModalOpen]   = useState(false);
+  const [sendRecipients,  setSendRecipients]  = useState('');
+  const [sendCc,          setSendCc]          = useState('');
+  const [sending,         setSending]         = useState(false);
+
+  const handleSendEmail = async () => {
+    const toList = sendRecipients.split(/[,;\s]+/).map(e => e.trim()).filter(Boolean);
+    const ccList = sendCc.split(/[,;\s]+/).map(e => e.trim()).filter(Boolean);
+
+    if (toList.length === 0) { message.warning('Enter at least one recipient email.'); return; }
+    if (!renderedHtml) return;
+
+    setSending(true);
+    try {
+      const result = await reportApi.sendEmail({
+        htmlBody: renderedHtml,
+        subject: emailSubject || 'Weekly Status Report',
+        toRecipients: toList,
+        ccRecipients: ccList,
+      });
+      if (result.success) {
+        message.success(result.message);
+        setSendModalOpen(false);
+        setSendRecipients('');
+        setSendCc('');
+      } else {
+        message.error(result.message);
+      }
+    } catch (err: any) {
+      message.error(`Send failed: ${err.message}`);
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleDownloadHtml = () => {
@@ -446,8 +483,13 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
             </Button>
           </Tooltip>
           <Tooltip title="Copies HTML + opens new email with subject pre-filled">
-            <Button type="primary" icon={<MailOutlined />} onClick={handleOpenOutlook}>
+            <Button icon={<MailOutlined />} onClick={handleOpenOutlook}>
               Open in Outlook
+            </Button>
+          </Tooltip>
+          <Tooltip title="Send email directly via Microsoft Graph API (requires Outlook config in Settings)">
+            <Button type="primary" icon={<MailOutlined />} onClick={() => setSendModalOpen(true)}>
+              Send via Email
             </Button>
           </Tooltip>
           <Tooltip title="Download as .html file">
@@ -549,6 +591,41 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
           },
         ]}
       />
+
+      {/* ── Send via Email modal ── */}
+      <Modal
+        title={<Space><MailOutlined style={{ color: '#1677ff' }} /><span>Send Report via Email</span></Space>}
+        open={sendModalOpen}
+        onCancel={() => setSendModalOpen(false)}
+        onOk={handleSendEmail}
+        okText={sending ? 'Sending...' : 'Send'}
+        okButtonProps={{ loading: sending, disabled: !sendRecipients.trim() }}
+        width={500}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <div>
+            <Text strong style={{ display: 'block', marginBottom: 4 }}>Subject</Text>
+            <Input value={emailSubject} onChange={e => setEmailSubject(e.target.value)}
+              placeholder="Weekly Status Report" />
+          </div>
+          <div>
+            <Text strong style={{ display: 'block', marginBottom: 4 }}>To (required)</Text>
+            <Input value={sendRecipients} onChange={e => setSendRecipients(e.target.value)}
+              placeholder="manager@company.com, stakeholder@company.com"
+              allowClear />
+            <Text type="secondary" style={{ fontSize: 11 }}>Separate multiple emails with commas</Text>
+          </div>
+          <div>
+            <Text strong style={{ display: 'block', marginBottom: 4 }}>CC (optional)</Text>
+            <Input value={sendCc} onChange={e => setSendCc(e.target.value)}
+              placeholder="cc@company.com" allowClear />
+          </div>
+          <Tag color="blue" style={{ fontSize: 11 }}>
+            Email will be sent via Microsoft Graph API from the configured sender mailbox.
+            Configure in Settings → SharePoint/Outlook.
+          </Tag>
+        </Space>
+      </Modal>
     </div>
   );
 };

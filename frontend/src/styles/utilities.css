@@ -5,6 +5,7 @@
 
 /* ─── CSS Custom Properties ─── */
 :root {
+  /* Semantic color tokens (UI/UX Pro Max §6: color-semantic) */
   --color-accent: #1677ff;
   --color-green: #52c41a;
   --color-red: #ff4d4f;
@@ -22,6 +23,106 @@
   --sider-width: 220px;
   --sider-collapsed: 80px;
   --header-height: 48px;
+}
+
+/* ═══════════════════════════════════════════
+   ACCESSIBILITY — Focus States & Skip Link
+   (UI/UX Pro Max §1: CRITICAL)
+   ═══════════════════════════════════════════ */
+
+/* §1 focus-states: Visible focus rings on interactive elements (2-4px) */
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Don't show focus ring on mouse click, only keyboard */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* §1 skip-links: Skip to main content for keyboard users */
+.skip-to-content {
+  position: absolute;
+  left: -9999px;
+  top: 8px;
+  z-index: 9999;
+  padding: 8px 16px;
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.skip-to-content:focus {
+  left: 16px;
+}
+
+/* §1 color-not-only: Status indicators supplement color with shape */
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ═══════════════════════════════════════════
+   TOUCH TARGETS & INTERACTION
+   (UI/UX Pro Max §2: CRITICAL)
+   ═══════════════════════════════════════════ */
+
+/* §2 touch-target-size: Min 44x44px interactive area */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* §2 touch-spacing: Min 8px gap between touch targets */
+.touch-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* §2 cursor-pointer + press feedback for clickable non-button elements */
+[role="button"] {
+  cursor: pointer;
+}
+[role="button"]:active {
+  opacity: 0.85;
+  transform: scale(0.98);
+}
+
+/* ═══════════════════════════════════════════
+   TRANSITIONS & MICRO-INTERACTIONS
+   (UI/UX Pro Max §7: duration 150-300ms)
+   ═══════════════════════════════════════════ */
+
+/* §7 state-transition: Smooth state changes */
+.ant-card {
+  transition: box-shadow 0.2s ease-out, border-color 0.2s ease-out;
+}
+.ant-tag {
+  transition: background-color 0.15s ease-out, border-color 0.15s ease-out;
+}
+.ant-btn {
+  transition: all 0.2s ease-out;
+}
+
+/* §7 reduced-motion: Respect user preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ═══════════════════════════════════════════
@@ -208,14 +309,18 @@
 }
 
 .app-content {
-  margin: 12px auto;
-  padding: 0 16px;
+  margin: 0;
+  padding: 12px 16px 60px; /* 60px bottom clearance for AI FAB button */
   flex: 1 1 auto;
   width: 100%;
-  max-width: 1600px;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-bottom: 60px; /* clearance for AI FAB button */
+  /* Ensure Ant Design Content component has no extra styles */
+  background: transparent;
+}
+/* Override any Ant Layout Content default padding */
+.ant-layout-content.app-content {
+  padding: 12px 16px 60px;
 }
 
 .app-main-expanded {
@@ -224,6 +329,7 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh; /* dynamic viewport height — avoids mobile address bar issues */
   overflow: hidden;
 }
 
@@ -233,18 +339,60 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
+/* ── AI FAB Button ── */
 .app-fab {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  width: 52px;
-  height: 52px;
+  width: 52px !important;
+  height: 52px !important;
+  min-width: 52px;
+  min-height: 52px;
   font-size: 22px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  line-height: 1;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50% !important;
+  box-shadow: 0 4px 16px rgba(22, 119, 255, 0.4);
   z-index: 1000;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+/* Force Ant Design not to override icon sizing */
+.app-fab .anticon {
+  font-size: 22px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.app-fab:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 24px rgba(22, 119, 255, 0.55);
+}
+.app-fab:active {
+  transform: scale(0.93);
+}
+/* Subtle pulse glow */
+@keyframes fab-pulse {
+  0%, 100% { box-shadow: 0 4px 16px rgba(22, 119, 255, 0.4); }
+  50%      { box-shadow: 0 4px 24px rgba(22, 119, 255, 0.65); }
+}
+.app-fab:not(:hover) {
+  animation: fab-pulse 3s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-fab:not(:hover) { animation: none; }
+}
+@media (max-width: 768px) {
+  .app-fab { width: 48px !important; height: 48px !important; min-width: 48px; min-height: 48px; font-size: 20px; bottom: 16px; right: 16px; }
+  .app-fab .anticon { font-size: 20px; }
 }
 
 .user-menu-btn {
@@ -375,16 +523,28 @@
   margin-bottom: 12px;
 }
 
-/* Donut chart wrapper with overlay */
+/* Donut chart wrapper — vertical stack: chart above, legend below */
 .donut-chart-wrapper {
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
 }
 
-/* Legend positioned right of donut */
+/* The donut chart itself sits in a position:relative container for the center label */
+.donut-chart-container {
+  position: relative;
+  width: 100%;
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+/* Legend sits below the donut, wraps horizontally */
 .donut-legend-right {
-  position: absolute;
-  right: 0;
-  top: 24px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 /* Chart card with bottom margin */
@@ -581,39 +741,35 @@
 
 /* ═══════════════════════════════════════════
    AI CHAT DRAWER
+   UI/UX Pro Max: §1 accessibility, §2 touch,
+   §4 style consistency, §7 animation, §8 feedback
    ═══════════════════════════════════════════ */
-.ai-chat-container {
+
+/* Drawer header — single line, no wrap */
+.ai-drawer-header {
   display: flex;
-  flex-direction: column;
-  height: 100%;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
 }
-
-.ai-chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px 0;
+.ai-drawer-header-icon {
+  font-size: 18px;
+  color: var(--color-accent);
 }
-
-.ai-chat-input-area {
-  border-top: 1px solid #f0f0f0;
-  padding: 12px 0;
+.ai-drawer-header-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
 }
-
-.ai-message-user {
-  background: #e6f4ff;
-  border-radius: 12px 12px 0 12px;
-  padding: 10px 14px;
-  margin-bottom: 12px;
-  max-width: 85%;
-  margin-left: auto;
+/* Force Ant Drawer header to stay single-line */
+.ant-drawer-header {
+  flex-wrap: nowrap;
 }
-
-.ai-message-bot {
-  background: #f6f6f6;
-  border-radius: 12px 12px 12px 0;
-  padding: 10px 14px;
-  margin-bottom: 12px;
-  max-width: 85%;
+.ant-drawer-header-title {
+  flex-shrink: 0;
+}
+.ant-drawer-extra {
+  flex-shrink: 0;
 }
 
 /* ═══════════════════════════════════════════
@@ -628,13 +784,14 @@
 .banner-kpi-value   { font-size: 28px; font-weight: 700; line-height: 1.2; }
 .banner-kpi-label   { color: rgba(255,255,255,0.65); font-size: 12px; }
 
-.pipeline-flow      { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 0; }
-.pipeline-box       { border-radius: 8px; padding: 12px 8px; transition: all 0.2s; }
-.pipeline-divider   { width: 1px; height: 40px; background: #f0f0f0; margin: 0 4px; }
+.pipeline-flow      { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 0; flex-wrap: wrap; }
+.pipeline-box       { border-radius: 8px; padding: 12px 8px; transition: all 0.2s; min-height: 72px; min-width: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.pipeline-divider   { width: 1px; height: 40px; background: #f0f0f0; margin: 0 4px; align-self: center; }
 .pipeline-progress  { max-width: 400px; margin: 0 auto; }
 
-.test-stacked-bar   { display: flex; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 12px; }
-.test-total-row     { display: flex; justify-content: space-between; border-top: 1px solid #f0f0f0; padding-top: 4px; }
+.test-stacked-bar   { display: flex; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 12px; gap: 1px; }
+.test-stacked-bar > div { min-width: 4px; transition: width 0.3s; }
+.test-total-row     { display: flex; justify-content: space-between; border-top: 1px solid #f0f0f0; padding-top: 8px; margin-top: 4px; }
 
 /* Tab-Card seamless connection */
 .tab-card-body      { margin-bottom: 16px; border-top: none; border-top-left-radius: 0; border-top-right-radius: 0; }
@@ -671,6 +828,170 @@
 .commercial-banner { background: linear-gradient(135deg, #722ed1 0%, #531dab 100%); }
 .card-success-light { background: #f6ffed; border: 1px solid #b7eb8f; }
 .text-green-light { color: #b7eb8f; }
+
+/* ═══════════════════════════════════════════
+   CLASSIC DASHBOARD — Layout Fixes
+   Fixes equal-height cards, consistent spacing,
+   pipeline alignment, and responsive stacking.
+   ═══════════════════════════════════════════ */
+
+/* ── 1. Summary KPI Cards — equal height & width ── */
+.summary-cards-row > .ant-col {
+  display: flex;
+}
+/* At lg+ breakpoint, override Ant span widths to make all 5 cards equal */
+@media (min-width: 992px) {
+  .summary-cards-row > .ant-col {
+    flex: 1 1 0 !important;
+    max-width: none !important;
+  }
+}
+.summary-cards-row > .ant-col > .ant-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.summary-cards-row > .ant-col > .ant-card > .ant-card-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 16px;
+}
+.summary-cards-row .ant-statistic {
+  width: 100%;
+}
+.summary-cards-row .ant-statistic-title {
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+.summary-cards-row .ant-statistic-content {
+  font-size: 24px;
+  line-height: 1.2;
+}
+.summary-cards-row .ant-statistic-content-prefix {
+  font-size: 18px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+/* ── 2. Equal Height Row (Task Status + Upcoming Go-Lives) ── */
+.equal-height-row {
+  align-items: stretch !important;
+}
+.equal-height-row > .ant-col {
+  display: flex;
+}
+.equal-height-row > .ant-col > .ant-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.equal-height-row > .ant-col > .ant-card > .ant-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+/* Empty state centered vertically inside card */
+.equal-height-row .ant-empty {
+  margin: auto 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+/* Timeline fills remaining space */
+.equal-height-row .ant-timeline {
+  flex: 1;
+}
+/* Donut/circle chart fixed aspect container */
+.equal-height-row .ant-progress-circle {
+  flex-shrink: 0;
+}
+
+/* ── 3. Active Work Items — consistent row alignment ── */
+.active-items-card .ant-list-item {
+  padding: 8px 0;
+  align-items: center;
+}
+.active-items-card .ant-list-item-meta {
+  align-items: center;
+}
+.active-items-card .ant-list-item-meta-avatar {
+  display: flex;
+  align-items: center;
+  margin-right: 8px;
+}
+.active-items-card .ant-list-item-meta-title .ant-space {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+.active-items-card .ant-list-item-meta-description .ant-space {
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 4px;
+}
+.active-items-card .ant-tag {
+  height: 22px;
+  line-height: 20px;
+  vertical-align: middle;
+  margin-bottom: 0;
+}
+.active-items-card .ant-progress {
+  vertical-align: middle;
+}
+
+/* ── 4. Section Card Consistency ── */
+.dashboard-classic .ant-card {
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+.dashboard-classic .ant-card-head {
+  padding: 0 16px;
+  min-height: 40px;
+  font-size: 14px;
+  font-weight: 600;
+  border-bottom: 1px solid #f0f0f0;
+}
+.dashboard-classic .ant-card-head-title {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 0;
+}
+.dashboard-classic .ant-card-extra {
+  font-size: 13px;
+  padding: 8px 0;
+}
+.dashboard-classic .ant-card-body {
+  padding: 16px;
+}
+.dashboard-classic > .ant-card + .ant-card,
+.dashboard-classic > .ant-row + .ant-card,
+.dashboard-classic > .ant-card + .ant-row,
+.dashboard-classic > div + .ant-card {
+  margin-top: 12px;
+}
+
+/* ── 5. Responsive: Stack at 1200px ── */
+@media (max-width: 1200px) {
+  .equal-height-row > .ant-col {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* ── 6. Global: no horizontal scroll 1024-1920 ── */
+@media (min-width: 1024px) {
+  .app-content {
+    overflow-x: hidden;
+  }
+}
+@media (max-width: 1024px) {
+  .app-main-expanded {
+    margin-left: var(--sider-collapsed);
+  }
+}
 
 /* ─── Executive Dashboard Classic ─── */
 .exec-banner       { background: linear-gradient(135deg, #141414 0%, #1f1f1f 50%, #262626 100%); }
@@ -732,6 +1053,21 @@
 .wi-icon-sp-none { color: #d9d9d9; font-size: 16px; }
 .wi-methodology-select { width: 180px; }
 
+/* Milestone styles */
+.ms-name-done { text-decoration: line-through; opacity: 0.55; }
+.ms-auto-tag { margin-left: 4px; font-size: 10px; }
+.ms-edit-btn {
+  font-size: 12px;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  color: var(--color-text-secondary);
+  opacity: 0.5;
+  transition: opacity 0.15s, color 0.15s;
+}
+.ms-edit-btn:hover { color: var(--color-accent); opacity: 1; }
+
 /* ═══════════════════════════════════════════
    SETTINGS PAGE
    ═══════════════════════════════════════════ */
@@ -743,40 +1079,171 @@
 /* ═══════════════════════════════════════════
    AI CHAT DRAWER — Extended
    ═══════════════════════════════════════════ */
+/* ── Messages Area — flex-fill, no hardcoded calc ── */
 .ai-messages-area {
   flex: 1;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 16px;
-  min-height: calc(100vh - 220px);
-  max-height: calc(100vh - 220px);
+  scroll-behavior: smooth;
+  /* Smooth scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: #d9d9d9 transparent;
 }
+.ai-messages-area::-webkit-scrollbar { width: 5px; }
+.ai-messages-area::-webkit-scrollbar-thumb { background: #d9d9d9; border-radius: 4px; }
+.ai-messages-area::-webkit-scrollbar-thumb:hover { background: #bfbfbf; }
+
+/* ── Message Row — §7 stagger-sequence: fade-in entrance ── */
 .ai-msg-row {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   display: flex;
   align-items: flex-start;
   gap: 8px;
+  animation: msg-fade-in 0.25s ease-out;
+}
+@keyframes msg-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-msg-row { animation: none; }
 }
 .ai-msg-row-user { flex-direction: row-reverse; }
-.ai-msg-row-bot { flex-direction: row; }
-.ai-avatar-user { background-color: #1677ff; flex-shrink: 0; }
-.ai-avatar-bot { background-color: #52c41a; flex-shrink: 0; }
+.ai-msg-row-bot  { flex-direction: row; }
+
+/* ── Avatars — §4 icon-style-consistent: same size, branded colors ── */
+.ai-avatar-user {
+  background: linear-gradient(135deg, #1677ff, #0958d9) !important;
+  flex-shrink: 0;
+  font-size: 14px;
+}
+.ai-avatar-bot {
+  background: linear-gradient(135deg, #52c41a, #389e0d) !important;
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+/* ── Message Bubbles — §6 line-height 1.5, §4 elevation-consistent ── */
 .ai-msg-bubble {
-  max-width: 85%;
-  border-radius: 12px;
-  padding: 8px 12px;
+  max-width: 82%;
+  border-radius: 16px;
+  padding: 10px 14px;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
 }
-.ai-msg-bubble-user { background: #1677ff; color: #fff; }
-.ai-msg-bubble-bot { background: #f5f5f5; color: #000; }
-.ai-loading-row { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
-.ai-quick-section { padding: 0 16px 8px; border-top: 1px solid #f0f0f0; }
-.ai-quick-tags { display: flex; flex-wrap: wrap; gap: 4px; }
-.ai-quick-tag { cursor: pointer; font-size: 11px; margin: 0; }
-.ai-input-area { padding: 12px 16px; border-top: 1px solid #f0f0f0; background: #fafafa; }
-.ai-input-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+.ai-msg-bubble-user {
+  background: linear-gradient(135deg, #1677ff, #0958d9);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 1px 4px rgba(22, 119, 255, 0.2);
+}
+.ai-msg-bubble-bot {
+  background: #f5f5f5;
+  color: rgba(0, 0, 0, 0.88);
+  border-bottom-left-radius: 4px;
+  border: 1px solid #f0f0f0;
+}
+/* System/welcome message — special styling */
+.ai-msg-bubble-bot .ai-welcome-icon { font-size: 16px; margin-right: 4px; }
+
+/* Provider tag inside bot bubble */
+.ai-msg-bubble .ant-tag {
+  font-size: 10px;
+  margin: 4px 0 0;
+  padding: 0 6px;
+  line-height: 18px;
+  border-radius: 4px;
+}
+
+/* ── Loading indicator — §7 motion-meaning ── */
+.ai-loading-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 8px 0;
+}
+.ai-loading-row .ant-typography {
+  font-size: 12px;
+  letter-spacing: 0.3px;
+}
+
+/* ── Quick Questions — §2 touch-target-size: 44px min, §8 progressive-disclosure ── */
+.ai-quick-section {
+  padding: 12px 16px;
+  border-top: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+.ai-quick-label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ai-quick-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ai-quick-tag {
+  cursor: pointer;
+  font-size: 12px;
+  margin: 0;
+  padding: 4px 10px;
+  min-height: 28px;
+  line-height: 20px;
+  border-radius: 14px;
+  transition: all 0.15s ease-out;
+  border-color: #d9d9d9;
+  background: #fff;
+  color: var(--color-accent);
+}
+.ai-quick-tag:hover {
+  background: #e6f4ff;
+  border-color: var(--color-accent);
+  transform: translateY(-1px);
+}
+.ai-quick-tag:active {
+  transform: scale(0.97);
+}
+/* Tools row below quick tags */
+.ai-quick-tools {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* ── Input Area — §8 input-labels, §2 touch-target-size ── */
+.ai-input-area {
+  padding: 12px 16px;
+  border-top: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+.ai-input-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  gap: 8px;
+}
+.ai-input-footer .ant-typography {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+/* Simplified hint line (no duplicate action buttons) */
+.ai-input-hint {
+  margin-top: 6px;
+  text-align: center;
+}
+.ai-input-hint .ant-typography {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
 .ai-doc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .ai-upload-text { font-size: 13px; }
 .ai-upload-hint { font-size: 11px; }
@@ -786,8 +1253,39 @@
 .ai-doc-textarea { font-family: monospace; font-size: 11px; }
 .ai-clear-btn { padding: 0; font-size: 11px; margin-top: 4px; }
 .ai-sp-btn { font-size: 10px; padding: 0; }
-.ai-send-btn { height: auto; border-radius: 0 8px 8px 0; }
-.ai-input-field { border-radius: 8px 0 0 8px; }
+/* §2 touch-target-size: send button 44px+ height, clear hit area */
+.ai-send-btn {
+  height: auto;
+  min-height: 40px;
+  min-width: 44px;
+  border-radius: 0 10px 10px 0;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease-out;
+}
+.ai-send-btn:active { transform: scale(0.95); }
+.ai-input-field {
+  border-radius: 10px 0 0 10px;
+  font-size: 14px;
+  padding: 8px 12px;
+}
+.ai-input-field::placeholder {
+  color: #bfbfbf;
+  font-size: 13px;
+}
+/* Upload/SharePoint link buttons in footer */
+.ai-input-footer .ant-btn-link {
+  font-size: 11px;
+  padding: 2px 4px;
+  height: auto;
+  color: var(--color-text-secondary);
+  transition: color 0.15s;
+}
+.ai-input-footer .ant-btn-link:hover {
+  color: var(--color-accent);
+}
 .ai-inbox-icon { font-size: 36px; color: #1677ff; }
 .ai-proposal-card-selected { border-color: #1677ff; background-color: #f0f5ff; cursor: pointer; }
 .ai-proposal-card-default { border-color: #d9d9d9; background-color: #fafafa; cursor: pointer; }
@@ -879,50 +1377,103 @@
 
 /* ═══════════════════════════════════════════
    RESPONSIVE ADJUSTMENTS
+   Full range: 1024px → 1920px+ without
+   horizontal scroll. Graceful degradation below.
    ═══════════════════════════════════════════ */
 
-/* Tablet / small laptop breakpoint */
-@media (max-width: 1024px) {
+/* ── 1440px+: Large monitor — tighten max-widths for readability ── */
+@media (min-width: 1440px) {
   .analytics-dashboard {
-    padding: 16px;
-  }
-
-  .analytics-kpi .kpi-value {
-    font-size: 28px;
-  }
-
-  .analytics-kpi-mini .kpi-value {
-    font-size: 22px;
-  }
-
-  .donut-legend-right {
-    position: static;
-    margin-top: 12px;
+    padding: 24px 32px 60px;
+    margin: -12px -16px -60px;
   }
 }
 
+/* ── 1200px–1440px: Standard laptop ── */
+@media (max-width: 1440px) {
+  .analytics-dashboard {
+    padding: 20px 24px 60px;
+  }
+  .analytics-kpi .kpi-value {
+    font-size: 28px;
+  }
+}
+
+/* ── 1024px–1200px: Small laptop — stack side-by-side charts ── */
+@media (max-width: 1200px) {
+  .analytics-kpi .kpi-value {
+    font-size: 26px;
+  }
+  .analytics-kpi-mini .kpi-value {
+    font-size: 20px;
+  }
+  .analytics-kpi {
+    padding: 16px;
+  }
+  .analytics-chart-card {
+    padding: 16px;
+  }
+  /* Donut legend wraps below the chart */
+  .donut-chart-wrapper {
+    flex-direction: column;
+  }
+  .donut-legend-right {
+    max-width: 100%;
+    margin-top: 8px;
+  }
+  .analytics-legend {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+  }
+}
+
+/* ── Below 1024px: Tablet — collapse sidebar, compact everything ── */
+@media (max-width: 1024px) {
+  .analytics-dashboard {
+    padding: 16px 16px 60px;
+    margin: -12px -16px -60px;
+  }
+  .analytics-kpi .kpi-value {
+    font-size: 24px;
+  }
+  .analytics-kpi-mini .kpi-value {
+    font-size: 20px;
+  }
+}
+
+/* ── Below 768px: Mobile ── */
 @media (max-width: 768px) {
   .app-content {
-    margin: 8px;
+    padding: 8px 8px 60px;
   }
-
   .analytics-dashboard {
+    padding: 12px 12px 60px;
+    margin: -8px -8px -60px;
+  }
+  .analytics-kpi {
     padding: 12px;
   }
-
-  .analytics-kpi {
-    padding: 14px;
-  }
-
   .analytics-chart-card {
-    padding: 14px;
+    padding: 12px;
   }
-
   .analytics-filter-bar {
     flex-direction: column;
     align-items: stretch;
   }
-
+  .filter-select-sm,
+  .filter-select-md,
+  .filter-select-lg {
+    width: 100%;
+  }
+  /* Header controls — prevent overflow */
+  .app-header {
+    overflow: hidden;
+    padding: 0 12px;
+  }
+  .app-header .ant-space {
+    flex-wrap: wrap;
+  }
   /* Digest layout — stack on mobile */
   .digest-layout {
     flex-direction: column;
@@ -932,32 +1483,11 @@
     max-height: 300px;
     overflow: auto;
   }
-
-  /* Header controls — prevent overflow */
-  .app-header {
-    overflow: hidden;
-  }
-  .app-header .ant-space {
-    flex-wrap: wrap;
-  }
-
-  .filter-select-sm,
-  .filter-select-md,
-  .filter-select-lg {
-    width: 100%;
-  }
-
-  .donut-legend-right {
-    position: static;
-    margin-top: 12px;
-  }
-
   .app-breakdown-card {
     flex-direction: column;
     text-align: center;
     gap: 8px;
   }
-
   .chart-header-actions {
     flex-direction: column;
     gap: 8px;
@@ -965,15 +1495,14 @@
   }
 }
 
+/* ── Below 480px: Small phone ── */
 @media (max-width: 480px) {
   .analytics-kpi .kpi-value {
-    font-size: 24px;
+    font-size: 22px;
   }
-
   .analytics-kpi-mini .kpi-value {
-    font-size: 20px;
+    font-size: 18px;
   }
-
   .rag-bar-legend {
     flex-wrap: wrap;
   }

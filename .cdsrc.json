@@ -24,6 +24,12 @@
   "odata": {
     "version": "v4"
   },
+  "query": {
+    "limit": {
+      "default": 100,
+      "max": 500
+    }
+  },
   "log": {
     "levels": {
       "db": "info",

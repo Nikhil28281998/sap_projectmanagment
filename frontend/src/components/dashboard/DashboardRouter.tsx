@@ -2,18 +2,14 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useModule } from '../../contexts/ModuleContext';
-import HomeDashboard from './HomeDashboard';
-import CoupaDashboard from './CoupaDashboard';
-import CommercialDashboard from './CommercialDashboard';
+import DashboardPage from './DashboardPage';
 
 /**
  * DashboardRouter — Renders the module-specific dashboard.
  *
  * Routing logic:
  *  - Executive-only users → redirect to /executive
- *  - All others → module-specific dashboard (SAP / Coupa / Commercial)
- *
- * Executive Dashboard is now a separate sidebar menu item at /executive.
+ *  - All others → unified DashboardPage parameterized by active module
  */
 const DashboardRouter: React.FC = () => {
   const { user } = useAuth();
@@ -30,12 +26,12 @@ const DashboardRouter: React.FC = () => {
     return <Navigate to="/executive" replace />;
   }
 
-  // Module-specific dashboard
+  // Module-specific dashboard — all handled by a single parameterized component
   switch (activeModule) {
-    case 'coupa': return <CoupaDashboard />;
-    case 'commercial': return <CommercialDashboard />;
+    case 'coupa':      return <DashboardPage application="Coupa" />;
+    case 'commercial': return <DashboardPage application="Commercial" />;
     case 'sap':
-    default: return <HomeDashboard />;
+    default:           return <DashboardPage application="SAP" />;
   }
 };
 

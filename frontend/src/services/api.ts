@@ -3,7 +3,31 @@
  * All calls go through /api/v1/transport/ (proxied in dev, App Router in prod)
  */
 
+import type {
+  Transport, WorkItem, Milestone, Notification, SyncLog, AppConfig,
+  ReportTemplate, WeeklyDigest, DashboardSummary, PipelineSummary, HealthStatus,
+  ActionResult, BulkCategorizeResult, RefreshResult, TestStatusResult,
+  AIChatResult, AIAnalyzeResult, AITemplateResult, AIDigestResult, AIRiskResult,
+  CreateWorkItemResult, AutoDetectResult, AutoLinkResult,
+  ODataResponse,
+} from '../types';
+
 const BASE_URL = '/api/v1/transport';
+
+// Build an OData query string from common params
+function buildODataQuery(params: {
+  top?: number; skip?: number; filter?: string;
+  orderby?: string; expand?: string; count?: boolean;
+}): string {
+  const parts: string[] = [];
+  if (params.top    != null) parts.push(`$top=${params.top}`);
+  if (params.skip   != null) parts.push(`$skip=${params.skip}`);
+  if (params.count)          parts.push('$count=true');
+  if (params.filter)         parts.push(`$filter=${encodeURIComponent(params.filter)}`);
+  if (params.orderby)        parts.push(`$orderby=${encodeURIComponent(params.orderby)}`);
+  if (params.expand)         parts.push(`$expand=${params.expand}`);
+  return parts.length ? `?${parts.join('&')}` : '';
+}
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${BASE_URL}${path}`;
@@ -49,35 +73,41 @@ export const userApi = {
 
 // ─── Transports ───
 export const transportApi = {
-  getAll: () => request<{ value: any[] }>('/Transports'),
-  getById: (id: string) => request<any>(`/Transports(${id})`),
+  getAll: (params?: { top?: number; skip?: number; filter?: string }) => {
+    const qs = buildODataQuery({ top: params?.top ?? 200, skip: params?.skip, filter: params?.filter, count: true });
+    return request<ODataResponse<Transport> & { '@odata.count'?: number }>(`/Transports${qs}`);
+  },
+  getById: (id: string) => request<Transport>(`/Transports(${id})`),
   categorize: (trNumber: string, workType: string, workItemId?: string) =>
-    request<any>('/categorizeTransport', {
+    request<ActionResult>('/categorizeTransport', {
       method: 'POST',
       body: JSON.stringify({ trNumber, workType, workItemId }),
     }),
   bulkCategorize: (items: { trNumber: string; workType: string; workItemId?: string }[]) =>
-    request<any>('/bulkCategorize', {
+    request<BulkCategorizeResult>('/bulkCategorize', {
       method: 'POST',
       body: JSON.stringify({ items }),
     }),
   updateVeevaCC: (trNumber: string, veevaCCNumber: string) =>
-    request<any>('/updateVeevaCC', {
+    request<ActionResult>('/updateVeevaCC', {
       method: 'POST',
       body: JSON.stringify({ trNumber, veevaCCNumber }),
     }),
   refreshData: () =>
-    request<any>('/refreshTransportData', { method: 'POST' }),
+    request<RefreshResult>('/refreshTransportData', { method: 'POST' }),
 };
 
 // ─── Work Items ───
 export const workItemApi = {
-  getAll: () => request<{ value: any[] }>('/WorkItems'),
-  getById: (id: string) => request<any>(`/WorkItems(${id})?$expand=transports,milestones`),
-  create: (data: any) =>
-    request<any>('/WorkItems', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: any) =>
-    request<any>(`/WorkItems(${id})`, { method: 'PATCH', body: JSON.stringify(data) }),
+  getAll: (params?: { top?: number; skip?: number; filter?: string }) => {
+    const qs = buildODataQuery({ top: params?.top ?? 100, skip: params?.skip, filter: params?.filter, count: true });
+    return request<ODataResponse<WorkItem> & { '@odata.count'?: number }>(`/WorkItems${qs}`);
+  },
+  getById: (id: string) => request<WorkItem>(`/WorkItems(${id})?$expand=transports,milestones`),
+  create: (data: Partial<WorkItem>) =>
+    request<WorkItem>('/WorkItems', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: Partial<WorkItem>) =>
+    request<WorkItem>(`/WorkItems(${id})`, { method: 'PATCH', body: JSON.stringify(data) }),
   createWorkItem: (data: {
     workItemName: string; projectCode?: string; workItemType?: string;
     application?: string; priority?: string; complexity?: string;
@@ -101,48 +131,72 @@ export const workItemApi = {
 
 // ─── Milestones ───
 export const milestoneApi = {
-  getAll: () => request<{ value: any[] }>('/Milestones'),
-  create: (data: any) =>
-    request<any>('/Milestones', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: any) =>
-    request<any>(`/Milestones(${id})`, { method: 'PATCH', body: JSON.stringify(data) }),
+  getAll: () => request<ODataResponse<Milestone>>('/Milestones'),
+  create: (data: Partial<Milestone>) =>
+    request<Milestone>('/Milestones', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: Partial<Milestone>) =>
+    request<Milestone>(`/Milestones(${id})`, { method: 'PATCH', body: JSON.stringify(data) }),
   remove: (id: string) =>
-    request<any>(`/Milestones(${id})`, { method: 'DELETE' }),
+    request<ActionResult>(`/Milestones(${id})`, { method: 'DELETE' }),
 };
 
 // ─── Dashboard ───
 export const dashboardApi = {
-  getSummary: (application?: string) => request<any>(`/dashboardSummary${application ? `(application='${application}')` : '()'}`),
-  getPipeline: (application?: string) => request<any>(`/pipelineSummary${application ? `(application='${application}')` : '()'}`),
-  getHealth: () => request<any>('/health'),
+  getSummary: (application?: string) => request<DashboardSummary>(`/dashboardSummary${application ? `(application='${application}')` : '()'}`),
+  getPipeline: (application?: string) => request<PipelineSummary>(`/pipelineSummary${application ? `(application='${application}')` : '()'}`),
+  getHealth: () => request<HealthStatus>('/health'),
 };
 
 // ─── Auto-Detection ───
 export const autoApi = {
   detectPhase: (workItemId: string) =>
-    request<{ success: boolean; phase: string; message: string }>('/autoDetectPhase', {
+    request<AutoDetectResult>('/autoDetectPhase', {
       method: 'POST',
       body: JSON.stringify({ workItemId }),
     }),
   linkTickets: () =>
-    request<{ success: boolean; linked: number; message: string }>('/autoLinkTickets', {
-      method: 'POST',
-    }),
+    request<AutoLinkResult>('/autoLinkTickets', { method: 'POST' }),
 };
 
 // ─── SharePoint Sync ───
 export const syncApi = {
   refreshSharePoint: () =>
-    request<any>('/refreshSharePointData', { method: 'POST' }),
-  getLogs: () => request<{ value: any[] }>('/SyncLogs?$orderby=startedAt desc&$top=20'),
+    request<RefreshResult>('/refreshSharePointData', { method: 'POST' }),
+  getLogs: () => request<ODataResponse<SyncLog>>('/SyncLogs?$orderby=startedAt desc&$top=20'),
 };
 
 // ─── Reports ───
 export const reportApi = {
   generate: (workItemId?: string) =>
-    request<any>('/generateWeeklyReport', {
+    request<{ success: boolean; data: string | null; message: string }>('/generateWeeklyReport', {
       method: 'POST',
       body: JSON.stringify({ workItemId: workItemId || null }),
+    }),
+
+  // Send a report HTML as an email via Microsoft Graph API (or mock in dev)
+  sendEmail: (params: {
+    htmlBody: string;
+    subject: string;
+    toRecipients: string[];  // email addresses
+    ccRecipients?: string[];
+  }) =>
+    request<ActionResult & { messageId: string }>('/sendReport', {
+      method: 'POST',
+      body: JSON.stringify({
+        htmlBody: params.htmlBody,
+        subject: params.subject,
+        toRecipients: JSON.stringify(params.toRecipients),
+        ccRecipients: JSON.stringify(params.ccRecipients || []),
+      }),
+    }),
+};
+
+// ─── GDPR ───
+export const gdprApi = {
+  purgeActivityLog: (retentionDays = 90) =>
+    request<ActionResult & { deleted: number }>('/purgeActivityLog', {
+      method: 'POST',
+      body: JSON.stringify({ retentionDays }),
     }),
 };
 
@@ -152,7 +206,7 @@ export const testStatusApi = {
     testTotal: number; testPassed: number; testFailed: number;
     testBlocked: number; testTBD: number; testSkipped: number;
   }) =>
-    request<any>('/updateTestStatus', {
+    request<TestStatusResult>('/updateTestStatus', {
       method: 'POST',
       body: JSON.stringify({ workItemId, ...data }),
     }),
@@ -161,34 +215,34 @@ export const testStatusApi = {
 // ─── AI Agent ───
 export const aiApi = {
   testConnection: () =>
-    request<{ success: boolean; message: string; provider: string }>('/testAIConnection', { method: 'POST' }),
+    request<ActionResult & { provider: string }>('/testAIConnection', { method: 'POST' }),
   saveConfig: (provider: string, apiKey: string) =>
-    request<{ success: boolean; message: string }>('/saveAIConfig', {
+    request<ActionResult>('/saveAIConfig', {
       method: 'POST',
       body: JSON.stringify({ provider, apiKey }),
     }),
   chat: (question: string) =>
-    request<{ success: boolean; answer: string; provider: string }>('/chatWithAgent', {
+    request<AIChatResult>('/chatWithAgent', {
       method: 'POST',
       body: JSON.stringify({ question }),
     }),
   analyzeDocument: (content: string, documentType: string, application: string, fileName: string) =>
-    request<{ success: boolean; proposals: string; summary: string; provider: string }>('/analyzeDocument', {
+    request<AIAnalyzeResult>('/analyzeDocument', {
       method: 'POST',
       body: JSON.stringify({ content, documentType, application, fileName }),
     }),
   createFromProposal: (proposals: string, application: string) =>
-    request<{ success: boolean; created: number; message: string }>('/createFromProposal', {
+    request<ActionResult & { created: number }>('/createFromProposal', {
       method: 'POST',
       body: JSON.stringify({ proposals, application }),
     }),
   generateTemplate: (emailContent: string, templateName: string, scope: string) =>
-    request<{ success: boolean; templateHtml: string; message: string; provider: string }>('/generateTemplateFromEmail', {
+    request<AITemplateResult>('/generateTemplateFromEmail', {
       method: 'POST',
       body: JSON.stringify({ emailContent, templateName, scope }),
     }),
   refineProposals: (proposals: string, instruction: string, application: string) =>
-    request<{ success: boolean; proposals: string; message: string; provider: string }>('/refineProposals', {
+    request<AIAnalyzeResult>('/refineProposals', {
       method: 'POST',
       body: JSON.stringify({ proposals, instruction, application }),
     }),
@@ -196,21 +250,21 @@ export const aiApi = {
 
 // ─── Methodologies ───
 export const methodologyApi = {
-  getAll: () => request<{ value: any[] }>('/getMethodologies'),
+  getAll: () => request<ODataResponse<{ name: string; phases: string[]; description: string }>>('/getMethodologies'),
 };
 
 // ─── Notifications ───
 export const notificationApi = {
-  getAll: () => request<{ value: any[] }>('/Notifications?$orderby=createdAt desc&$top=50'),
+  getAll: () => request<ODataResponse<Notification>>('/Notifications?$orderby=createdAt desc&$top=50'),
   markRead: (id: string) =>
-    request<any>(`/Notifications(${id})`, {
+    request<Notification>(`/Notifications(${id})`, {
       method: 'PATCH',
       body: JSON.stringify({ isRead: true }),
     }),
   generate: () =>
-    request<{ success: boolean; generated: number; message: string }>('/generateNotifications', { method: 'POST' }),
+    request<ActionResult & { generated: number }>('/generateNotifications', { method: 'POST' }),
   analyzeRisks: (application: string) =>
-    request<{ success: boolean; risks: string; generated: number; message: string; provider: string }>('/analyzeProjectRisks', {
+    request<AIRiskResult>('/analyzeProjectRisks', {
       method: 'POST',
       body: JSON.stringify({ application }),
     }),
@@ -219,17 +273,17 @@ export const notificationApi = {
 // ─── SharePoint Live Integration ───
 export const sharePointApi = {
   configure: (data: { tenantId: string; clientId: string; clientSecret: string; siteUrl: string; driveId: string }) =>
-    request<{ success: boolean; message: string }>('/configureSharePoint', {
+    request<ActionResult>('/configureSharePoint', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
   listDocuments: (folderPath?: string) =>
-    request<{ success: boolean; documents: string; message: string }>('/listSharePointDocuments', {
+    request<ActionResult & { documents: string }>('/listSharePointDocuments', {
       method: 'POST',
       body: JSON.stringify({ folderPath: folderPath || '' }),
     }),
   fetchDocument: (documentId: string, fileName: string) =>
-    request<{ success: boolean; content: string; fileName: string; message: string }>('/fetchSharePointDocument', {
+    request<ActionResult & { content: string; fileName: string }>('/fetchSharePointDocument', {
       method: 'POST',
       body: JSON.stringify({ documentId, fileName }),
     }),
@@ -238,27 +292,27 @@ export const sharePointApi = {
 // ─── Weekly Digest ───
 export const digestApi = {
   generate: (application: string) =>
-    request<{ success: boolean; digestId: string; digestHtml: string; message: string; provider: string }>('/generateWeeklyDigest', {
+    request<AIDigestResult>('/generateWeeklyDigest', {
       method: 'POST',
       body: JSON.stringify({ application }),
     }),
-  getAll: () => request<{ value: any[] }>('/Digests?$orderby=createdAt desc&$top=20'),
+  getAll: () => request<ODataResponse<WeeklyDigest>>('/getWeeklyDigests'),
 };
 
 // ─── Report Templates ───
 export const templateApi = {
-  getAll: () => request<{ value: any[] }>('/ReportTemplates?$orderby=createdAt desc'),
-  getPublic: () => request<{ value: any[] }>("/ReportTemplates?$filter=visibility eq 'public'&$orderby=createdAt desc"),
+  getAll: () => request<ODataResponse<ReportTemplate>>('/ReportTemplates?$orderby=createdAt desc'),
+  getPublic: () => request<ODataResponse<ReportTemplate>>("/ReportTemplates?$filter=visibility eq 'public'&$orderby=createdAt desc"),
   save: (data: {
     id?: string; templateName: string; description: string;
     templateHtml: string; scope: string; visibility: string; isDefault: boolean;
   }) =>
-    request<{ success: boolean; templateId: string; message: string }>('/saveReportTemplate', {
+    request<ActionResult & { templateId: string }>('/saveReportTemplate', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
   delete: (id: string) =>
-    request<{ success: boolean; message: string }>('/deleteReportTemplate', {
+    request<ActionResult>('/deleteReportTemplate', {
       method: 'POST',
       body: JSON.stringify({ id }),
     }),
@@ -266,9 +320,9 @@ export const templateApi = {
 
 // ─── Config ───
 export const configApi = {
-  getAll: () => request<{ value: any[] }>('/AppConfigs'),
+  getAll: () => request<ODataResponse<AppConfig>>('/AppConfigs'),
   update: (key: string, value: string) =>
-    request<any>(`/AppConfigs('${key}')`, {
+    request<AppConfig>(`/AppConfigs('${key}')`, {
       method: 'PATCH',
       body: JSON.stringify({ configValue: value }),
     }),

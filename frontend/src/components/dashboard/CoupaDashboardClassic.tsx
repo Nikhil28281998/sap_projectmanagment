@@ -116,7 +116,7 @@ const CoupaDashboardClassic: React.FC = () => {
   }, [displayItems]);
 
   return (
-    <div>
+    <div className="dashboard-classic">
       {/* Banner */}
       <Card
         className="mb-16 coupa-banner border-none"
@@ -154,7 +154,7 @@ const CoupaDashboardClassic: React.FC = () => {
       </Card>
 
       {/* Project Types */}
-      <Row gutter={[12, 12]}>
+      <Row gutter={[12, 12]} className="summary-cards-row">
         {coupaProjectTypes.map((area) => {
           const count = displayItems.filter((wi: any) => wi.workItemType === area.name).length;
           return (
@@ -209,8 +209,8 @@ const CoupaDashboardClassic: React.FC = () => {
       </Card>
 
       {/* Active Items + Go-Lives */}
-      <Row gutter={[12, 12]} className="mt-12">
-        <Col xs={24} lg={14}>
+      <Row gutter={[12, 12]} className="mt-12 equal-height-row">
+        <Col xs={24} xl={14}>
           <Card
             title={<Space><ShoppingCartOutlined /> Active Deliverables</Space>}
             size="small"
@@ -264,7 +264,7 @@ const CoupaDashboardClassic: React.FC = () => {
             )}
           </Card>
         </Col>
-        <Col xs={24} lg={10}>
+        <Col xs={24} xl={10}>
           <Card title={<Space><RocketOutlined /> Upcoming Go-Lives</Space>} size="small" className="mb-16">
             {upcomingGoLives.length === 0 ? (
               <Empty description="No upcoming go-lives" image={Empty.PRESENTED_IMAGE_SIMPLE} />

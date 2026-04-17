@@ -31,6 +31,7 @@ entity WorkItems : cuid, managed {
   application      : String(20) default 'SAP' @title: 'Application';  // SAP/Coupa/Commercial
   snowTicket       : String(20) @title: 'SNOW Ticket';
   veevaCCNumber    : String(30) @title: 'Veeva CC Number';
+  amsTicket        : String(30) @title: 'AMS Customer Ticket';   // AMS/customer ticket number (SAP only)
   // People (from SharePoint)
   businessOwner    : String(120) @title: 'Business Owner';
   systemOwner      : String(120) @title: 'System Owner';

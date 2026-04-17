@@ -109,7 +109,7 @@ const CommercialDashboardClassic: React.FC = () => {
   ];
 
   return (
-    <div>
+    <div className="dashboard-classic">
       {/* Banner */}
       <Card
         className="mb-16 commercial-banner border-none"
@@ -147,7 +147,7 @@ const CommercialDashboardClassic: React.FC = () => {
       </Card>
 
       {/* Commercial Capability Areas */}
-      <Row gutter={[12, 12]}>
+      <Row gutter={[12, 12]} className="summary-cards-row">
         {commercialAreas.map((area) => (
           <Col xs={12} sm={8} lg={4} key={area.name}>
             <Tooltip title={area.desc}>
@@ -269,8 +269,8 @@ const CommercialDashboardClassic: React.FC = () => {
       </Row>
 
       {/* Timeline + Category Breakdown */}
-      <Row gutter={[12, 12]} className="mt-12">
-        <Col xs={24} lg={14}>
+      <Row gutter={[12, 12]} className="mt-12 equal-height-row">
+        <Col xs={24} xl={14}>
           {/* Phase Distribution */}
           <Card title={<Space><DashboardOutlined /> Phase Distribution</Space>} size="small">
             {displayItems.length === 0 ? (
@@ -294,7 +294,7 @@ const CommercialDashboardClassic: React.FC = () => {
             )}
           </Card>
         </Col>
-        <Col xs={24} lg={10}>
+        <Col xs={24} xl={10}>
           <Card title={<Space><ClockCircleOutlined /> Upcoming Deadlines</Space>} size="small" className="mb-16">
             {upcomingDeadlines.length === 0 ? (
               <Empty description="No upcoming deadlines" image={Empty.PRESENTED_IMAGE_SIMPLE} />
