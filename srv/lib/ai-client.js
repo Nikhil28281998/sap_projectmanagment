@@ -239,63 +239,49 @@ class AIClient {
   }
 
   // ── SAP AI Core (Generative AI Hub) — OpenAI-compatible ──
+  // Uses @sap-cloud-sdk/http-client which handles OAuth + tenant ID automatically
   async _callAICore(systemPrompt, userMessage, maxTokens) {
     const deploymentId = process.env.AI_CORE_DEPLOYMENT_ID || 'd8e31dc8207d4ea9';
-    const baseUrl = this._destUrl.replace(/\/+$/, '');
-    const url = `${baseUrl}/deployments/${deploymentId}/chat/completions`;
+    const destName = AI_DEST_OVERRIDE || 'Ai_Core';
+    const path = `/deployments/${deploymentId}/chat/completions`;
 
-    console.log(`[AI] SAP AI Core → ${url}`);
+    console.log(`[AI] SAP AI Core → dest=${destName}, path=${path}`);
 
-    // Get auth token from the destination
-    let authHeaders = {};
+    let executeHttpRequest;
     try {
-      const { getDestination } = require('@sap-cloud-sdk/connectivity');
-      const dest = await getDestination({ destinationName: AI_DEST_OVERRIDE || 'Ai_Core' });
-      if (dest?.authTokens?.[0]?.value) {
-        authHeaders['Authorization'] = `Bearer ${dest.authTokens[0].value}`;
-      } else if (dest?.password) {
-        authHeaders['Authorization'] = `Bearer ${dest.password}`;
-      }
-    } catch (err) {
-      console.warn(`[AI] Could not get AI Core auth token: ${err.message}`);
-      // Try API key as fallback
-      if (this.apiKey) {
-        authHeaders['Authorization'] = `Bearer ${this.apiKey}`;
-      }
+      ({ executeHttpRequest } = require('@sap-cloud-sdk/http-client'));
+    } catch {
+      throw new Error('SAP AI Core requires @sap-cloud-sdk/http-client. Install it with: npm install @sap-cloud-sdk/http-client');
     }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60000); // AI Core can be slow
-    let response;
     try {
-      response = await fetch(url, {
-        method: 'POST',
-        signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          'AI-Resource-Group': process.env.AI_CORE_RESOURCE_GROUP || 'default',
-          ...authHeaders,
-        },
-        body: JSON.stringify({
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userMessage }
-          ],
-          max_tokens: maxTokens,
-        })
-      });
+      const response = await executeHttpRequest(
+        { destinationName: destName },
+        {
+          method: 'POST',
+          url: path,
+          headers: {
+            'Content-Type': 'application/json',
+            'AI-Resource-Group': process.env.AI_CORE_RESOURCE_GROUP || 'default',
+          },
+          data: {
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userMessage }
+            ],
+            max_tokens: maxTokens,
+          },
+          timeout: 60000,
+        }
+      );
+
+      const data = response.data;
+      return data.choices?.[0]?.message?.content || '';
     } catch (err) {
-      if (err.name === 'AbortError') throw new Error('SAP AI Core timed out after 60s');
-      throw err;
-    } finally { clearTimeout(timeout); }
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`SAP AI Core ${response.status}: ${errText.substring(0, 300)}`);
+      const status = err.response?.status || err.code || 'unknown';
+      const body = err.response?.data ? JSON.stringify(err.response.data).substring(0, 300) : err.message;
+      throw new Error(`SAP AI Core ${status}: ${body}`);
     }
-
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || '';
   }
 
   // ── Claude (Anthropic) ──
