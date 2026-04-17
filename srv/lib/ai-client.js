@@ -17,11 +17,15 @@
 const { decrypt } = require('./crypto-utils');
 
 // ── BTP Destination names (configured in BTP cockpit) ──
+// If AI_DESTINATION_NAME env var is set (e.g., "Ai_Core"), ALL AI providers
+// route through that single destination. Otherwise, use per-provider destinations.
+const AI_DEST_OVERRIDE = process.env.AI_DESTINATION_NAME || null;
+
 const DESTINATION_NAMES = {
-  claude:     'SAP_PM_AI_CLAUDE',
-  chatgpt:    'SAP_PM_AI_OPENAI',
-  gemini:     'SAP_PM_AI_GEMINI',
-  openrouter: 'SAP_PM_AI_OPENROUTER',
+  claude:     AI_DEST_OVERRIDE || 'SAP_PM_AI_CLAUDE',
+  chatgpt:    AI_DEST_OVERRIDE || 'SAP_PM_AI_OPENAI',
+  gemini:     AI_DEST_OVERRIDE || 'SAP_PM_AI_GEMINI',
+  openrouter: AI_DEST_OVERRIDE || 'SAP_PM_AI_OPENROUTER',
   rfc:        'SAP_PM_RFC_S4HANA',
   sharepoint: 'SAP_PM_SHAREPOINT',
 };
@@ -127,7 +131,14 @@ class AIClient {
     }
 
     const client = new AIClient({ provider, apiKey });
-    if (destUrl) client._destUrl = destUrl;
+    if (destUrl) {
+      client._destUrl = destUrl;
+      // If using a unified destination (e.g., Ai_Core / SAP AI Core),
+      // override the provider's baseUrl with the destination URL
+      if (AI_DEST_OVERRIDE) {
+        console.log(`[AI] Using unified destination "${AI_DEST_OVERRIDE}" → ${destUrl}`);
+      }
+    }
     return client;
   }
 
@@ -220,11 +231,14 @@ class AIClient {
 
   // ── Claude (Anthropic) ──
   async _callClaude(systemPrompt, userMessage, maxTokens) {
+    const url = this._destUrl
+      ? `${this._destUrl.replace(/\/+$/, '')}/v1/messages`
+      : this.providerConfig.baseUrl;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
     let response;
     try {
-      response = await fetch(this.providerConfig.baseUrl, {
+      response = await fetch(url, {
         method: 'POST',
         signal: controller.signal,
         headers: {
@@ -255,7 +269,10 @@ class AIClient {
 
   // ── Gemini (Google) — FREE tier: 15 RPM, 1M tokens/day ──
   async _callGemini(systemPrompt, userMessage, maxTokens) {
-    const url = `${this.providerConfig.baseUrl}/${this.model}:generateContent?key=${this.apiKey}`;
+    const baseUrl = this._destUrl
+      ? `${this._destUrl.replace(/\/+$/, '')}/v1beta/models`
+      : this.providerConfig.baseUrl;
+    const url = `${baseUrl}/${this.model}:generateContent?key=${this.apiKey}`;
     const body = JSON.stringify({
       system_instruction: { parts: [{ text: systemPrompt }] },
       contents: [{ parts: [{ text: userMessage }] }],
@@ -307,13 +324,16 @@ class AIClient {
 
   // ── OpenRouter (FREE models) — OpenAI-compatible API ──
   async _callOpenRouter(systemPrompt, userMessage, maxTokens) {
+    const url = this._destUrl
+      ? `${this._destUrl.replace(/\/+$/, '')}/v1/chat/completions`
+      : this.providerConfig.baseUrl;
     // Free models may route to reasoning models that need more tokens
     const effectiveMaxTokens = Math.max(maxTokens, 4000);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
     let response;
     try {
-      response = await fetch(this.providerConfig.baseUrl, {
+      response = await fetch(url, {
         method: 'POST',
         signal: controller.signal,
         headers: {
@@ -362,11 +382,14 @@ class AIClient {
 
   // ── ChatGPT (OpenAI) ──
   async _callOpenAI(systemPrompt, userMessage, maxTokens) {
+    const url = this._destUrl
+      ? `${this._destUrl.replace(/\/+$/, '')}/v1/chat/completions`
+      : this.providerConfig.baseUrl;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
     let response;
     try {
-      response = await fetch(this.providerConfig.baseUrl, {
+      response = await fetch(url, {
         method: 'POST',
         signal: controller.signal,
         headers: {
