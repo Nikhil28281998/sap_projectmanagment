@@ -13,7 +13,9 @@
  * Retry: 3 attempts with exponential backoff (1s → 2s → 4s)
  */
 
-const MOCK_TRANSPORTS = require('../../test/fixtures/rfc-transports-response.json');
+// Load mock data lazily — test fixtures aren't available in production builds
+let MOCK_TRANSPORTS = [];
+try { MOCK_TRANSPORTS = require('../../test/fixtures/rfc-transports-response.json'); } catch { /* not available in prod */ }
 
 class CircuitBreaker {
   constructor(options = {}) {
