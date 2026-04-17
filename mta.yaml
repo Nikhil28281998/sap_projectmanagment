@@ -23,7 +23,7 @@ modules:
       memory: 256M
       disk-quota: 512M
     properties:
-      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
+      APP_ENCRYPTION_KEY: sap-pm-enc-key-2026-bridgebio-change-me
       AI_DESTINATION_NAME: Ai_Core
     build-parameters:
       builder: npm
