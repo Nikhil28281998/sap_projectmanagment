@@ -50,36 +50,6 @@
       "scope-references": ["$XSAPPNAME.Executive"]
     }
   ],
-  "role-collections": [
-    {
-      "name": "SAP-PM-Admin",
-      "description": "Maps to Okta group: IT-SAPAdmins",
-      "role-template-references": [
-        { "role-template-name": "Admin", "app-id": "$XSAPPNAME" }
-      ]
-    },
-    {
-      "name": "SAP-PM-Manager",
-      "description": "Maps to Okta group: IT-AppManagers",
-      "role-template-references": [
-        { "role-template-name": "Manager", "app-id": "$XSAPPNAME" }
-      ]
-    },
-    {
-      "name": "SAP-PM-Developer",
-      "description": "Maps to Okta group: IT-SAPDevelopers",
-      "role-template-references": [
-        { "role-template-name": "Developer", "app-id": "$XSAPPNAME" }
-      ]
-    },
-    {
-      "name": "SAP-PM-Executive",
-      "description": "Maps to Okta group: IT-Leadership",
-      "role-template-references": [
-        { "role-template-name": "Executive", "app-id": "$XSAPPNAME" }
-      ]
-    }
-  ],
   "oauth2-configuration": {
     "redirect-uris": [
       "https://*.cfapps.*.hana.ondemand.com/**"
