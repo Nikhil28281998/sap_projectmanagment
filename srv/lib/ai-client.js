@@ -133,9 +133,12 @@ class AIClient {
     const client = new AIClient({ provider, apiKey });
     if (destUrl) {
       client._destUrl = destUrl;
-      // If using a unified destination (e.g., Ai_Core / SAP AI Core),
-      // override the provider's baseUrl with the destination URL
-      if (AI_DEST_OVERRIDE) {
+      // SAP AI Core: auth comes from the destination, not from an API key
+      // Mark as enabled even without explicit apiKey
+      if (destUrl.includes('/v2/inference')) {
+        client.enabled = true;
+        console.log(`[AI] SAP AI Core destination resolved → ${destUrl}`);
+      } else if (AI_DEST_OVERRIDE) {
         console.log(`[AI] Using unified destination "${AI_DEST_OVERRIDE}" → ${destUrl}`);
       }
     }
@@ -217,6 +220,12 @@ class AIClient {
       );
     }
 
+    // SAP AI Core: destination URL contains /v2/inference — use OpenAI-compatible format
+    // with deployment ID appended. Model is managed by AI Core, not by us.
+    if (this._destUrl && this._destUrl.includes('/v2/inference')) {
+      return this._callAICore(systemPrompt, userMessage, maxTokens);
+    }
+
     if (this.provider === 'chatgpt') {
       return this._callOpenAI(systemPrompt, userMessage, maxTokens);
     }
@@ -227,6 +236,66 @@ class AIClient {
       return this._callOpenRouter(systemPrompt, userMessage, maxTokens);
     }
     return this._callClaude(systemPrompt, userMessage, maxTokens);
+  }
+
+  // ── SAP AI Core (Generative AI Hub) — OpenAI-compatible ──
+  async _callAICore(systemPrompt, userMessage, maxTokens) {
+    const deploymentId = process.env.AI_CORE_DEPLOYMENT_ID || 'd8e31dc8207d4ea9';
+    const baseUrl = this._destUrl.replace(/\/+$/, '');
+    const url = `${baseUrl}/deployments/${deploymentId}/chat/completions`;
+
+    console.log(`[AI] SAP AI Core → ${url}`);
+
+    // Get auth token from the destination
+    let authHeaders = {};
+    try {
+      const { getDestination } = require('@sap-cloud-sdk/connectivity');
+      const dest = await getDestination({ destinationName: AI_DEST_OVERRIDE || 'Ai_Core' });
+      if (dest?.authTokens?.[0]?.value) {
+        authHeaders['Authorization'] = `Bearer ${dest.authTokens[0].value}`;
+      } else if (dest?.password) {
+        authHeaders['Authorization'] = `Bearer ${dest.password}`;
+      }
+    } catch (err) {
+      console.warn(`[AI] Could not get AI Core auth token: ${err.message}`);
+      // Try API key as fallback
+      if (this.apiKey) {
+        authHeaders['Authorization'] = `Bearer ${this.apiKey}`;
+      }
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000); // AI Core can be slow
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'AI-Resource-Group': process.env.AI_CORE_RESOURCE_GROUP || 'default',
+          ...authHeaders,
+        },
+        body: JSON.stringify({
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
+          ],
+          max_tokens: maxTokens,
+        })
+      });
+    } catch (err) {
+      if (err.name === 'AbortError') throw new Error('SAP AI Core timed out after 60s');
+      throw err;
+    } finally { clearTimeout(timeout); }
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`SAP AI Core ${response.status}: ${errText.substring(0, 300)}`);
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || '';
   }
 
   // ── Claude (Anthropic) ──

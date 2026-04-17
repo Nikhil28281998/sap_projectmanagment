@@ -25,6 +25,8 @@ modules:
     properties:
       APP_ENCRYPTION_KEY: sap-pm-enc-key-2026-bridgebio-change-me
       AI_DESTINATION_NAME: Ai_Core
+      AI_CORE_DEPLOYMENT_ID: d8e31dc8207d4ea9
+      AI_CORE_RESOURCE_GROUP: default
     build-parameters:
       builder: npm
     provides:
