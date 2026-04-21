@@ -282,10 +282,10 @@ const ExecutiveDashboard: React.FC = () => {
         </Col>
       </Row>
 
-      {/* Mini Stats: Per-App Breakdown */}
+      {/* Per-App Breakdown */}
       <Row gutter={16} className="mb-20">
         {appBreakdown.map(({ app, active, completed, total }) => (
-          <Col xs={8} lg={8} key={app}>
+          <Col xs={24} sm={12} lg={8} key={app}>
             <div className="analytics-kpi app-breakdown-card">
               <div className="app-breakdown-icon" style={{ color: APP_COLORS[app] }}>{APP_ICONS[app]}</div>
               <div className="flex-1">
@@ -298,21 +298,25 @@ const ExecutiveDashboard: React.FC = () => {
             </div>
           </Col>
         ))}
-        <Col xs={8} lg={4}>
+      </Row>
+
+      {/* Risk & Go-Lives Mini KPIs */}
+      <Row gutter={16} className="mb-20">
+        <Col xs={24} sm={8}>
           <div className="analytics-kpi analytics-kpi-mini">
             <div className="kpi-label"><WarningOutlined /> Critical</div>
             <div className="kpi-value text-red">{ragDist.RED}</div>
             <Text type="secondary" className="fs-11">need attention</Text>
           </div>
         </Col>
-        <Col xs={8} lg={4}>
+        <Col xs={24} sm={8}>
           <div className="analytics-kpi analytics-kpi-mini">
             <div className="kpi-label">Risk Score</div>
             <div className="kpi-value">{totalRiskScore}</div>
             <Text type="secondary" className="fs-11">aggregate</Text>
           </div>
         </Col>
-        <Col xs={8} lg={4}>
+        <Col xs={24} sm={8}>
           <div className="analytics-kpi analytics-kpi-mini">
             <div className="kpi-label">Go-Lives ≤90d</div>
             <div className="kpi-value">{upcomingGoLives.length}</div>
