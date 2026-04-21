@@ -55,7 +55,7 @@ describe('Box', () => {
   });
 
   it('forwards ref', () => {
-    let ref: HTMLDivElement | null = null;
+    let ref: Element | null = null;
     render(<Box ref={(r) => { ref = r; }}>hi</Box>);
     expect(ref).toBeInstanceOf(HTMLDivElement);
   });
