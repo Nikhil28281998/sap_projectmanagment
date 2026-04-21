@@ -37,4 +37,10 @@ describe('EmptyState', () => {
     const el = getByTestId('t');
     expect(el.className).toBe('c');
   });
+
+  it('renders title as an h3', () => {
+    const { container } = render(<EmptyState title="Heading" />);
+    const h = container.querySelector('h3');
+    expect(h?.textContent).toBe('Heading');
+  });
 });
