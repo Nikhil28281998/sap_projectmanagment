@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import { ThemeProvider } from './design/theme';
 import './design/global.css';
+import './design/motion.css';
 import './styles/utilities.css';
 
 // Phase 3 cleanup: remove legacy dashboard view toggle keys (no longer used)

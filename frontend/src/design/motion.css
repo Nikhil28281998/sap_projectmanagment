@@ -1,0 +1,58 @@
+/*
+  Design-system motion utilities. All references to motion use CSS vars
+  so the same durations/easings are shared across JS and CSS.
+*/
+
+.ds-transition-fast {
+  transition-duration: var(--motion-duration-fast);
+  transition-timing-function: var(--motion-easing-out);
+  transition-property: background-color, border-color, color, box-shadow, transform;
+}
+.ds-transition-base {
+  transition-duration: var(--motion-duration-base);
+  transition-timing-function: var(--motion-easing-out);
+  transition-property: background-color, border-color, color, box-shadow, transform;
+}
+.ds-transition-slow {
+  transition-duration: var(--motion-duration-slow);
+  transition-timing-function: var(--motion-easing-inOut);
+  transition-property: background-color, border-color, color, box-shadow, transform, opacity;
+}
+
+@keyframes ds-fade-in {
+  from { opacity: 0 }
+  to   { opacity: 1 }
+}
+@keyframes ds-fade-in-up {
+  from { opacity: 0; transform: translateY(8px) }
+  to   { opacity: 1; transform: translateY(0) }
+}
+@keyframes ds-pulse {
+  0%, 100% { opacity: 1 }
+  50%      { opacity: 0.55 }
+}
+
+.ds-anim-fade-in      { animation: ds-fade-in      var(--motion-duration-base) var(--motion-easing-out) both; }
+.ds-anim-fade-in-up   { animation: ds-fade-in-up   var(--motion-duration-base) var(--motion-easing-out) both; }
+.ds-anim-pulse        { animation: ds-pulse 1.4s var(--motion-easing-inOut) infinite; }
+
+/* Hover raise pattern for cards */
+.ds-hoverable {
+  transition: transform var(--motion-duration-fast) var(--motion-easing-out),
+              box-shadow var(--motion-duration-fast) var(--motion-easing-out);
+}
+.ds-hoverable:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-transition-fast, .ds-transition-base, .ds-transition-slow,
+  .ds-anim-fade-in, .ds-anim-fade-in-up, .ds-anim-pulse,
+  .ds-hoverable {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .ds-hoverable:hover { transform: none; box-shadow: none; }
+}
