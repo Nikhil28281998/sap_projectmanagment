@@ -14,7 +14,8 @@ describe('primitive tokens', () => {
   });
 
   it('has teal, rose, amber, emerald, inkBlue scales', () => {
-    expect(primitives.teal[500]).toBe('#22D3EE');
+    expect(primitives.teal[400]).toBe('#22D3EE');
+    expect(primitives.teal[500]).toBe('#06B6D4');
     expect(primitives.rose[500]).toBe('#F43F5E');
     expect(primitives.amber[500]).toBe('#F59E0B');
     expect(primitives.emerald[500]).toBe('#10B981');
