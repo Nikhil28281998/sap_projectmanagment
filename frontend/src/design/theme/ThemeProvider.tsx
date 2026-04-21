@@ -40,6 +40,16 @@ function injectCssVars() {
 `.trim();
 }
 
+// Run pre-paint: inject vars + set initial data-theme/density before React renders.
+// Eliminates first-frame FOUC where body styles reference undefined CSS variables.
+if (typeof document !== 'undefined') {
+  injectCssVars();
+  const initialTheme = readStored<ThemeName>(THEME_KEY, THEMES, 'dark');
+  const initialDensity = readStored<DensityMode>(DENSITY_KEY, DENSITY_MODES, 'comfortable');
+  document.documentElement.dataset.theme = initialTheme;
+  document.documentElement.dataset.density = initialDensity;
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeName>(() =>
     readStored<ThemeName>(THEME_KEY, THEMES, 'dark')
@@ -48,16 +58,22 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     readStored<DensityMode>(DENSITY_KEY, DENSITY_MODES, 'comfortable')
   );
 
-  useEffect(() => { injectCssVars(); }, []);
-
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem(THEME_KEY, theme);
+    if (typeof document !== 'undefined') {
+      document.documentElement.dataset.theme = theme;
+    }
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(THEME_KEY, theme);
+    }
   }, [theme]);
 
   useEffect(() => {
-    document.documentElement.dataset.density = density;
-    localStorage.setItem(DENSITY_KEY, density);
+    if (typeof document !== 'undefined') {
+      document.documentElement.dataset.density = density;
+    }
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(DENSITY_KEY, density);
+    }
   }, [density]);
 
   const value: ThemeContextValue = useMemo(
