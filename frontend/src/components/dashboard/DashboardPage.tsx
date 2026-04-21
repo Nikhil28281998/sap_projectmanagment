@@ -18,6 +18,7 @@ import dayjs from 'dayjs';
 import '../../styles/dashboard-analytics.css';
 import type { WorkItem, Transport, Milestone } from '@/types';
 import { StatCard, EmptyState } from '../../design/components';
+import { tokenAxisConfig, chartColors } from '../../design/chart-theme';
 
 const { Text, Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -508,10 +509,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                 stack={true} height={280} theme={C.chartTheme}
                 scale={{ color: { domain: ['On Track', 'At Risk', 'Critical'], range: [C.green, C.amber, C.red] } }}
                 style={{ maxWidth: 40, radiusTopLeft: 4, radiusTopRight: 4 }}
-                axis={{
-                  x: { title: false, line: null, tick: null, labelFill: C.textSec },
-                  y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3], labelFill: C.textSec },
-                }}
+                axis={tokenAxisConfig()}
                 legend={false}
               />
             ) : (
@@ -569,7 +567,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                 <Bar data={moduleBarData} xField="module" yField="count"
                   height={Math.max(200, moduleBarData.length * 48)} theme={C.chartTheme}
                   style={{ fill: C.accent, radiusTopRight: 4, radiusBottomRight: 4 }}
-                  axis={{ x: { title: false, labelFill: C.textSec }, y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3], labelFill: C.textSec } }}
+                  axis={tokenAxisConfig()}
                   label={{ text: 'count', fontSize: 11, fill: C.textSec }} legend={false}
                 />
               ) : <EmptyState title="No data" />}
@@ -583,7 +581,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                 <Bar data={moduleRiskData} xField="module" yField="riskScore"
                   height={Math.max(200, moduleRiskData.length * 48)} theme={C.chartTheme}
                   style={{ fill: C.red, radiusTopRight: 4, radiusBottomRight: 4 }}
-                  axis={{ x: { title: false, labelFill: C.textSec }, y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3], labelFill: C.textSec } }}
+                  axis={tokenAxisConfig()}
                   label={{ text: 'riskScore', fontSize: 11, fill: C.textSec }} legend={false}
                 />
               ) : <EmptyState title="No data" />}
@@ -602,7 +600,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                 <Bar data={priorityBarData} xField="priority" yField="count"
                   height={Math.max(180, priorityBarData.length * 48)} theme={C.chartTheme}
                   style={{ fill: C.orange, radiusTopRight: 4, radiusBottomRight: 4 }}
-                  axis={{ x: { title: false }, y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3] } }}
+                  axis={tokenAxisConfig()}
                   label={{ text: 'count', fontSize: 11 }} legend={false}
                 />
               ) : <EmptyState title="No data" />}
@@ -616,7 +614,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                 <Bar data={uatBarData} xField="status" yField="count"
                   height={Math.max(180, uatBarData.length * 48)} theme={C.chartTheme}
                   style={{ fill: C.accent, radiusTopRight: 4, radiusBottomRight: 4 }}
-                  axis={{ x: { title: false }, y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3] } }}
+                  axis={tokenAxisConfig()}
                   label={{ text: 'count', fontSize: 11 }} legend={false}
                 />
               ) : <EmptyState title="No data" />}
@@ -630,7 +628,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                 <Bar data={complexityData} xField="complexity" yField="count"
                   height={Math.max(180, complexityData.length * 48)} theme={C.chartTheme}
                   style={{ fill: C.purple, radiusTopRight: 4, radiusBottomRight: 4 }}
-                  axis={{ x: { title: false }, y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3] } }}
+                  axis={tokenAxisConfig()}
                   label={{ text: 'count', fontSize: 11 }} legend={false}
                 />
               ) : <EmptyState title="No data" />}
@@ -649,7 +647,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                 <Bar data={priorityBarData} xField="priority" yField="count"
                   height={Math.max(180, priorityBarData.length * 48)} theme={C.chartTheme}
                   style={{ fill: C.purple, radiusTopRight: 4, radiusBottomRight: 4 }}
-                  axis={{ x: { title: false }, y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3] } }}
+                  axis={tokenAxisConfig()}
                   label={{ text: 'count', fontSize: 11 }} legend={false}
                 />
               ) : <EmptyState title="No data" />}
@@ -663,7 +661,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                 <Bar data={complexityData} xField="complexity" yField="count"
                   height={Math.max(180, complexityData.length * 48)} theme={C.chartTheme}
                   style={{ fill: C.cyan, radiusTopRight: 4, radiusBottomRight: 4 }}
-                  axis={{ x: { title: false }, y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3] } }}
+                  axis={tokenAxisConfig()}
                   label={{ text: 'count', fontSize: 11 }} legend={false}
                 />
               ) : <EmptyState title="No data" />}
@@ -677,7 +675,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                 <Bar data={riskBucketData} xField="bucket" yField="count"
                   height={Math.max(180, riskBucketData.length * 48)} theme={C.chartTheme}
                   style={{ fill: C.red, radiusTopRight: 4, radiusBottomRight: 4 }}
-                  axis={{ x: { title: false }, y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3] } }}
+                  axis={tokenAxisConfig()}
                   label={{ text: 'count', fontSize: 11 }} legend={false}
                 />
               ) : <EmptyState title="No data" />}
@@ -700,7 +698,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                 <Bar data={priorityBarData} xField="priority" yField="count"
                   height={Math.max(180, priorityBarData.length * 48)} theme={C.chartTheme}
                   style={{ fill: C.purple, radiusTopRight: 4, radiusBottomRight: 4 }}
-                  axis={{ x: { title: false, labelFill: C.textSec }, y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3], labelFill: C.textSec } }}
+                  axis={tokenAxisConfig()}
                   label={{ text: 'count', fontSize: 11, fill: C.textSec }} legend={false}
                 />
               ) : <EmptyState title="No data" />}
@@ -715,7 +713,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                   theme={C.chartTheme}
                   style={{ maxWidth: 60, radiusTopLeft: 4, radiusTopRight: 4 }}
                   scale={{ color: { range: [C.accent] } }}
-                  axis={{ x: { title: false, line: null, tick: null, labelFill: C.textSec }, y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3], labelFill: C.textSec } }}
+                  axis={tokenAxisConfig()}
                   label={{ text: 'count', fontSize: 12, fill: C.textSec }} legend={false}
                 />
               ) : <EmptyState title="No transports" />}

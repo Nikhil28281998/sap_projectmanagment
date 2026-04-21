@@ -17,6 +17,7 @@ import dayjs from 'dayjs';
 import '../../styles/dashboard-analytics.css';
 import type { WorkItem, Transport, Milestone } from '@/types';
 import { StatCard, EmptyState } from '../../design/components';
+import { tokenAxisConfig, chartColors } from '../../design/chart-theme';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -309,7 +310,7 @@ const ExecutiveDashboard: React.FC = () => {
                 stack={true} height={280} theme="classic"
                 scale={{ color: { domain: ['On Track', 'At Risk', 'Critical'], range: [C.green, C.amber, C.red] } }}
                 style={{ maxWidth: 60, radiusTopLeft: 4, radiusTopRight: 4 }}
-                axis={{ x: { title: false, line: null, tick: null }, y: { title: false, gridStroke: '#f0f0f0', gridLineDash: [3, 3] } }}
+                axis={tokenAxisConfig()}
                 legend={false} />
             ) : (
               <div className="chart-empty-placeholder">
@@ -365,7 +366,7 @@ const ExecutiveDashboard: React.FC = () => {
               <Bar data={appProgressData} xField="app" yField="progress"
                 height={Math.max(180, appProgressData.length * 56)} theme="classic"
                 style={{ fill: C.accent, radiusTopRight: 4, radiusBottomRight: 4 }}
-                axis={{ x: { title: false }, y: { title: false, gridStroke: '#f0f0f0', gridLineDash: [3, 3] } }}
+                axis={tokenAxisConfig()}
                 label={{ text: (d: any) => `${d.progress}%`, fontSize: 11 }} legend={false} />
             ) : <EmptyState title="No data" />}
           </Col>
@@ -378,7 +379,7 @@ const ExecutiveDashboard: React.FC = () => {
               <Bar data={appRiskData} xField="app" yField="riskScore"
                 height={Math.max(180, appRiskData.length * 56)} theme="classic"
                 style={{ fill: C.red, radiusTopRight: 4, radiusBottomRight: 4 }}
-                axis={{ x: { title: false }, y: { title: false, gridStroke: '#f0f0f0', gridLineDash: [3, 3] } }}
+                axis={tokenAxisConfig()}
                 label={{ text: 'riskScore', fontSize: 11 }} legend={false} />
             ) : <EmptyState title="No data" />}
           </Col>
@@ -391,7 +392,7 @@ const ExecutiveDashboard: React.FC = () => {
               <Bar data={priorityData} xField="priority" yField="count"
                 height={Math.max(180, priorityData.length * 48)} theme="classic"
                 style={{ fill: C.purple, radiusTopRight: 4, radiusBottomRight: 4 }}
-                axis={{ x: { title: false }, y: { title: false, gridStroke: '#f0f0f0', gridLineDash: [3, 3] } }}
+                axis={tokenAxisConfig()}
                 label={{ text: 'count', fontSize: 11 }} legend={false} />
             ) : <EmptyState title="No data" />}
           </Col>

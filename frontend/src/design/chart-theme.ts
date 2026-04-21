@@ -36,8 +36,8 @@ export function tokenAxisConfig() {
   return {
     x: {
       title: false,
-      line: null as const,
-      tick: null as const,
+      line: null,
+      tick: null,
       label: { style: { fill: chartColors.text() } },
     },
     y: {
