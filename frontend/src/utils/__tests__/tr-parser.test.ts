@@ -125,12 +125,12 @@ describe('daysBetween', () => {
 
 describe('WORK_TYPE_MAP', () => {
   test('contains all standard work types', () => {
-    expect(WORK_TYPE_MAP).toHaveProperty('project');
-    expect(WORK_TYPE_MAP).toHaveProperty('enhancement');
-    expect(WORK_TYPE_MAP).toHaveProperty('break-fix');
-    expect(WORK_TYPE_MAP).toHaveProperty('general');
-    expect(WORK_TYPE_MAP).toHaveProperty('basis');
-    expect(WORK_TYPE_MAP).toHaveProperty('security');
+    expect(WORK_TYPE_MAP).toHaveProperty('Project');
+    expect(WORK_TYPE_MAP).toHaveProperty('Enhancement');
+    expect(WORK_TYPE_MAP).toHaveProperty('Break-fix');
+    expect(WORK_TYPE_MAP).toHaveProperty('Support');
+    expect(WORK_TYPE_MAP).toHaveProperty('Hypercare');
+    expect(WORK_TYPE_MAP).toHaveProperty('Upgrade');
   });
 });
 
