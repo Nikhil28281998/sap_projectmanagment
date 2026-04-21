@@ -19,6 +19,9 @@ const ReportsPage = lazy(() => import('./components/tools/ReportsPage'));
 const SettingsPage = lazy(() => import('./components/settings/SettingsPage'));
 const AdminPage = lazy(() => import('./components/admin/AdminPage'));
 const MethodologyPage = lazy(() => import('./components/settings/MethodologyPage'));
+const DesignSystemSandbox = lazy(() =>
+  import('./design/sandbox/DesignSystemSandbox').then((m) => ({ default: m.DesignSystemSandbox }))
+);
 
 const PageFallback = () => (
   <div className="page-fallback">
@@ -60,6 +63,9 @@ const App: React.FC = () => {
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/methodology" element={<MethodologyPage />} />
+            {import.meta.env.DEV && (
+              <Route path="/design-sandbox" element={<DesignSystemSandbox />} />
+            )}
             {/* 404 catch-all */}
             <Route path="*" element={<NotFound />} />
           </Routes>
