@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   Row, Col, Select, Typography, Tooltip, Space,
-  DatePicker, Button, Empty, Table, Tag, Progress
+  DatePicker, Button, Table, Tag, Progress
 } from 'antd';
 import {
   FilterOutlined, InfoCircleOutlined,
@@ -16,7 +16,7 @@ import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
 import dayjs from 'dayjs';
 import '../../styles/dashboard-analytics.css';
 import type { WorkItem, Transport, Milestone } from '@/types';
-import { StatCard } from '../../design/components';
+import { StatCard, EmptyState } from '../../design/components';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -313,7 +313,7 @@ const ExecutiveDashboard: React.FC = () => {
                 legend={false} />
             ) : (
               <div className="chart-empty-placeholder">
-                <Empty description="No data" />
+                <EmptyState title="No data" />
               </div>
             )}
           </Col>
@@ -345,7 +345,7 @@ const ExecutiveDashboard: React.FC = () => {
               </div>
             ) : (
               <div className="chart-empty-placeholder">
-                <Empty description="No data" />
+                <EmptyState title="No data" />
               </div>
             )}
           </Col>
@@ -367,7 +367,7 @@ const ExecutiveDashboard: React.FC = () => {
                 style={{ fill: C.accent, radiusTopRight: 4, radiusBottomRight: 4 }}
                 axis={{ x: { title: false }, y: { title: false, gridStroke: '#f0f0f0', gridLineDash: [3, 3] } }}
                 label={{ text: (d: any) => `${d.progress}%`, fontSize: 11 }} legend={false} />
-            ) : <Empty description="No data" />}
+            ) : <EmptyState title="No data" />}
           </Col>
           <Col xs={24} lg={8}>
             <div className="chart-section-header">
@@ -380,7 +380,7 @@ const ExecutiveDashboard: React.FC = () => {
                 style={{ fill: C.red, radiusTopRight: 4, radiusBottomRight: 4 }}
                 axis={{ x: { title: false }, y: { title: false, gridStroke: '#f0f0f0', gridLineDash: [3, 3] } }}
                 label={{ text: 'riskScore', fontSize: 11 }} legend={false} />
-            ) : <Empty description="No data" />}
+            ) : <EmptyState title="No data" />}
           </Col>
           <Col xs={24} lg={8}>
             <div className="chart-section-header">
@@ -393,7 +393,7 @@ const ExecutiveDashboard: React.FC = () => {
                 style={{ fill: C.purple, radiusTopRight: 4, radiusBottomRight: 4 }}
                 axis={{ x: { title: false }, y: { title: false, gridStroke: '#f0f0f0', gridLineDash: [3, 3] } }}
                 label={{ text: 'count', fontSize: 11 }} legend={false} />
-            ) : <Empty description="No data" />}
+            ) : <EmptyState title="No data" />}
           </Col>
         </Row>
       </div>
@@ -414,7 +414,7 @@ const ExecutiveDashboard: React.FC = () => {
           pagination={{ pageSize: 8, size: 'small' }}
           scroll={{ x: 700 }}
           loading={isLoading}
-          locale={{ emptyText: <Empty description="No active projects" /> }}
+          locale={{ emptyText: <EmptyState title="No active projects" /> }}
         />
       </div>
     </div>
