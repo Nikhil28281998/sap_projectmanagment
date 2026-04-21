@@ -4,7 +4,7 @@ import {
   DatePicker, Button, Empty, Table, Tag, Progress
 } from 'antd';
 import {
-  FilterOutlined, CaretUpOutlined, CaretDownOutlined, InfoCircleOutlined,
+  FilterOutlined, InfoCircleOutlined,
   ApartmentOutlined, ShoppingCartOutlined, MedicineBoxOutlined,
   CheckCircleOutlined, TrophyOutlined, WarningOutlined
 } from '@ant-design/icons';
@@ -16,6 +16,7 @@ import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
 import dayjs from 'dayjs';
 import '../../styles/dashboard-analytics.css';
 import type { WorkItem, Transport, Milestone } from '@/types';
+import { StatCard } from '../../design/components';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -206,58 +207,53 @@ const ExecutiveDashboard: React.FC = () => {
       {/* KPI Cards */}
       <Row gutter={16} className="mb-20">
         <Col xs={12} lg={6}>
-          <div className="analytics-kpi analytics-kpi-clickable" onClick={() => navigate('/tracker?app=all')}>
-            <div className="kpi-label"><TrophyOutlined /> Active Projects</div>
-            <div className="kpi-value">{activeProjects.length}</div>
-            <div className="kpi-delta positive"><CaretUpOutlined /> {ragDist.GREEN} on track</div>
-          </div>
+          <StatCard
+            icon={<TrophyOutlined />}
+            label="Active Projects"
+            value={activeProjects.length}
+            delta={{ direction: 'up', text: `${ragDist.GREEN} on track` }}
+            tone="info"
+            onClick={() => navigate('/tracker?app=all')}
+          />
         </Col>
         <Col xs={12} lg={6}>
-          <div className="analytics-kpi">
-            <div className="kpi-label"><CheckCircleOutlined /> Completed</div>
-            <div className="kpi-value text-green">{completedCount}</div>
-            <div className="kpi-delta neutral">Across all applications</div>
-          </div>
+          <StatCard
+            icon={<CheckCircleOutlined />}
+            label="Completed"
+            value={completedCount}
+            caption="Across all applications"
+            tone="success"
+          />
         </Col>
         <Col xs={12} lg={6}>
-          <div className="analytics-kpi">
-            <div className="kpi-label">Avg Progress</div>
-            <div className="kpi-value">{avgDeployment}<span className="kpi-pct-suffix">%</span></div>
-            <div className="kpi-delta neutral">Test pass: {testSummary.rate}%</div>
-          </div>
+          <StatCard
+            label="Avg Progress"
+            value={`${avgDeployment}%`}
+            caption={`Test pass: ${testSummary.rate}%`}
+            tone="info"
+          />
         </Col>
         <Col xs={12} lg={6}>
-          <div className="analytics-kpi">
-            <div className="kpi-label">Portfolio Health</div>
-            <div className="kpi-value">{activeProjects.length}</div>
-            <div className="rag-bar">
-              {ragDist.GREEN > 0 && <Tooltip title={`On Track: ${ragDist.GREEN}`}><div className="bg-green" style={{ flex: ragDist.GREEN }} /></Tooltip>}
-              {ragDist.AMBER > 0 && <Tooltip title={`At Risk: ${ragDist.AMBER}`}><div className="bg-amber" style={{ flex: ragDist.AMBER }} /></Tooltip>}
-              {ragDist.RED > 0 && <Tooltip title={`Critical: ${ragDist.RED}`}><div className="bg-red" style={{ flex: ragDist.RED }} /></Tooltip>}
-            </div>
-            <div className="rag-bar-legend">
-              <span><span className="text-green">●</span> On Track</span>
-              <span><span className="text-amber">●</span> At Risk</span>
-              <span><span className="text-red">●</span> Critical</span>
-            </div>
-          </div>
+          <StatCard
+            label="Portfolio Health"
+            value={activeProjects.length}
+            caption={`On Track: ${ragDist.GREEN} · At Risk: ${ragDist.AMBER} · Critical: ${ragDist.RED}`}
+            tone={ragDist.RED > 0 ? 'danger' : ragDist.AMBER > 0 ? 'warning' : 'success'}
+          />
         </Col>
       </Row>
 
       {/* Per-App Breakdown */}
       <Row gutter={16} className="mb-20">
-        {appBreakdown.map(({ app, active, completed, total }) => (
+        {appBreakdown.map(({ app, active, completed }) => (
           <Col xs={24} sm={12} lg={8} key={app}>
-            <div className="analytics-kpi app-breakdown-card">
-              <div className="app-breakdown-icon" style={{ color: APP_COLORS[app] }}>{APP_ICONS[app]}</div>
-              <div className="flex-1">
-                <Text strong className="fs-14">{app}</Text>
-                <div className="app-breakdown-stats">
-                  <Text type="secondary" className="fs-12">Active: <Text strong>{active}</Text></Text>
-                  <Text type="secondary" className="fs-12">Done: <Text strong className="text-green">{completed}</Text></Text>
-                </div>
-              </div>
-            </div>
+            <StatCard
+              icon={APP_ICONS[app]}
+              label={app}
+              value={active}
+              caption={`Active: ${active} · Done: ${completed}`}
+              tone="info"
+            />
           </Col>
         ))}
       </Row>
@@ -265,25 +261,29 @@ const ExecutiveDashboard: React.FC = () => {
       {/* Risk & Go-Lives Mini KPIs */}
       <Row gutter={16} className="mb-20">
         <Col xs={24} sm={8}>
-          <div className="analytics-kpi analytics-kpi-mini">
-            <div className="kpi-label"><WarningOutlined /> Critical</div>
-            <div className="kpi-value text-red">{ragDist.RED}</div>
-            <Text type="secondary" className="fs-11">need attention</Text>
-          </div>
+          <StatCard
+            icon={<WarningOutlined />}
+            label="Critical"
+            value={ragDist.RED}
+            caption="need attention"
+            tone="danger"
+          />
         </Col>
         <Col xs={24} sm={8}>
-          <div className="analytics-kpi analytics-kpi-mini">
-            <div className="kpi-label">Risk Score</div>
-            <div className="kpi-value">{totalRiskScore}</div>
-            <Text type="secondary" className="fs-11">aggregate</Text>
-          </div>
+          <StatCard
+            label="Risk Score"
+            value={totalRiskScore}
+            caption="aggregate"
+            tone={totalRiskScore > 200 ? 'danger' : 'warning'}
+          />
         </Col>
         <Col xs={24} sm={8}>
-          <div className="analytics-kpi analytics-kpi-mini">
-            <div className="kpi-label">Go-Lives ≤90d</div>
-            <div className="kpi-value">{upcomingGoLives.length}</div>
-            <Text type="secondary" className="fs-11">upcoming</Text>
-          </div>
+          <StatCard
+            label="Go-Lives ≤90d"
+            value={upcomingGoLives.length}
+            caption="upcoming"
+            tone="info"
+          />
         </Col>
       </Row>
 
