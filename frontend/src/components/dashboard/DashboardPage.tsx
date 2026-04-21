@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import {
   Row, Col, Select, Typography, Tooltip, Space,
-  DatePicker, Button, Empty, Progress, Table, Tag
+  DatePicker, Button, Progress, Table, Tag
 } from 'antd';
 import {
-  FilterOutlined, CaretUpOutlined, CaretDownOutlined, InfoCircleOutlined,
+  FilterOutlined, InfoCircleOutlined,
   RocketOutlined, ShoppingCartOutlined,
   MedicineBoxOutlined, BugOutlined, ClockCircleOutlined, ThunderboltOutlined,
   CheckCircleOutlined, WarningOutlined, ExperimentOutlined
@@ -17,6 +17,7 @@ import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
 import dayjs from 'dayjs';
 import '../../styles/dashboard-analytics.css';
 import type { WorkItem, Transport, Milestone } from '@/types';
+import { StatCard, EmptyState } from '../../design/components';
 
 const { Text, Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -372,111 +373,115 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
       {/* ── KPI Cards ── */}
       <Row gutter={16} className="mb-20">
         <Col xs={12} lg={6}>
-          <div className="analytics-kpi analytics-kpi-clickable" onClick={() => navigate('/tracker')}>
-            <div className="kpi-label">{cfg.kpiIcon} Active {cfg.itemLabel}</div>
-            <div className="kpi-value">{activeItems.length}</div>
-            <div className="kpi-delta positive"><CaretUpOutlined /> {ragDist.GREEN} on track</div>
-          </div>
+          <StatCard
+            icon={cfg.kpiIcon}
+            label={`Active ${cfg.itemLabel}`}
+            value={activeItems.length}
+            delta={{ direction: 'up', text: `${ragDist.GREEN} on track` }}
+            tone="info"
+            onClick={() => navigate('/tracker')}
+          />
         </Col>
         <Col xs={12} lg={6}>
-          <div className="analytics-kpi">
-            <div className="kpi-label">
-              <ThunderboltOutlined /> Risk Score <Tooltip title="Sum of risk scores across active items"><InfoCircleOutlined className="kpi-info-icon" /></Tooltip>
-            </div>
-            <div className="kpi-value">{totalRiskScore}</div>
-            <div className={`kpi-delta ${totalRiskScore > cfg.riskThreshold ? 'negative' : 'positive'}`}>
-              {totalRiskScore > cfg.riskThreshold
-                ? <><CaretUpOutlined /> {application === 'SAP' ? 'High risk' : 'Elevated'}</>
-                : <><CaretDownOutlined /> {application === 'SAP' ? 'Low risk' : 'Normal'}</>}
-            </div>
-          </div>
+          <StatCard
+            icon={<ThunderboltOutlined />}
+            label="Risk Score"
+            value={totalRiskScore}
+            delta={
+              totalRiskScore > cfg.riskThreshold
+                ? { direction: 'up', text: application === 'SAP' ? 'High risk' : 'Elevated' }
+                : { direction: 'down', text: application === 'SAP' ? 'Low risk' : 'Normal' }
+            }
+            tone={totalRiskScore > cfg.riskThreshold ? 'danger' : 'success'}
+          />
         </Col>
         <Col xs={12} lg={6}>
-          <div className="analytics-kpi">
-            <div className="kpi-label">
-              <ClockCircleOutlined /> Avg {application === 'SAP' ? 'Deployment' : 'Progress'}
-              <Tooltip title={`Average progress % across active ${cfg.itemLabel.toLowerCase()}`}><InfoCircleOutlined className="kpi-info-icon" /></Tooltip>
-            </div>
-            <div className="kpi-value">{avgDeployment}<span className="kpi-pct-suffix">%</span></div>
-            <div className="kpi-delta neutral">
-              {application === 'SAP'
+          <StatCard
+            icon={<ClockCircleOutlined />}
+            label={`Avg ${application === 'SAP' ? 'Deployment' : 'Progress'}`}
+            value={`${avgDeployment}%`}
+            caption={
+              application === 'SAP'
                 ? `Transport Pipeline: ${pipeline.prd}/${pipeline.total} in PRD`
-                : `Across active ${cfg.itemLabel.toLowerCase()}`}
-            </div>
-          </div>
+                : `Across active ${cfg.itemLabel.toLowerCase()}`
+            }
+            tone="info"
+          />
         </Col>
         <Col xs={12} lg={6}>
-          <div className="analytics-kpi">
-            <div className="kpi-label">Total {cfg.itemLabel}</div>
-            <div className="kpi-value">{workItems.length}</div>
-            <div className="rag-bar">
-              {ragDist.GREEN > 0 && <Tooltip title={`On Track: ${ragDist.GREEN}`}><div className="bg-green" style={{ flex: ragDist.GREEN }} /></Tooltip>}
-              {ragDist.AMBER > 0 && <Tooltip title={`At Risk: ${ragDist.AMBER}`}><div className="bg-amber" style={{ flex: ragDist.AMBER }} /></Tooltip>}
-              {ragDist.RED > 0 && <Tooltip title={`Critical: ${ragDist.RED}`}><div className="bg-red" style={{ flex: ragDist.RED }} /></Tooltip>}
-            </div>
-            <div className="rag-bar-legend">
-              <span><span className="text-green">●</span> On Track</span>
-              <span><span className="text-amber">●</span> At Risk</span>
-              <span><span className="text-red">●</span> Critical</span>
-            </div>
-          </div>
+          <StatCard
+            label={`Total ${cfg.itemLabel}`}
+            value={workItems.length}
+            caption={`On Track: ${ragDist.GREEN} · At Risk: ${ragDist.AMBER} · Critical: ${ragDist.RED}`}
+            tone="neutral"
+          />
         </Col>
       </Row>
 
       {/* ── Mini Stats ── */}
       <Row gutter={16} className="mb-20">
         <Col xs={8} lg={4}>
-          <div className="analytics-kpi analytics-kpi-mini">
-            <div className="kpi-label"><BugOutlined /> Test Pass Rate</div>
-            <div className="kpi-value">{testSummary.rate}%</div>
-            <Text type="secondary" className="fs-11">{testSummary.passed}/{testSummary.total}</Text>
-          </div>
+          <StatCard
+            icon={<BugOutlined />}
+            label="Test Pass Rate"
+            value={`${testSummary.rate}%`}
+            caption={`${testSummary.passed}/${testSummary.total}`}
+            tone={testSummary.rate >= 80 ? 'success' : testSummary.rate >= 50 ? 'warning' : 'danger'}
+          />
         </Col>
         <Col xs={8} lg={4}>
-          <div className="analytics-kpi analytics-kpi-mini">
-            <div className="kpi-label"><CheckCircleOutlined /> Completed</div>
-            <div className="kpi-value text-green">{completedItems.length}</div>
-            <Text type="secondary" className="fs-11">of {workItems.length} total</Text>
-          </div>
+          <StatCard
+            icon={<CheckCircleOutlined />}
+            label="Completed"
+            value={completedItems.length}
+            caption={`of ${workItems.length} total`}
+            tone="success"
+          />
         </Col>
         <Col xs={8} lg={4}>
-          <div className="analytics-kpi analytics-kpi-mini">
-            <div className="kpi-label"><WarningOutlined /> Critical</div>
-            <div className="kpi-value text-red">{ragDist.RED}</div>
-            <Text type="secondary" className="fs-11">need attention</Text>
-          </div>
+          <StatCard
+            icon={<WarningOutlined />}
+            label="Critical"
+            value={ragDist.RED}
+            caption="need attention"
+            tone="danger"
+          />
         </Col>
         <Col xs={8} lg={4}>
-          <div className="analytics-kpi analytics-kpi-mini">
-            <div className="kpi-label">At Risk</div>
-            <div className="kpi-value text-amber">{ragDist.AMBER}</div>
-            <Text type="secondary" className="fs-11">being monitored</Text>
-          </div>
+          <StatCard
+            label="At Risk"
+            value={ragDist.AMBER}
+            caption="being monitored"
+            tone="warning"
+          />
         </Col>
         {application === 'SAP' ? (
           <>
             <Col xs={8} lg={4}>
-              <div className="analytics-kpi analytics-kpi-mini">
-                <div className="kpi-label">Transports</div>
-                <div className="kpi-value">{pipeline.total}</div>
-                <Text type="secondary" className="fs-11">DEV:{pipeline.dev} QAS:{pipeline.qas} PRD:{pipeline.prd}</Text>
-              </div>
+              <StatCard
+                label="Transports"
+                value={pipeline.total}
+                caption={`DEV:${pipeline.dev} QAS:${pipeline.qas} PRD:${pipeline.prd}`}
+                tone="info"
+              />
             </Col>
             <Col xs={8} lg={4}>
-              <div className="analytics-kpi analytics-kpi-mini">
-                <div className="kpi-label">Go-Lives ≤90d</div>
-                <div className="kpi-value">{upcomingGoLives.length}</div>
-                <Text type="secondary" className="fs-11">upcoming</Text>
-              </div>
+              <StatCard
+                label="Go-Lives ≤90d"
+                value={upcomingGoLives.length}
+                caption="upcoming"
+                tone="info"
+              />
             </Col>
           </>
         ) : (
           <Col xs={16} lg={8}>
-            <div className="analytics-kpi analytics-kpi-mini">
-              <div className="kpi-label">Go-Lives ≤90d</div>
-              <div className="kpi-value">{upcomingGoLives.length}</div>
-              <Text type="secondary" className="fs-11">upcoming {application === 'Commercial' ? 'launches' : 'deployments'}</Text>
-            </div>
+            <StatCard
+              label="Go-Lives ≤90d"
+              value={upcomingGoLives.length}
+              caption={`upcoming ${application === 'Commercial' ? 'launches' : 'deployments'}`}
+              tone="info"
+            />
           </Col>
         )}
       </Row>
@@ -510,7 +515,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                 legend={false}
               />
             ) : (
-              <div className="chart-empty-placeholder"><Empty description="No data" /></div>
+              <div className="chart-empty-placeholder"><EmptyState title="No data" /></div>
             )}
           </Col>
           <Col xs={24} lg={10}>
@@ -544,7 +549,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                 </div>
               </div>
             ) : (
-              <div className="chart-empty-placeholder"><Empty description="No data" /></div>
+              <div className="chart-empty-placeholder"><EmptyState title="No data" /></div>
             )}
           </Col>
         </Row>
@@ -567,7 +572,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                   axis={{ x: { title: false, labelFill: C.textSec }, y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3], labelFill: C.textSec } }}
                   label={{ text: 'count', fontSize: 11, fill: C.textSec }} legend={false}
                 />
-              ) : <Empty description="No data" />}
+              ) : <EmptyState title="No data" />}
             </Col>
             <Col xs={24} lg={12}>
               <div className="chart-section-header">
@@ -581,7 +586,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                   axis={{ x: { title: false, labelFill: C.textSec }, y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3], labelFill: C.textSec } }}
                   label={{ text: 'riskScore', fontSize: 11, fill: C.textSec }} legend={false}
                 />
-              ) : <Empty description="No data" />}
+              ) : <EmptyState title="No data" />}
             </Col>
           </Row>
         )}
@@ -600,7 +605,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                   axis={{ x: { title: false }, y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3] } }}
                   label={{ text: 'count', fontSize: 11 }} legend={false}
                 />
-              ) : <Empty description="No data" />}
+              ) : <EmptyState title="No data" />}
             </Col>
             <Col xs={24} lg={8}>
               <div className="chart-section-header">
@@ -614,7 +619,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                   axis={{ x: { title: false }, y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3] } }}
                   label={{ text: 'count', fontSize: 11 }} legend={false}
                 />
-              ) : <Empty description="No data" />}
+              ) : <EmptyState title="No data" />}
             </Col>
             <Col xs={24} lg={8}>
               <div className="chart-section-header">
@@ -628,7 +633,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                   axis={{ x: { title: false }, y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3] } }}
                   label={{ text: 'count', fontSize: 11 }} legend={false}
                 />
-              ) : <Empty description="No data" />}
+              ) : <EmptyState title="No data" />}
             </Col>
           </Row>
         )}
@@ -647,7 +652,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                   axis={{ x: { title: false }, y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3] } }}
                   label={{ text: 'count', fontSize: 11 }} legend={false}
                 />
-              ) : <Empty description="No data" />}
+              ) : <EmptyState title="No data" />}
             </Col>
             <Col xs={24} lg={8}>
               <div className="chart-section-header">
@@ -661,7 +666,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                   axis={{ x: { title: false }, y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3] } }}
                   label={{ text: 'count', fontSize: 11 }} legend={false}
                 />
-              ) : <Empty description="No data" />}
+              ) : <EmptyState title="No data" />}
             </Col>
             <Col xs={24} lg={8}>
               <div className="chart-section-header">
@@ -675,7 +680,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                   axis={{ x: { title: false }, y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3] } }}
                   label={{ text: 'count', fontSize: 11 }} legend={false}
                 />
-              ) : <Empty description="No data" />}
+              ) : <EmptyState title="No data" />}
             </Col>
           </Row>
         )}
@@ -698,7 +703,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                   axis={{ x: { title: false, labelFill: C.textSec }, y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3], labelFill: C.textSec } }}
                   label={{ text: 'count', fontSize: 11, fill: C.textSec }} legend={false}
                 />
-              ) : <Empty description="No data" />}
+              ) : <EmptyState title="No data" />}
             </Col>
             <Col xs={24} lg={12}>
               <div className="chart-section-header">
@@ -713,7 +718,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                   axis={{ x: { title: false, line: null, tick: null, labelFill: C.textSec }, y: { title: false, gridStroke: C.grid, gridLineDash: [3, 3], labelFill: C.textSec } }}
                   label={{ text: 'count', fontSize: 12, fill: C.textSec }} legend={false}
                 />
-              ) : <Empty description="No transports" />}
+              ) : <EmptyState title="No transports" />}
             </Col>
           </Row>
         </div>
