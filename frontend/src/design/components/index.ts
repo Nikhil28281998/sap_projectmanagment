@@ -6,3 +6,5 @@ export { PageHeader, type PageHeaderProps } from './PageHeader';
 export { SkeletonPanel, type SkeletonPanelProps } from './SkeletonPanel';
 export { RiskMeter, type RiskMeterProps } from './RiskMeter';
 export { UserAvatar, type UserAvatarProps } from './UserAvatar';
+export { DataTable, type DataTableProps } from './DataTable';
+export { Timeline, type TimelineItem, type TimelineProps } from './Timeline';
