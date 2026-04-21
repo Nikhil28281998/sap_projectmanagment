@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Row, Col, Select, Typography, Tooltip, Space, Segmented,
+  Row, Col, Select, Typography, Tooltip, Space,
   DatePicker, Button, Empty, Progress, Table, Tag
 } from 'antd';
 import {
   FilterOutlined, CaretUpOutlined, CaretDownOutlined, InfoCircleOutlined,
-  BarChartOutlined, AppstoreOutlined, RocketOutlined, ShoppingCartOutlined,
+  RocketOutlined, ShoppingCartOutlined,
   MedicineBoxOutlined, BugOutlined, ClockCircleOutlined, ThunderboltOutlined,
   CheckCircleOutlined, WarningOutlined, ExperimentOutlined
 } from '@ant-design/icons';
@@ -15,9 +15,6 @@ import { useWorkItems, useTransports } from '../../hooks/useData';
 import { useAuth } from '../../contexts/AuthContext';
 import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
 import dayjs from 'dayjs';
-import HomeDashboardClassic from './HomeDashboardClassic';
-import CoupaDashboardClassic from './CoupaDashboardClassic';
-import CommercialDashboardClassic from './CommercialDashboardClassic';
 import '../../styles/dashboard-analytics.css';
 import type { WorkItem, Transport, Milestone } from '@/types';
 
@@ -62,7 +59,6 @@ interface AppPalette {
 }
 
 interface AppDashboardConfig {
-  viewKey: string;
   breadcrumb: string;
   /** filter predicate applied to allWorkItems */
   appFilter: (wi: WorkItem) => boolean;
@@ -82,13 +78,9 @@ interface AppDashboardConfig {
   goLiveColName: string;
   /** go-live card title */
   goLiveTitle: string;
-  /** classic-view header content */
-  classicHeader: React.ReactNode;
-  ClassicComponent: React.FC;
 }
 
 const SAP_CONFIG: AppDashboardConfig = {
-  viewKey: 'sap_dashboard_view',
   breadcrumb: 'SAP Projects Analytics',
   appFilter: (wi) => wi.application === 'SAP' || !wi.application,
   itemLabel: 'Work Items',
@@ -102,12 +94,9 @@ const SAP_CONFIG: AppDashboardConfig = {
   extraSectionTitle: 'SAP Module Analysis',
   goLiveColName: 'Work Item',
   goLiveTitle: 'Upcoming Go-Lives (Next 90 Days)',
-  classicHeader: <Title level={4} className="m-0">SAP PM Command Center</Title>,
-  ClassicComponent: HomeDashboardClassic,
 };
 
 const COUPA_CONFIG: AppDashboardConfig = {
-  viewKey: 'coupa_dashboard_view',
   breadcrumb: 'Coupa Deliverables Analytics',
   appFilter: (wi) => wi.application === 'Coupa',
   itemLabel: 'Deliverables',
@@ -121,12 +110,9 @@ const COUPA_CONFIG: AppDashboardConfig = {
   extraSectionTitle: 'Deliverable Comparison & Testing',
   goLiveColName: 'Deliverable',
   goLiveTitle: 'Upcoming Coupa Go-Lives',
-  classicHeader: <Title level={4} className="m-0"><ShoppingCartOutlined /> Coupa Project Management</Title>,
-  ClassicComponent: CoupaDashboardClassic,
 };
 
 const COMMERCIAL_CONFIG: AppDashboardConfig = {
-  viewKey: 'commercial_dashboard_view',
   breadcrumb: 'Commercial Initiatives Analytics',
   appFilter: (wi) => wi.application === 'Commercial',
   itemLabel: 'Initiatives',
@@ -140,8 +126,6 @@ const COMMERCIAL_CONFIG: AppDashboardConfig = {
   extraSectionTitle: 'Initiative Breakdown',
   goLiveColName: 'Initiative',
   goLiveTitle: 'Upcoming Commercial Launches',
-  classicHeader: <Title level={4} className="m-0"><MedicineBoxOutlined /> Commercial Life Sciences</Title>,
-  ClassicComponent: CommercialDashboardClassic,
 };
 
 const CONFIGS: Record<string, AppDashboardConfig> = {
@@ -168,12 +152,7 @@ interface DashboardPageProps {
 const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
   const cfg = CONFIGS[application];
   const C = cfg.palette;
-  const { ClassicComponent } = cfg;
 
-  const getStoredView = () =>
-    (localStorage.getItem(cfg.viewKey) as 'analytics' | 'classic') || 'analytics';
-
-  const [viewMode, setViewMode] = useState<'analytics' | 'classic'>(getStoredView);
   const navigate = useNavigate();
   const { data: allWorkItems = [] } = useWorkItems();
   // Always called — React Query deduplicates; only used by SAP config
@@ -336,36 +315,6 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
   const typeColorMap: Record<string, string> = {};
   typeDonutData.forEach((d, i) => { typeColorMap[d.type] = C.typeColors[i % C.typeColors.length]; });
 
-  const handleViewChange = (val: string | number) => {
-    const v = val as 'analytics' | 'classic';
-    setViewMode(v);
-    localStorage.setItem(cfg.viewKey, v);
-  };
-
-  const viewToggle = (
-    <Segmented
-      options={[
-        { label: <span><AppstoreOutlined /> Classic</span>, value: 'classic' },
-        { label: <span><BarChartOutlined /> Analytics</span>, value: 'analytics' },
-      ]}
-      value={viewMode}
-      onChange={handleViewChange}
-    />
-  );
-
-  // ── Classic view ──
-  if (viewMode === 'classic') {
-    return (
-      <div>
-        <div className="dashboard-view-toggle dashboard-toggle-classic">
-          {cfg.classicHeader}
-          {viewToggle}
-        </div>
-        <ClassicComponent />
-      </div>
-    );
-  }
-
   // ── Go-Live table columns ──
   const goLiveCols = [
     {
@@ -397,14 +346,13 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
   // ── Analytics view ──
   return (
     <div className="analytics-dashboard">
-      {/* ── Toggle & Breadcrumb ── */}
+      {/* ── Breadcrumb ── */}
       <div className="dashboard-view-toggle">
         <div>
           <Text className="dashboard-breadcrumb">
             SAP PM Command Center / <Text strong className="dashboard-breadcrumb-active">{cfg.breadcrumb}</Text>
           </Text>
         </div>
-        {viewToggle}
       </div>
 
       {/* ── Filter Bar ── */}
