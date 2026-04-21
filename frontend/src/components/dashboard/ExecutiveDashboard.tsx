@@ -17,6 +17,7 @@ import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
 import dayjs from 'dayjs';
 import ExecutiveDashboardClassic from './ExecutiveDashboardClassic';
 import '../../styles/dashboard-analytics.css';
+import type { WorkItem, Transport, Milestone } from '@/types';
 
 const { Text, Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -33,7 +34,7 @@ const APP_ICONS: Record<string, React.ReactNode> = {
   SAP: <ApartmentOutlined />, Coupa: <ShoppingCartOutlined />, Commercial: <MedicineBoxOutlined />,
 };
 
-function getRAG(wi: any): string {
+function getRAG(wi: WorkItem): string {
   return wi.overallRAG || calculateRAG({
     goLiveDate: wi.goLiveDate, deploymentPct: wi.deploymentPct || 0,
     status: wi.status, overallRAG: wi.overallRAG,
@@ -56,10 +57,10 @@ const ExecutiveDashboard: React.FC = () => {
   const [filterApp, setFilterApp] = useState<string | undefined>();
 
   const workItems = useMemo(() => {
-    let items = allWorkItems.filter((wi: any) => !wi.application || allowedApps.includes(wi.application));
-    if (filterApp) items = items.filter((wi: any) => wi.application === filterApp);
+    let items = allWorkItems.filter((wi: WorkItem) => !wi.application || allowedApps.includes(wi.application));
+    if (filterApp) items = items.filter((wi: WorkItem) => wi.application === filterApp);
     if (dateRange) {
-      items = items.filter((wi: any) => {
+      items = items.filter((wi: WorkItem) => {
         if (!wi.goLiveDate) return true;
         const d = dayjs(wi.goLiveDate);
         return d.isAfter(dateRange[0]) && d.isBefore(dateRange[1]);
@@ -68,8 +69,8 @@ const ExecutiveDashboard: React.FC = () => {
     return items;
   }, [allWorkItems, allowedApps, filterApp, dateRange]);
 
-  const activeProjects = workItems.filter((wi: any) => wi.status === 'Active');
-  const completedCount = workItems.filter((wi: any) => ['Complete', 'Completed', 'Done'].includes(wi.status)).length;
+  const activeProjects = workItems.filter((wi: WorkItem) => wi.status === 'Active');
+  const completedCount = workItems.filter((wi: WorkItem) => ['Complete', 'Completed', 'Done'].includes(wi.status)).length;
 
   const ragDist = useMemo(() => {
     const d = { GREEN: 0, AMBER: 0, RED: 0 };
@@ -96,7 +97,7 @@ const ExecutiveDashboard: React.FC = () => {
   // Upcoming Go-Lives
   const upcomingGoLives = useMemo(() =>
     activeProjects
-      .filter((wi: any) => wi.goLiveDate && daysFromNow(wi.goLiveDate) >= 0 && daysFromNow(wi.goLiveDate) <= 90)
+      .filter((wi: WorkItem) => wi.goLiveDate && daysFromNow(wi.goLiveDate) >= 0 && daysFromNow(wi.goLiveDate) <= 90)
       .sort((a: any, b: any) => dayjs(a.goLiveDate).diff(dayjs(b.goLiveDate)))
       .slice(0, 5),
     [activeProjects]);
@@ -106,9 +107,9 @@ const ExecutiveDashboard: React.FC = () => {
     const apps = ['SAP', 'Coupa', 'Commercial'];
     const data: { app: string; count: number; status: string }[] = [];
     for (const app of apps) {
-      const appItems = activeProjects.filter((wi: any) => wi.application === app);
+      const appItems = activeProjects.filter((wi: WorkItem) => wi.application === app);
       for (const [ragKey, label] of [['GREEN', 'On Track'], ['AMBER', 'At Risk'], ['RED', 'Critical']] as const) {
-        const count = appItems.filter((wi: any) => getRAG(wi) === ragKey).length;
+        const count = appItems.filter((wi: WorkItem) => getRAG(wi) === ragKey).length;
         if (count > 0) data.push({ app, count, status: label });
       }
     }
@@ -127,7 +128,7 @@ const ExecutiveDashboard: React.FC = () => {
   // Bar: Progress by App
   const appProgressData = useMemo(() => {
     return ['SAP', 'Coupa', 'Commercial'].map(app => {
-      const items = activeProjects.filter((wi: any) => wi.application === app);
+      const items = activeProjects.filter((wi: WorkItem) => wi.application === app);
       const avg = items.length > 0 ? Math.round(items.reduce((s: number, w: any) => s + (w.deploymentPct || 0), 0) / items.length) : 0;
       return { app, progress: avg };
     }).filter(d => d.progress > 0);
@@ -136,7 +137,7 @@ const ExecutiveDashboard: React.FC = () => {
   // Bar: Risk by App
   const appRiskData = useMemo(() => {
     return ['SAP', 'Coupa', 'Commercial'].map(app => {
-      const items = activeProjects.filter((wi: any) => wi.application === app);
+      const items = activeProjects.filter((wi: WorkItem) => wi.application === app);
       const avg = items.length > 0 ? Math.round(items.reduce((s: number, w: any) => s + (w.riskScore || 0), 0) / items.length) : 0;
       return { app, riskScore: avg };
     }).filter(d => d.riskScore > 0);
@@ -145,8 +146,8 @@ const ExecutiveDashboard: React.FC = () => {
   // Per-app counts
   const appBreakdown = useMemo(() => {
     return ['SAP', 'Coupa', 'Commercial'].map(app => {
-      const items = activeProjects.filter((wi: any) => wi.application === app);
-      const completed = workItems.filter((wi: any) => wi.application === app && ['Complete', 'Completed', 'Done'].includes(wi.status)).length;
+      const items = activeProjects.filter((wi: WorkItem) => wi.application === app);
+      const completed = workItems.filter((wi: WorkItem) => wi.application === app && ['Complete', 'Completed', 'Done'].includes(wi.status)).length;
       return { app, active: items.length, completed, total: items.length + completed };
     });
   }, [activeProjects, workItems]);

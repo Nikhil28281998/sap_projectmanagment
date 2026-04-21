@@ -16,6 +16,7 @@ import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
 import dayjs from 'dayjs';
 import CoupaDashboardClassic from './CoupaDashboardClassic';
 import '../../styles/dashboard-analytics.css';
+import type { WorkItem, Transport, Milestone } from '@/types';
 
 const { Text, Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -28,7 +29,7 @@ const C = {
   blue: '#1f6feb',
 };
 
-function getRAG(wi: any): string {
+function getRAG(wi: WorkItem): string {
   return wi.overallRAG || calculateRAG({
     goLiveDate: wi.goLiveDate, deploymentPct: wi.deploymentPct || 0,
     status: wi.status, overallRAG: wi.overallRAG,
@@ -49,11 +50,11 @@ const CoupaDashboard: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string | undefined>();
 
   const workItems = useMemo(() => {
-    let items = allWorkItems.filter((wi: any) => wi.application === 'Coupa');
-    if (filterPriority) items = items.filter((wi: any) => wi.priority === filterPriority);
-    if (filterStatus) items = items.filter((wi: any) => wi.status === filterStatus);
+    let items = allWorkItems.filter((wi: WorkItem) => wi.application === 'Coupa');
+    if (filterPriority) items = items.filter((wi: WorkItem) => wi.priority === filterPriority);
+    if (filterStatus) items = items.filter((wi: WorkItem) => wi.status === filterStatus);
     if (dateRange) {
-      items = items.filter((wi: any) => {
+      items = items.filter((wi: WorkItem) => {
         if (!wi.goLiveDate) return true;
         const d = dayjs(wi.goLiveDate);
         return d.isAfter(dateRange[0]) && d.isBefore(dateRange[1]);
@@ -62,8 +63,8 @@ const CoupaDashboard: React.FC = () => {
     return items;
   }, [allWorkItems, filterPriority, filterStatus, dateRange]);
 
-  const activeItems = workItems.filter((wi: any) => wi.status === 'Active');
-  const completedItems = workItems.filter((wi: any) => ['Complete', 'Completed', 'Done'].includes(wi.status));
+  const activeItems = workItems.filter((wi: WorkItem) => wi.status === 'Active');
+  const completedItems = workItems.filter((wi: WorkItem) => ['Complete', 'Completed', 'Done'].includes(wi.status));
 
   const avgDeployment = useMemo(() => {
     if (activeItems.length === 0) return 0;
@@ -91,7 +92,7 @@ const CoupaDashboard: React.FC = () => {
   // Upcoming Go-Lives
   const upcomingGoLives = useMemo(() =>
     activeItems
-      .filter((wi: any) => wi.goLiveDate && daysFromNow(wi.goLiveDate) >= 0 && daysFromNow(wi.goLiveDate) <= 90)
+      .filter((wi: WorkItem) => wi.goLiveDate && daysFromNow(wi.goLiveDate) >= 0 && daysFromNow(wi.goLiveDate) <= 90)
       .sort((a: any, b: any) => dayjs(a.goLiveDate).diff(dayjs(b.goLiveDate)))
       .slice(0, 5),
     [activeItems]);
@@ -101,9 +102,9 @@ const CoupaDashboard: React.FC = () => {
     const phases = ['Design', 'Configure', 'Build', 'Test', 'Deploy', 'Optimize'];
     const data: { phase: string; count: number; status: string }[] = [];
     for (const phase of phases) {
-      const pi = activeItems.filter((wi: any) => (wi.currentPhase || 'Design') === phase);
+      const pi = activeItems.filter((wi: WorkItem) => (wi.currentPhase || 'Design') === phase);
       for (const [ragKey, label] of [['GREEN', 'On Track'], ['AMBER', 'At Risk'], ['RED', 'Critical']] as const) {
-        const count = pi.filter((wi: any) => getRAG(wi) === ragKey).length;
+        const count = pi.filter((wi: WorkItem) => getRAG(wi) === ragKey).length;
         if (count > 0) data.push({ phase, count, status: label });
       }
     }
@@ -155,8 +156,8 @@ const CoupaDashboard: React.FC = () => {
       render: (pct: number) => <Progress percent={pct || 0} size="small" /> },
   ];
 
-  const priorities = [...new Set(workItems.map((w: any) => w.priority).filter(Boolean))].sort();
-  const statuses = [...new Set(workItems.map((w: any) => w.status).filter(Boolean))];
+  const priorities = [...new Set(workItems.map((w: WorkItem) => w.priority).filter(Boolean))].sort();
+  const statuses = [...new Set(workItems.map((w: WorkItem) => w.status).filter(Boolean))];
 
   const typeColors = [C.blue, C.green, C.orange, C.purple, C.cyan, C.pink, C.amber, C.red];
   const typeColorMap: Record<string, string> = {};

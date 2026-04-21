@@ -6,6 +6,7 @@ import { SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useTransports } from '../../hooks/useData';
 import { WORK_TYPE_MAP, WORK_TYPE_COLORS } from '../../utils/tr-parser';
+import type { WorkItem, Transport, Milestone } from '@/types';
 
 const { Title, Text } = Typography;
 
@@ -21,7 +22,7 @@ const TRSearch: React.FC = () => {
     if (!searchTerm && !systemFilter && !statusFilter) return [];
     const term = searchTerm.toLowerCase();
 
-    return transports.filter((t: any) => {
+    return transports.filter((t: Transport) => {
       const matchesSearch =
         !term ||
         t.trNumber?.toLowerCase().includes(term) ||

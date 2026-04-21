@@ -19,6 +19,7 @@ import HomeDashboardClassic from './HomeDashboardClassic';
 import CoupaDashboardClassic from './CoupaDashboardClassic';
 import CommercialDashboardClassic from './CommercialDashboardClassic';
 import '../../styles/dashboard-analytics.css';
+import type { WorkItem, Transport, Milestone } from '@/types';
 
 const { Text, Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -64,7 +65,7 @@ interface AppDashboardConfig {
   viewKey: string;
   breadcrumb: string;
   /** filter predicate applied to allWorkItems */
-  appFilter: (wi: any) => boolean;
+  appFilter: (wi: WorkItem) => boolean;
   itemLabel: string;         // 'Work Items' | 'Deliverables' | 'Initiatives'
   kpiIcon: React.ReactNode;
   riskThreshold: number;
@@ -151,7 +152,7 @@ const CONFIGS: Record<string, AppDashboardConfig> = {
 
 // ── Shared helper ────────────────────────────────────────────────────────────
 
-function getRAG(wi: any): string {
+function getRAG(wi: WorkItem): string {
   return wi.overallRAG || calculateRAG({
     goLiveDate: wi.goLiveDate, deploymentPct: wi.deploymentPct || 0,
     status: wi.status, overallRAG: wi.overallRAG,
@@ -186,11 +187,11 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
   // ── Filtered work items ──
   const workItems = useMemo(() => {
     let items = allWorkItems.filter(cfg.appFilter);
-    if (filterPriority) items = items.filter((wi: any) => wi.priority === filterPriority);
-    if (filterStatus) items = items.filter((wi: any) => wi.status === filterStatus);
-    if (filterModule) items = items.filter((wi: any) => wi.sapModule === filterModule);
+    if (filterPriority) items = items.filter((wi: WorkItem) => wi.priority === filterPriority);
+    if (filterStatus) items = items.filter((wi: WorkItem) => wi.status === filterStatus);
+    if (filterModule) items = items.filter((wi: WorkItem) => wi.sapModule === filterModule);
     if (dateRange) {
-      items = items.filter((wi: any) => {
+      items = items.filter((wi: WorkItem) => {
         if (!wi.goLiveDate) return true;
         const d = dayjs(wi.goLiveDate);
         return d.isAfter(dateRange[0]) && d.isBefore(dateRange[1]);
@@ -199,8 +200,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
     return items;
   }, [allWorkItems, filterPriority, filterStatus, filterModule, dateRange]);
 
-  const activeItems = workItems.filter((wi: any) => wi.status === 'Active');
-  const completedItems = workItems.filter((wi: any) => ['Complete', 'Completed', 'Done'].includes(wi.status));
+  const activeItems = workItems.filter((wi: WorkItem) => wi.status === 'Active');
+  const completedItems = workItems.filter((wi: WorkItem) => ['Complete', 'Completed', 'Done'].includes(wi.status));
 
   // ── KPI computations ──
   const totalRiskScore = useMemo(() =>
@@ -222,9 +223,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
 
   // SAP-specific: transport pipeline
   const pipeline = useMemo(() => ({
-    dev: transports.filter((t: any) => t.currentSystem === 'DEV').length,
-    qas: transports.filter((t: any) => t.currentSystem === 'QAS').length,
-    prd: transports.filter((t: any) => t.currentSystem === 'PRD').length,
+    dev: transports.filter((t: Transport) => t.currentSystem === 'DEV').length,
+    qas: transports.filter((t: Transport) => t.currentSystem === 'QAS').length,
+    prd: transports.filter((t: Transport) => t.currentSystem === 'PRD').length,
     total: transports.length,
   }), [transports]);
 
@@ -236,7 +237,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
 
   const upcomingGoLives = useMemo(() =>
     activeItems
-      .filter((wi: any) => wi.goLiveDate && daysFromNow(wi.goLiveDate) >= 0 && daysFromNow(wi.goLiveDate) <= 90)
+      .filter((wi: WorkItem) => wi.goLiveDate && daysFromNow(wi.goLiveDate) >= 0 && daysFromNow(wi.goLiveDate) <= 90)
       .sort((a: any, b: any) => dayjs(a.goLiveDate).diff(dayjs(b.goLiveDate)))
       .slice(0, 5),
     [activeItems]);
@@ -245,9 +246,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
   const phaseChartData = useMemo(() => {
     const data: { phase: string; count: number; status: string }[] = [];
     for (const phase of cfg.phases) {
-      const phaseItems = activeItems.filter((wi: any) => (wi.currentPhase || cfg.phases[0]) === phase);
+      const phaseItems = activeItems.filter((wi: WorkItem) => (wi.currentPhase || cfg.phases[0]) === phase);
       for (const [ragKey, label] of [['GREEN', 'On Track'], ['AMBER', 'At Risk'], ['RED', 'Critical']] as const) {
-        const count = phaseItems.filter((wi: any) => getRAG(wi) === ragKey).length;
+        const count = phaseItems.filter((wi: WorkItem) => getRAG(wi) === ragKey).length;
         if (count > 0) data.push({ phase, count, status: label });
       }
     }
@@ -328,9 +329,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
   }, [activeItems, application]);
 
   // ── Derived filter options ──
-  const priorities = [...new Set(workItems.map((w: any) => w.priority).filter(Boolean))].sort() as string[];
-  const statuses = [...new Set(workItems.map((w: any) => w.status).filter(Boolean))] as string[];
-  const modules = [...new Set(workItems.map((w: any) => w.sapModule).filter(Boolean))].sort() as string[];
+  const priorities = [...new Set(workItems.map((w: WorkItem) => w.priority).filter(Boolean))].sort() as string[];
+  const statuses = [...new Set(workItems.map((w: WorkItem) => w.status).filter(Boolean))] as string[];
+  const modules = [...new Set(workItems.map((w: WorkItem) => w.sapModule).filter(Boolean))].sort() as string[];
 
   const typeColorMap: Record<string, string> = {};
   typeDonutData.forEach((d, i) => { typeColorMap[d.type] = C.typeColors[i % C.typeColors.length]; });

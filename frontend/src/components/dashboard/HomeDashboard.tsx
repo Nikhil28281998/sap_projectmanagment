@@ -16,6 +16,7 @@ import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
 import dayjs from 'dayjs';
 import HomeDashboardClassic from './HomeDashboardClassic';
 import '../../styles/dashboard-analytics.css';
+import type { WorkItem, Transport, Milestone } from '@/types';
 
 const { Text, Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -29,7 +30,7 @@ const C = {
   grid: '#21262d',
 };
 
-function getRAG(wi: any): string {
+function getRAG(wi: WorkItem): string {
   return wi.overallRAG || calculateRAG({
     goLiveDate: wi.goLiveDate, deploymentPct: wi.deploymentPct || 0,
     status: wi.status, overallRAG: wi.overallRAG,
@@ -54,12 +55,12 @@ const HomeDashboard: React.FC = () => {
 
   // Filter to SAP items
   const workItems = useMemo(() => {
-    let items = allWorkItems.filter((wi: any) => wi.application === 'SAP' || !wi.application);
-    if (filterPriority) items = items.filter((wi: any) => wi.priority === filterPriority);
-    if (filterStatus) items = items.filter((wi: any) => wi.status === filterStatus);
-    if (filterModule) items = items.filter((wi: any) => wi.sapModule === filterModule);
+    let items = allWorkItems.filter((wi: WorkItem) => wi.application === 'SAP' || !wi.application);
+    if (filterPriority) items = items.filter((wi: WorkItem) => wi.priority === filterPriority);
+    if (filterStatus) items = items.filter((wi: WorkItem) => wi.status === filterStatus);
+    if (filterModule) items = items.filter((wi: WorkItem) => wi.sapModule === filterModule);
     if (dateRange) {
-      items = items.filter((wi: any) => {
+      items = items.filter((wi: WorkItem) => {
         if (!wi.goLiveDate) return true;
         const d = dayjs(wi.goLiveDate);
         return d.isAfter(dateRange[0]) && d.isBefore(dateRange[1]);
@@ -68,8 +69,8 @@ const HomeDashboard: React.FC = () => {
     return items;
   }, [allWorkItems, filterPriority, filterStatus, filterModule, dateRange]);
 
-  const activeItems = workItems.filter((wi: any) => wi.status === 'Active');
-  const completedItems = workItems.filter((wi: any) => ['Complete', 'Completed', 'Done'].includes(wi.status));
+  const activeItems = workItems.filter((wi: WorkItem) => wi.status === 'Active');
+  const completedItems = workItems.filter((wi: WorkItem) => ['Complete', 'Completed', 'Done'].includes(wi.status));
 
   // ── KPI Computations ──
   const totalRiskScore = useMemo(() =>
@@ -91,9 +92,9 @@ const HomeDashboard: React.FC = () => {
   }, [activeItems]);
 
   const pipeline = useMemo(() => ({
-    dev: transports.filter((t: any) => t.currentSystem === 'DEV').length,
-    qas: transports.filter((t: any) => t.currentSystem === 'QAS').length,
-    prd: transports.filter((t: any) => t.currentSystem === 'PRD').length,
+    dev: transports.filter((t: Transport) => t.currentSystem === 'DEV').length,
+    qas: transports.filter((t: Transport) => t.currentSystem === 'QAS').length,
+    prd: transports.filter((t: Transport) => t.currentSystem === 'PRD').length,
     total: transports.length,
   }), [transports]);
 
@@ -107,7 +108,7 @@ const HomeDashboard: React.FC = () => {
   // ── Upcoming Go-Lives ──
   const upcomingGoLives = useMemo(() =>
     activeItems
-      .filter((wi: any) => wi.goLiveDate && daysFromNow(wi.goLiveDate) >= 0 && daysFromNow(wi.goLiveDate) <= 90)
+      .filter((wi: WorkItem) => wi.goLiveDate && daysFromNow(wi.goLiveDate) >= 0 && daysFromNow(wi.goLiveDate) <= 90)
       .sort((a: any, b: any) => dayjs(a.goLiveDate).diff(dayjs(b.goLiveDate)))
       .slice(0, 5),
     [activeItems]);
@@ -117,9 +118,9 @@ const HomeDashboard: React.FC = () => {
     const phases = ['Planning', 'Development', 'Testing', 'Go-Live', 'Hypercare', 'Complete'];
     const data: { phase: string; count: number; status: string }[] = [];
     for (const phase of phases) {
-      const phaseItems = activeItems.filter((wi: any) => (wi.currentPhase || 'Planning') === phase);
+      const phaseItems = activeItems.filter((wi: WorkItem) => (wi.currentPhase || 'Planning') === phase);
       for (const [ragKey, label] of [['GREEN', 'On Track'], ['AMBER', 'At Risk'], ['RED', 'Critical']] as const) {
-        const count = phaseItems.filter((wi: any) => getRAG(wi) === ragKey).length;
+        const count = phaseItems.filter((wi: WorkItem) => getRAG(wi) === ragKey).length;
         if (count > 0) data.push({ phase, count, status: label });
       }
     }
@@ -193,9 +194,9 @@ const HomeDashboard: React.FC = () => {
   ];
 
   // Filter option values
-  const priorities = [...new Set(workItems.map((w: any) => w.priority).filter(Boolean))].sort();
-  const statuses = [...new Set(workItems.map((w: any) => w.status).filter(Boolean))];
-  const modules = [...new Set(workItems.map((w: any) => w.sapModule).filter(Boolean))].sort();
+  const priorities = [...new Set(workItems.map((w: WorkItem) => w.priority).filter(Boolean))].sort();
+  const statuses = [...new Set(workItems.map((w: WorkItem) => w.status).filter(Boolean))];
+  const modules = [...new Set(workItems.map((w: WorkItem) => w.sapModule).filter(Boolean))].sort();
 
   const typeColors = [C.orange, C.accent, C.red, C.green, C.purple, C.cyan, C.pink];
   const typeColorMap: Record<string, string> = {};

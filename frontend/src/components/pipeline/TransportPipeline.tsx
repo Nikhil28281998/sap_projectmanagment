@@ -6,6 +6,7 @@ import {
 } from '@ant-design/icons';
 import { useTransports, usePipelineSummary } from '../../hooks/useData';
 import { WORK_TYPE_MAP, WORK_TYPE_COLORS } from '../../utils/tr-parser';
+import type { WorkItem, Transport, Milestone } from '@/types';
 
 const { Title, Text } = Typography;
 
@@ -13,9 +14,9 @@ const TransportPipeline: React.FC = () => {
   const { data: transports = [], isLoading } = useTransports();
   const { data: pipeline } = usePipelineSummary('SAP');
 
-  const devTRs = transports.filter((t: any) => t.currentSystem === 'DEV');
-  const qasTRs = transports.filter((t: any) => t.currentSystem === 'QAS');
-  const prdTRs = transports.filter((t: any) => t.currentSystem === 'PRD');
+  const devTRs = transports.filter((t: Transport) => t.currentSystem === 'DEV');
+  const qasTRs = transports.filter((t: Transport) => t.currentSystem === 'QAS');
+  const prdTRs = transports.filter((t: Transport) => t.currentSystem === 'PRD');
 
   const columns = [
     {

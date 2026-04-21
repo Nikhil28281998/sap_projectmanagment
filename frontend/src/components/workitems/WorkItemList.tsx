@@ -18,6 +18,7 @@ import { useWorkItems, useTransports, useCreateWorkItem } from '../../hooks/useD
 import { useAuth } from '../../contexts/AuthContext';
 import { useModule, ModuleKey } from '../../contexts/ModuleContext';
 import { calculateRAG, daysFromNow, WORK_TYPE_MAP, WORK_TYPE_COLORS } from '../../utils/tr-parser';
+import type { WorkItem, Transport, Milestone } from '@/types';
 
 const { Title, Text } = Typography;
 
@@ -80,7 +81,7 @@ const WorkItemList: React.FC = () => {
   const appParam = searchParams.get('app');
   const showAllApps = appParam === 'all';
   const APP_MAP: Record<string, string> = { sap: 'SAP', coupa: 'Coupa', commercial: 'Commercial' };
-  const workItems = allWorkItems.filter((wi: any) => {
+  const workItems = allWorkItems.filter((wi: WorkItem) => {
     if (showAllApps) return true; // Executive dashboard cross-app view
     if (appParam && APP_MAP[appParam]) return wi.application === APP_MAP[appParam];
     const appKey = APP_MAP[activeModule] || 'SAP';
@@ -112,7 +113,7 @@ const WorkItemList: React.FC = () => {
   // ── Work Items table ──
   const filteredItems = useMemo(() => {
     const typeKey = activeTab === 'tr-search' ? '' : activeTab;
-    return workItems.filter((item: any) => {
+    return workItems.filter((item: WorkItem) => {
       const matchesType = !typeKey || item.workItemType === typeKey;
       const matchesStatus = !statusFilter || item.status === statusFilter;
       const matchesSearch =
@@ -130,7 +131,7 @@ const WorkItemList: React.FC = () => {
   const trResults = useMemo(() => {
     if (!trSearchTerm && !trSystemFilter && !trStatusFilter) return [];
     const term = trSearchTerm.toLowerCase();
-    return transports.filter((t: any) => {
+    return transports.filter((t: Transport) => {
       const matchesSearch =
         !term ||
         t.trNumber?.toLowerCase().includes(term) ||
