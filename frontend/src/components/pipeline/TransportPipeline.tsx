@@ -126,7 +126,7 @@ const TransportPipeline: React.FC = () => {
             <Statistic
               title="QAS"
               value={pipeline?.qasCount ?? qasTRs.length}
-              valueStyle={{ color: '#faad14' }}
+              valueStyle={{ color: 'var(--color-status-risk-medium)' }}
             />
           </Card>
         </Col>
@@ -135,7 +135,7 @@ const TransportPipeline: React.FC = () => {
             <Statistic
               title="PRD"
               value={pipeline?.prdCount ?? prdTRs.length}
-              valueStyle={{ color: '#52c41a' }}
+              valueStyle={{ color: 'var(--color-status-risk-low)' }}
             />
           </Card>
         </Col>
@@ -144,7 +144,7 @@ const TransportPipeline: React.FC = () => {
             <Statistic
               title="Stuck >5d"
               value={pipeline?.stuckCount ?? 0}
-              valueStyle={{ color: '#faad14' }}
+              valueStyle={{ color: 'var(--color-status-risk-medium)' }}
               prefix={<ClockCircleOutlined />}
             />
           </Card>
@@ -154,7 +154,7 @@ const TransportPipeline: React.FC = () => {
             <Statistic
               title="Failed"
               value={pipeline?.failedCount ?? 0}
-              valueStyle={{ color: '#ff4d4f' }}
+              valueStyle={{ color: 'var(--color-status-risk-high)' }}
               prefix={<CloseCircleOutlined />}
             />
           </Card>
@@ -184,16 +184,16 @@ const TransportPipeline: React.FC = () => {
           {renderSystemCard(
             'QAS',
             qasTRs,
-            '#faad14',
-            <ClockCircleOutlined style={{ color: '#faad14' }} />
+            'var(--color-status-risk-medium)',
+            <ClockCircleOutlined style={{ color: 'var(--color-status-risk-medium)' }} />
           )}
         </Col>
         <Col xs={24} lg={8}>
           {renderSystemCard(
             'PRD',
             prdTRs,
-            '#52c41a',
-            <CheckCircleOutlined style={{ color: '#52c41a' }} />
+            'var(--color-status-risk-low)',
+            <CheckCircleOutlined style={{ color: 'var(--color-status-risk-low)' }} />
           )}
         </Col>
       </Row>

@@ -16,7 +16,7 @@ import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
 
 const { Title, Text } = Typography;
 
-const RAG_COLORS: Record<string, string> = { GREEN: '#52c41a', AMBER: '#faad14', RED: '#ff4d4f' };
+const RAG_COLORS: Record<string, string> = { GREEN: 'var(--color-status-risk-low)', AMBER: 'var(--color-status-risk-medium)', RED: 'var(--color-status-risk-high)' };
 const RAG_ICONS: Record<string, string> = { GREEN: '🟢', AMBER: '🟡', RED: '🔴' };
 const SYS_COLORS: Record<string, string> = { DEV: 'blue', QAS: 'orange', PRD: 'green' };
 
@@ -182,7 +182,7 @@ const HomeDashboardClassic: React.FC = () => {
               {bannerKpi('Total Transports', transports.length, '#fff', () => navigate('/tracker/tr-search'))}
               {bannerKpi('Active Items', activeProjects.length, '#fff', () => navigate('/tracker'))}
               {needAttention > 0 &&
-                bannerKpi('Need Attention', needAttention, '#faad14', () => {
+                bannerKpi('Need Attention', needAttention, 'var(--color-status-risk-medium)', () => {
                   document.getElementById('pending-items')?.scrollIntoView({ behavior: 'smooth' });
                 })
               }
@@ -202,25 +202,25 @@ const HomeDashboardClassic: React.FC = () => {
         <Col xs={12} sm={8} lg={5}>
           <Card hoverable onClick={() => navigate('/tracker/Enhancement')} size="small">
             <Statistic title="Enhancements" value={workItems.filter((w: any) => w.workItemType === 'Enhancement' && w.status === 'Active').length}
-              prefix={<CodeOutlined />} valueStyle={{ color: '#52c41a' }} />
+              prefix={<CodeOutlined />} valueStyle={{ color: 'var(--color-status-risk-low)' }} />
           </Card>
         </Col>
         <Col xs={12} sm={8} lg={5}>
           <Card hoverable onClick={() => navigate('/tracker/Break-fix')} size="small">
             <Statistic title="Break-Fixes" value={workItems.filter((w: any) => w.workItemType === 'Break-fix' && w.status === 'Active').length}
-              prefix={<BugOutlined />} valueStyle={{ color: '#ff4d4f' }} />
+              prefix={<BugOutlined />} valueStyle={{ color: 'var(--color-status-risk-high)' }} />
           </Card>
         </Col>
         <Col xs={12} sm={8} lg={5}>
           <Card hoverable onClick={() => navigate('/unassigned')} size="small">
             <Statistic title="Unassigned TRs" value={summaryLoading ? '-' : (summary?.unassignedCount ?? unassigned.length)}
-              prefix={<WarningOutlined />} valueStyle={{ color: unassigned.length > 0 ? '#faad14' : '#52c41a' }} />
+              prefix={<WarningOutlined />} valueStyle={{ color: unassigned.length > 0 ? 'var(--color-status-risk-medium)' : 'var(--color-status-risk-low)' }} />
           </Card>
         </Col>
         <Col xs={12} sm={8} lg={4}>
           <Card hoverable onClick={() => document.getElementById('pending-items')?.scrollIntoView({ behavior: 'smooth' })} size="small">
             <Statistic title="Pending" value={pendingItems.length}
-              prefix={<ClockCircleOutlined />} valueStyle={{ color: pendingItems.length > 0 ? '#faad14' : '#52c41a' }} />
+              prefix={<ClockCircleOutlined />} valueStyle={{ color: pendingItems.length > 0 ? 'var(--color-status-risk-medium)' : 'var(--color-status-risk-low)' }} />
           </Card>
         </Col>
       </Row>
@@ -233,7 +233,7 @@ const HomeDashboardClassic: React.FC = () => {
           <ArrowRightOutlined className="fs-18 text-disabled" />
           {pipelineBox('QAS', pipeline.qas, '#fff7e6', '#ffd591', '#fa8c16', '#fa8c16')}
           <ArrowRightOutlined className="fs-18 text-disabled" />
-          {pipelineBox('PRD', pipeline.prd, '#f6ffed', '#b7eb8f', '#52c41a', '#52c41a')}
+          {pipelineBox('PRD', pipeline.prd, '#f6ffed', '#b7eb8f', 'var(--color-status-risk-low)', 'var(--color-status-risk-low)')}
           {/* Stuck / Failed quick-filters */}
           {stuckTRs.length > 0 && (
             <>
@@ -242,8 +242,8 @@ const HomeDashboardClassic: React.FC = () => {
                 <div className="text-center cursor-pointer min-w-64"
                   onClick={() => setPipelineFilter(pipelineFilter === 'STUCK' ? null : 'STUCK')}>
                   <div className="pipeline-box"
-                    style={{ background: pipelineFilter === 'STUCK' ? '#faad14' : '#fffbe6', border: `2px solid ${pipelineFilter === 'STUCK' ? '#faad14' : '#ffe58f'}` }}>
-                    <Text strong className="fs-24" style={{ color: pipelineFilter === 'STUCK' ? '#fff' : '#faad14' }}>{stuckTRs.length}</Text>
+                    style={{ background: pipelineFilter === 'STUCK' ? 'var(--color-status-risk-medium)' : '#fffbe6', border: `2px solid ${pipelineFilter === 'STUCK' ? 'var(--color-status-risk-medium)' : '#ffe58f'}` }}>
+                    <Text strong className="fs-24" style={{ color: pipelineFilter === 'STUCK' ? '#fff' : 'var(--color-status-risk-medium)' }}>{stuckTRs.length}</Text>
                     <br /><Text className="fs-12" style={{ color: pipelineFilter === 'STUCK' ? 'rgba(255,255,255,.8)' : undefined }} type={pipelineFilter === 'STUCK' ? undefined : 'secondary'}>Stuck</Text>
                   </div>
                 </div>
@@ -255,8 +255,8 @@ const HomeDashboardClassic: React.FC = () => {
               <div className="text-center cursor-pointer min-w-64"
                 onClick={() => setPipelineFilter(pipelineFilter === 'FAILED' ? null : 'FAILED')}>
                 <div className="pipeline-box"
-                  style={{ background: pipelineFilter === 'FAILED' ? '#ff4d4f' : '#fff2f0', border: `2px solid ${pipelineFilter === 'FAILED' ? '#ff4d4f' : '#ffccc7'}` }}>
-                  <Text strong className="fs-24" style={{ color: pipelineFilter === 'FAILED' ? '#fff' : '#ff4d4f' }}>{failedTRs.length}</Text>
+                  style={{ background: pipelineFilter === 'FAILED' ? 'var(--color-status-risk-high)' : '#fff2f0', border: `2px solid ${pipelineFilter === 'FAILED' ? 'var(--color-status-risk-high)' : '#ffccc7'}` }}>
+                  <Text strong className="fs-24" style={{ color: pipelineFilter === 'FAILED' ? '#fff' : 'var(--color-status-risk-high)' }}>{failedTRs.length}</Text>
                   <br /><Text className="fs-12" style={{ color: pipelineFilter === 'FAILED' ? 'rgba(255,255,255,.8)' : undefined }} type={pipelineFilter === 'FAILED' ? undefined : 'secondary'}>Failed</Text>
                 </div>
               </div>
@@ -266,7 +266,7 @@ const HomeDashboardClassic: React.FC = () => {
         <div className="text-center mt-8" style={{ marginBottom: pipelineFilter ? 12 : 0 }}>
           <Progress
             percent={Math.round((pipeline.prd / pipeline.total) * 100)}
-            strokeColor={{ '0%': '#1677ff', '100%': '#52c41a' }}
+            strokeColor={{ '0%': '#1677ff', '100%': 'var(--color-status-risk-low)' }}
             format={(pct) => `${pct}% deployed`}
             className="pipeline-progress"
           />
@@ -292,7 +292,7 @@ const HomeDashboardClassic: React.FC = () => {
             <Row gutter={16} align="middle">
               <Col span={6} className="text-center">
                 <Progress type="circle" percent={testSummary.passRate} size={80}
-                  strokeColor={testSummary.passRate >= 80 ? '#52c41a' : testSummary.passRate >= 50 ? '#faad14' : '#ff4d4f'} />
+                  strokeColor={testSummary.passRate >= 80 ? 'var(--color-status-risk-low)' : testSummary.passRate >= 50 ? 'var(--color-status-risk-medium)' : 'var(--color-status-risk-high)'} />
                 <br /><Text type="secondary" className="fs-11">Pass Rate</Text>
               </Col>
               <Col span={6} className="text-center">
@@ -308,11 +308,11 @@ const HomeDashboardClassic: React.FC = () => {
                   </div>
                   <div className="flex-between">
                     <Text><ExclamationCircleOutlined className="text-red" /> Failed</Text>
-                    <Text strong style={{ color: testSummary.failed > 0 ? '#ff4d4f' : undefined }}>{testSummary.failed}</Text>
+                    <Text strong style={{ color: testSummary.failed > 0 ? 'var(--color-status-risk-high)' : undefined }}>{testSummary.failed}</Text>
                   </div>
                   <div className="flex-between">
                     <Text><StopOutlined className="text-amber" /> Blocked</Text>
-                    <Text strong style={{ color: testSummary.blocked > 0 ? '#faad14' : undefined }}>{testSummary.blocked}</Text>
+                    <Text strong style={{ color: testSummary.blocked > 0 ? 'var(--color-status-risk-medium)' : undefined }}>{testSummary.blocked}</Text>
                   </div>
                   <div className="flex-between">
                     <Text><ClockCircleOutlined className="text-disabled" /> TBD / Not Run</Text>

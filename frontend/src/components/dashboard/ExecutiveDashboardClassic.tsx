@@ -17,7 +17,7 @@ import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
 
 const { Title, Text } = Typography;
 
-const RAG_COLORS: Record<string, string> = { GREEN: '#52c41a', AMBER: '#faad14', RED: '#ff4d4f' };
+const RAG_COLORS: Record<string, string> = { GREEN: 'var(--color-status-risk-low)', AMBER: 'var(--color-status-risk-medium)', RED: 'var(--color-status-risk-high)' };
 const RAG_LABELS: Record<string, string> = { GREEN: 'On Track', AMBER: 'At Risk', RED: 'Critical' };
 const APP_COLORS: Record<string, string> = { SAP: '#1677ff', Coupa: '#0070d2', Commercial: '#722ed1' };
 const APP_ICONS: Record<string, React.ReactNode> = {
@@ -251,7 +251,7 @@ const ExecutiveDashboardClassic: React.FC = () => {
                   <Statistic title={<Text type="secondary" style={{ fontSize: 10 }}>Active</Text>} value={active} valueStyle={{ fontSize: 20 }} />
                 </Col>
                 <Col span={8}>
-                  <Statistic title={<Text type="secondary" style={{ fontSize: 10 }}>Done</Text>} value={completed} valueStyle={{ fontSize: 20, color: '#52c41a' }} />
+                  <Statistic title={<Text type="secondary" style={{ fontSize: 10 }}>Done</Text>} value={completed} valueStyle={{ fontSize: 20, color: 'var(--color-status-risk-low)' }} />
                 </Col>
                 <Col span={8}>
                   <Statistic title={<Text type="secondary" style={{ fontSize: 10 }}>Progress</Text>} value={avgPct} suffix="%" valueStyle={{ fontSize: 20 }} />
@@ -260,17 +260,17 @@ const ExecutiveDashboardClassic: React.FC = () => {
               <div className="rag-bar-sm">
                 {rag.GREEN > 0 && (
                   <Tooltip title={`On Track: ${rag.GREEN}`}>
-                    <div style={{ width: `${(rag.GREEN / (active || 1)) * 100}%`, background: '#52c41a' }} />
+                    <div style={{ width: `${(rag.GREEN / (active || 1)) * 100}%`, background: 'var(--color-status-risk-low)' }} />
                   </Tooltip>
                 )}
                 {rag.AMBER > 0 && (
                   <Tooltip title={`At Risk: ${rag.AMBER}`}>
-                    <div style={{ width: `${(rag.AMBER / (active || 1)) * 100}%`, background: '#faad14' }} />
+                    <div style={{ width: `${(rag.AMBER / (active || 1)) * 100}%`, background: 'var(--color-status-risk-medium)' }} />
                   </Tooltip>
                 )}
                 {rag.RED > 0 && (
                   <Tooltip title={`Critical: ${rag.RED}`}>
-                    <div style={{ width: `${(rag.RED / (active || 1)) * 100}%`, background: '#ff4d4f' }} />
+                    <div style={{ width: `${(rag.RED / (active || 1)) * 100}%`, background: 'var(--color-status-risk-high)' }} />
                   </Tooltip>
                 )}
                 {active === 0 && <div style={{ width: '100%', background: '#f0f0f0' }} />}
@@ -288,7 +288,7 @@ const ExecutiveDashboardClassic: React.FC = () => {
               title={<Text type="secondary" style={{ fontSize: 11 }}>On Track</Text>}
               value={ragSummary.GREEN}
               prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: '#52c41a', fontSize: 24 }}
+              valueStyle={{ color: 'var(--color-status-risk-low)', fontSize: 24 }}
             />
           </Card>
         </Col>
@@ -298,7 +298,7 @@ const ExecutiveDashboardClassic: React.FC = () => {
               title={<Text type="secondary" style={{ fontSize: 11 }}>At Risk</Text>}
               value={ragSummary.AMBER}
               prefix={<WarningOutlined />}
-              valueStyle={{ color: '#faad14', fontSize: 24 }}
+              valueStyle={{ color: 'var(--color-status-risk-medium)', fontSize: 24 }}
             />
           </Card>
         </Col>
@@ -308,7 +308,7 @@ const ExecutiveDashboardClassic: React.FC = () => {
               title={<Text type="secondary" style={{ fontSize: 11 }}>Critical</Text>}
               value={ragSummary.RED}
               prefix={<ExclamationCircleOutlined />}
-              valueStyle={{ color: '#ff4d4f', fontSize: 24 }}
+              valueStyle={{ color: 'var(--color-status-risk-high)', fontSize: 24 }}
             />
           </Card>
         </Col>
@@ -329,7 +329,7 @@ const ExecutiveDashboardClassic: React.FC = () => {
               title={<Text type="secondary" style={{ fontSize: 11 }}>Test Pass Rate</Text>}
               value={testSummary.rate}
               suffix="%"
-              valueStyle={{ color: testSummary.rate >= 80 ? '#52c41a' : testSummary.rate >= 50 ? '#faad14' : '#ff4d4f', fontSize: 24 }}
+              valueStyle={{ color: testSummary.rate >= 80 ? 'var(--color-status-risk-low)' : testSummary.rate >= 50 ? 'var(--color-status-risk-medium)' : 'var(--color-status-risk-high)', fontSize: 24 }}
             />
           </Card>
         </Col>
@@ -351,17 +351,17 @@ const ExecutiveDashboardClassic: React.FC = () => {
           <div className="rag-bar-lg">
             {ragSummary.GREEN > 0 && (
               <Tooltip title={`On Track: ${ragSummary.GREEN}`}>
-                <div style={{ width: `${(ragSummary.GREEN / activeProjects.length) * 100}%`, background: '#52c41a', transition: 'width 0.3s' }} />
+                <div style={{ width: `${(ragSummary.GREEN / activeProjects.length) * 100}%`, background: 'var(--color-status-risk-low)', transition: 'width 0.3s' }} />
               </Tooltip>
             )}
             {ragSummary.AMBER > 0 && (
               <Tooltip title={`At Risk: ${ragSummary.AMBER}`}>
-                <div style={{ width: `${(ragSummary.AMBER / activeProjects.length) * 100}%`, background: '#faad14', transition: 'width 0.3s' }} />
+                <div style={{ width: `${(ragSummary.AMBER / activeProjects.length) * 100}%`, background: 'var(--color-status-risk-medium)', transition: 'width 0.3s' }} />
               </Tooltip>
             )}
             {ragSummary.RED > 0 && (
               <Tooltip title={`Critical: ${ragSummary.RED}`}>
-                <div style={{ width: `${(ragSummary.RED / activeProjects.length) * 100}%`, background: '#ff4d4f', transition: 'width 0.3s' }} />
+                <div style={{ width: `${(ragSummary.RED / activeProjects.length) * 100}%`, background: 'var(--color-status-risk-high)', transition: 'width 0.3s' }} />
               </Tooltip>
             )}
           </div>
@@ -418,7 +418,7 @@ const ExecutiveDashboardClassic: React.FC = () => {
 
           {/* At Risk Summary */}
           {atRiskProjects.length > 0 && (
-            <Card title={<Space><WarningOutlined style={{ color: '#faad14' }} /> Projects at Risk</Space>} size="small">
+            <Card title={<Space><WarningOutlined style={{ color: 'var(--color-status-risk-medium)' }} /> Projects at Risk</Space>} size="small">
               <List
                 size="small"
                 dataSource={atRiskProjects.slice(0, 6)}

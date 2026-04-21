@@ -17,7 +17,7 @@ import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
 
 const { Title, Text } = Typography;
 
-const RAG_COLORS: Record<string, string> = { GREEN: '#52c41a', AMBER: '#faad14', RED: '#ff4d4f' };
+const RAG_COLORS: Record<string, string> = { GREEN: 'var(--color-status-risk-low)', AMBER: 'var(--color-status-risk-medium)', RED: 'var(--color-status-risk-high)' };
 
 /**
  * Commercial Life Sciences Dashboard
@@ -102,7 +102,7 @@ const CommercialDashboardClassic: React.FC = () => {
   const commercialAreas = [
     { name: 'Product Launch', icon: <RocketOutlined />, color: '#722ed1', desc: 'Launch readiness & go-to-market' },
     { name: 'Campaigns', icon: <FundOutlined />, color: '#1677ff', desc: 'HCP & DTC engagement' },
-    { name: 'Compliance', icon: <SafetyCertificateOutlined />, color: '#52c41a', desc: 'PhRMA Code, Sunshine Act, AE reporting' },
+    { name: 'Compliance', icon: <SafetyCertificateOutlined />, color: 'var(--color-status-risk-low)', desc: 'PhRMA Code, Sunshine Act, AE reporting' },
     { name: 'Market Access', icon: <GlobalOutlined />, color: '#fa8c16', desc: 'Formulary, pricing, payer strategy' },
     { name: 'Field Force', icon: <TeamOutlined />, color: '#13c2c2', desc: 'Territory mgmt, call planning, CRM' },
     { name: 'MLR Review', icon: <AuditOutlined />, color: '#eb2f96', desc: 'Medical Legal Regulatory review' },
@@ -224,7 +224,7 @@ const CommercialDashboardClassic: React.FC = () => {
                     title={<Text className="fs-11">PhRMA Code</Text>}
                     value="Compliant"
                     prefix={<CheckCircleOutlined />}
-                    valueStyle={{ fontSize: 14, color: '#52c41a' }}
+                    valueStyle={{ fontSize: 14, color: 'var(--color-status-risk-low)' }}
                   />
                 </Card>
               </Col>
@@ -234,7 +234,7 @@ const CommercialDashboardClassic: React.FC = () => {
                     title={<Text className="fs-11">Sunshine Act</Text>}
                     value="Current"
                     prefix={<FileProtectOutlined />}
-                    valueStyle={{ fontSize: 14, color: '#52c41a' }}
+                    valueStyle={{ fontSize: 14, color: 'var(--color-status-risk-low)' }}
                   />
                 </Card>
               </Col>

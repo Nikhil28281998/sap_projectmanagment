@@ -60,7 +60,7 @@ const WorkItemDetail: React.FC = () => {
   }
 
   const rag = workItem.overallRAG || calculateRAG(workItem);
-  const ragColors: Record<string, string> = { RED: '#ff4d4f', AMBER: '#faad14', GREEN: '#52c41a' };
+  const ragColors: Record<string, string> = { RED: 'var(--color-status-risk-high)', AMBER: 'var(--color-status-risk-medium)', GREEN: 'var(--color-status-risk-low)' };
 
   // Filter transports linked to this work item
   const linkedTransports = allTransports.filter(
@@ -518,9 +518,9 @@ const WorkItemDetail: React.FC = () => {
                     percent={workItem.testCompletionPct || 0}
                     size={120}
                     strokeColor={{
-                      '0%': '#52c41a',
-                      '50%': '#faad14',
-                      '100%': '#52c41a',
+                      '0%': 'var(--color-status-risk-low)',
+                      '50%': 'var(--color-status-risk-medium)',
+                      '100%': 'var(--color-status-risk-low)',
                     }}
                     format={(pct) => (
                       <div>

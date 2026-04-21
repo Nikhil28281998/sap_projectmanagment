@@ -195,7 +195,7 @@ const WorkItemList: React.FC = () => {
       width: 60,
       render: (_: any, record: any) => {
         const rag = record.overallRAG || calculateRAG(record);
-        const colors: Record<string, string> = { RED: '#ff4d4f', AMBER: '#faad14', GREEN: '#52c41a' };
+        const colors: Record<string, string> = { RED: 'var(--color-status-risk-high)', AMBER: 'var(--color-status-risk-medium)', GREEN: 'var(--color-status-risk-low)' };
         return (
           <Tooltip title={`RAG: ${rag}`}>
             <div

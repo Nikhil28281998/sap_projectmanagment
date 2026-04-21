@@ -17,7 +17,7 @@ import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
 
 const { Title, Text } = Typography;
 
-const RAG_COLORS: Record<string, string> = { GREEN: '#52c41a', AMBER: '#faad14', RED: '#ff4d4f' };
+const RAG_COLORS: Record<string, string> = { GREEN: 'var(--color-status-risk-low)', AMBER: 'var(--color-status-risk-medium)', RED: 'var(--color-status-risk-high)' };
 
 /**
  * Coupa Project Management Dashboard
@@ -98,7 +98,7 @@ const CoupaDashboardClassic: React.FC = () => {
   // Coupa project types (matching MODULE_DEFINITIONS workItemTypes)
   const coupaProjectTypes = [
     { name: 'Implementation', icon: <ProjectOutlined />, color: '#1677ff', desc: 'Core Coupa module deployments' },
-    { name: 'Integration', icon: <ApiOutlined />, color: '#52c41a', desc: 'ERP, cXML, API connectors' },
+    { name: 'Integration', icon: <ApiOutlined />, color: 'var(--color-status-risk-low)', desc: 'ERP, cXML, API connectors' },
     { name: 'Configuration', icon: <SettingOutlined />, color: '#fa8c16', desc: 'Workflows, rules, approvals' },
     { name: 'Data Migration', icon: <DatabaseOutlined />, color: '#722ed1', desc: 'Suppliers, catalogs, contracts' },
     { name: 'Supplier Enablement', icon: <TeamOutlined />, color: '#13c2c2', desc: 'Onboarding & portal rollouts' },

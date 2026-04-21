@@ -24,7 +24,7 @@ const { RangePicker } = DatePicker;
 const C = {
   bg: '#f0f2f5', card: '#ffffff', border: '#e8e8e8',
   text: 'rgba(0,0,0,0.88)', textSec: 'rgba(0,0,0,0.45)',
-  accent: '#1677ff', green: '#52c41a', red: '#ff4d4f', amber: '#faad14',
+  accent: '#1677ff', green: 'var(--color-status-risk-low)', red: 'var(--color-status-risk-high)', amber: 'var(--color-status-risk-medium)',
   orange: '#fa8c16', purple: '#722ed1', cyan: '#13c2c2', pink: '#eb2f96',
 };
 
