@@ -44,7 +44,7 @@ function injectCssVars() {
 // Eliminates first-frame FOUC where body styles reference undefined CSS variables.
 if (typeof document !== 'undefined') {
   injectCssVars();
-  const initialTheme = readStored<ThemeName>(THEME_KEY, THEMES, 'dark');
+  const initialTheme = readStored<ThemeName>(THEME_KEY, THEMES, 'light');
   const initialDensity = readStored<DensityMode>(DENSITY_KEY, DENSITY_MODES, 'comfortable');
   document.documentElement.dataset.theme = initialTheme;
   document.documentElement.dataset.density = initialDensity;
@@ -52,7 +52,7 @@ if (typeof document !== 'undefined') {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeName>(() =>
-    readStored<ThemeName>(THEME_KEY, THEMES, 'dark')
+    readStored<ThemeName>(THEME_KEY, THEMES, 'light')
   );
   const [density, setDensityState] = useState<DensityMode>(() =>
     readStored<DensityMode>(DENSITY_KEY, DENSITY_MODES, 'comfortable')

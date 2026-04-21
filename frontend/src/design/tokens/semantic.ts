@@ -65,8 +65,8 @@ export const semantic: Record<ThemeName, { color: SemanticColors }> = {
   light: {
     color: {
       bg: {
-        app:      p.white,
-        elevated: p.white,
+        app:      '#FBFBFC',       // subtle off-white page (Linear/Stripe/Vercel)
+        elevated: p.white,         // pure white cards stand out against page
         raised:   p.white,
         overlay:  'rgba(15,23,42,0.40)',
       },
@@ -75,32 +75,32 @@ export const semantic: Record<ThemeName, { color: SemanticColors }> = {
         subtle:   p.slate[100],
         muted:    p.slate[200],
         hover:    p.slate[100],
-        selected: 'rgba(30,64,175,0.08)',
+        selected: 'rgba(99,102,241,0.08)',
       },
       text: {
         primary:   p.slate[900],
         secondary: p.slate[700],
         muted:     p.slate[500],
         inverse:   p.white,
-        link:      p.inkBlue[700],
+        link:      p.indigo[600],
       },
       border: {
         subtle:  p.slate[200],
         default: p.slate[300],
         strong:  p.slate[400],
-        focus:   p.inkBlue[600],
+        focus:   p.indigo[500],
       },
       status: {
         success: { bg: '#ECFDF5', fg: p.emerald[600], border: '#A7F3D0' },
         warning: { bg: '#FFFBEB', fg: p.amber[600],   border: '#FDE68A' },
         danger:  { bg: '#FEF2F2', fg: p.rose[600],    border: '#FECACA' },
-        info:    { bg: '#EFF6FF', fg: p.inkBlue[700], border: '#BFDBFE' },
+        info:    { bg: '#EEF2FF', fg: p.indigo[600],  border: '#C7D2FE' },
         risk: { low: p.emerald[600], medium: p.amber[600], high: p.rose[600], blocked: p.slate[500] },
       },
       accent: {
-        primary:       p.inkBlue[700],
-        primaryHover:  p.inkBlue[600],
-        primaryActive: p.inkBlue[800],
+        primary:       p.indigo[600],
+        primaryHover:  p.indigo[500],
+        primaryActive: p.indigo[700],
         onPrimary:     p.white,
       },
     },

@@ -22,18 +22,18 @@ describe('ThemeProvider', () => {
     localStorage.clear();
   });
 
-  it('defaults to dark theme and comfortable density', () => {
+  it('defaults to light theme and comfortable density', () => {
     render(<ThemeProvider><Probe /></ThemeProvider>);
-    expect(screen.getByTestId('theme').textContent).toBe('dark');
+    expect(screen.getByTestId('theme').textContent).toBe('light');
     expect(screen.getByTestId('density').textContent).toBe('comfortable');
-    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(document.documentElement.dataset.theme).toBe('light');
     expect(document.documentElement.dataset.density).toBe('comfortable');
   });
 
   it('setTheme flips the data-theme attribute on <html>', () => {
     render(<ThemeProvider><Probe /></ThemeProvider>);
     act(() => screen.getByText('toggle').click());
-    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(document.documentElement.dataset.theme).toBe('dark');
   });
 
   it('setDensity flips the data-density attribute on <html>', () => {
@@ -46,7 +46,7 @@ describe('ThemeProvider', () => {
     render(<ThemeProvider><Probe /></ThemeProvider>);
     act(() => screen.getByText('toggle').click());
     act(() => screen.getByText('compact').click());
-    expect(localStorage.getItem('ui.theme')).toBe('light');
+    expect(localStorage.getItem('ui.theme')).toBe('dark');
     expect(localStorage.getItem('ui.density')).toBe('compact');
   });
 

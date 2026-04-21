@@ -9,7 +9,7 @@ import {
   BellOutlined, ReloadOutlined, WarningOutlined,
   AppstoreOutlined, RobotOutlined, TeamOutlined,
   ShoppingCartOutlined, MedicineBoxOutlined, ApartmentOutlined,
-  FundProjectionScreenOutlined, LogoutOutlined, SwapOutlined
+  FundProjectionScreenOutlined, LogoutOutlined, SwapOutlined, MenuOutlined
 } from '@ant-design/icons';
 import { useNotifications, useRefreshTransports } from '../../hooks/useData';
 import { useAuth } from '../../contexts/AuthContext';
@@ -140,6 +140,8 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
+        breakpoint="lg"
+        collapsedWidth={window.innerWidth < 768 ? 0 : 80}
         theme="light"
         width={220}
         className="app-sider"
@@ -202,6 +204,14 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <Layout className={collapsed ? 'app-main-collapsed' : 'app-main-expanded'}>
         <Header className="app-header">
           <Space size={8}>
+            <Button
+              icon={<MenuOutlined />}
+              size="small"
+              type="text"
+              onClick={() => setCollapsed((c) => !c)}
+              aria-label="Toggle sidebar"
+              className="app-header-hamburger"
+            />
             <Text strong className="app-header-title">
               Project Command Center
             </Text>
