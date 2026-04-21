@@ -1,11 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Row, Col, Select, Typography, Tooltip, Space, Segmented,
+  Row, Col, Select, Typography, Tooltip, Space,
   DatePicker, Button, Empty, Table, Tag, Progress
 } from 'antd';
 import {
   FilterOutlined, CaretUpOutlined, CaretDownOutlined, InfoCircleOutlined,
-  BarChartOutlined, AppstoreOutlined,
   ApartmentOutlined, ShoppingCartOutlined, MedicineBoxOutlined,
   CheckCircleOutlined, TrophyOutlined, WarningOutlined
 } from '@ant-design/icons';
@@ -15,11 +14,10 @@ import { useWorkItems } from '../../hooks/useData';
 import { useAuth } from '../../contexts/AuthContext';
 import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
 import dayjs from 'dayjs';
-import ExecutiveDashboardClassic from './ExecutiveDashboardClassic';
 import '../../styles/dashboard-analytics.css';
 import type { WorkItem, Transport, Milestone } from '@/types';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const C = {
@@ -44,11 +42,7 @@ function getRAG(wi: WorkItem): string {
 const RAG_LABELS: Record<string, string> = { GREEN: 'On Track', AMBER: 'At Risk', RED: 'Critical' };
 const RAG_COLORS: Record<string, string> = { GREEN: C.green, AMBER: C.amber, RED: C.red };
 
-const VIEW_KEY = 'exec_dashboard_view';
-const getStoredView = () => (localStorage.getItem(VIEW_KEY) as 'analytics' | 'classic') || 'analytics';
-
 const ExecutiveDashboard: React.FC = () => {
-  const [viewMode, setViewMode] = useState<'analytics' | 'classic'>(getStoredView);
   const navigate = useNavigate();
   const { user, allowedApps } = useAuth();
   const { data: allWorkItems = [], isLoading } = useWorkItems();
@@ -192,31 +186,6 @@ const ExecutiveDashboard: React.FC = () => {
     },
   ];
 
-  const handleViewChange = (val: string | number) => {
-    const v = val as 'analytics' | 'classic';
-    setViewMode(v);
-    localStorage.setItem(VIEW_KEY, v);
-  };
-
-  if (viewMode === 'classic') {
-    return (
-      <div>
-        <div className="dashboard-view-toggle dashboard-toggle-classic">
-          <Title level={4} className="m-0"><TrophyOutlined /> Executive Overview</Title>
-          <Segmented
-            options={[
-              { label: <span><AppstoreOutlined /> Classic</span>, value: 'classic' },
-              { label: <span><BarChartOutlined /> Analytics</span>, value: 'analytics' },
-            ]}
-            value={viewMode}
-            onChange={handleViewChange}
-          />
-        </div>
-        <ExecutiveDashboardClassic />
-      </div>
-    );
-  }
-
   return (
     <div className="analytics-dashboard">
       <div className="dashboard-view-toggle">
@@ -225,14 +194,6 @@ const ExecutiveDashboard: React.FC = () => {
             SAP PM Command Center / <Text strong className="dashboard-breadcrumb-active">Executive Portfolio Analytics</Text>
           </Text>
         </div>
-        <Segmented
-          options={[
-            { label: <span><AppstoreOutlined /> Classic</span>, value: 'classic' },
-            { label: <span><BarChartOutlined /> Analytics</span>, value: 'analytics' },
-          ]}
-          value={viewMode}
-          onChange={handleViewChange}
-        />
       </div>
 
       <div className="analytics-filter-bar">
