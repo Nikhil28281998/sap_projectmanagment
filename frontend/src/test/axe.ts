@@ -1,7 +1,8 @@
-import { axe, toHaveNoViolations } from 'vitest-axe';
+import { axe } from 'vitest-axe';
+import { toHaveNoViolations } from 'vitest-axe/matchers';
 import { expect } from 'vitest';
 
 expect.extend({ toHaveNoViolations });
 
 export { axe };
-export type { AxeResults } from 'vitest-axe';
+export type { AxeResults } from 'axe-core';
