@@ -20,11 +20,12 @@ class TransportService extends cds.ApplicationService {
       SyncLog,
       ActivityLog,
       AppConfig,
-      ReportTemplates
+      ReportTemplates,
+      WeeklyDigests
     } = db.entities('sap.pm');
 
     this.db = db;
-    this._e = { TransportWorkItems, WorkItems, Milestones, Notifications, SyncLog, ActivityLog, AppConfig, ReportTemplates };
+    this._e = { TransportWorkItems, WorkItems, Milestones, Notifications, SyncLog, ActivityLog, AppConfig, ReportTemplates, WeeklyDigests };
 
     // ── Before handlers ──
     this.before('UPDATE', 'Transports', this._checkOptimisticLock.bind(this));

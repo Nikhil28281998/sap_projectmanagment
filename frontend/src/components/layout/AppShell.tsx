@@ -224,13 +224,21 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <Button
                   icon={<ReloadOutlined spin={refreshMutation.isPending} />}
                   onClick={() => refreshMutation.mutate()}
-                  size="small"
+                  aria-label="Refresh all data"
+                  className="header-icon-btn"
                 />
               </Tooltip>
             )}
-            <Badge count={unreadCount} size="small">
-              <Button icon={<BellOutlined />} size="small" onClick={() => setNotifOpen(true)} />
-            </Badge>
+            <Tooltip title="Notifications">
+              <Badge count={unreadCount} size="small">
+                <Button
+                  icon={<BellOutlined />}
+                  onClick={() => setNotifOpen(true)}
+                  aria-label={`Notifications${unreadCount ? ` (${unreadCount} unread)` : ''}`}
+                  className="header-icon-btn"
+                />
+              </Badge>
+            </Tooltip>
             <Dropdown menu={{ items: userMenuItems, onClick: ({ key }) => { if (key === 'settings') navigate('/settings'); if (key === 'logout') { window.location.href = '/api/v1/transport/logout'; } } }} trigger={['click']}>
               <Button size="small" className="user-menu-btn">
                 <Avatar size={20} className="user-avatar" style={{ backgroundColor: roleBadge.color }}>

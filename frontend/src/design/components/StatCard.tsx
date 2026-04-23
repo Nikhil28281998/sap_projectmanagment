@@ -14,6 +14,7 @@ export type StatCardProps = {
   tone?: StatCardTone;
   icon?: ReactNode;
   onClick?: () => void;
+  loading?: boolean;
   className?: string;
   'data-testid'?: string;
 };
@@ -44,6 +45,7 @@ export function StatCard(props: StatCardProps) {
     tone = 'neutral',
     icon,
     onClick,
+    loading,
     className,
   } = props;
   const testId = props['data-testid'];
@@ -62,6 +64,14 @@ export function StatCard(props: StatCardProps) {
     cursor: onClick ? 'pointer' : 'default',
     transition: 'box-shadow var(--motion-duration-base) var(--motion-easing-out), transform var(--motion-duration-base) var(--motion-easing-out)',
   };
+
+  const skeletonContent = (
+    <Stack gap={2} style={{ width: '100%' }} aria-hidden="true">
+      <div className="statcard-shimmer statcard-shimmer--label" />
+      <div className="statcard-shimmer statcard-shimmer--value" />
+      <div className="statcard-shimmer statcard-shimmer--caption" />
+    </Stack>
+  );
 
   const content = (
     <Stack gap={2} style={{ width: '100%' }}>
@@ -119,7 +129,9 @@ export function StatCard(props: StatCardProps) {
     </Stack>
   );
 
-  if (onClick) {
+  const body = loading ? skeletonContent : content;
+
+  if (onClick && !loading) {
     const handleKey = (e: KeyboardEvent<HTMLButtonElement>) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
@@ -129,7 +141,7 @@ export function StatCard(props: StatCardProps) {
     return (
       <button
         type="button"
-        className={className}
+        className={`${className ?? ''} statcard-clickable`}
         data-testid={testId}
         data-tone={tone}
         onClick={onClick}
@@ -137,7 +149,7 @@ export function StatCard(props: StatCardProps) {
         aria-label={label}
         style={baseStyle}
       >
-        {content}
+        {body}
       </button>
     );
   }
@@ -147,9 +159,10 @@ export function StatCard(props: StatCardProps) {
       className={className}
       data-testid={testId}
       data-tone={tone}
+      aria-busy={loading ? true : false}
       style={baseStyle}
     >
-      {content}
+      {body}
     </div>
   );
 }

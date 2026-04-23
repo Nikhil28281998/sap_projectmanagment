@@ -4,29 +4,31 @@ import {
   DatePicker, Button, Table, Tag, Progress
 } from 'antd';
 import {
-  FilterOutlined, InfoCircleOutlined,
   ApartmentOutlined, ShoppingCartOutlined, MedicineBoxOutlined,
-  CheckCircleOutlined, TrophyOutlined, WarningOutlined
+  CheckCircleOutlined, TrophyOutlined, WarningOutlined,
+  BugOutlined, DeploymentUnitOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { Column, Pie, Bar } from '@ant-design/charts';
-import { useWorkItems } from '../../hooks/useData';
+import { useWorkItems, useTransports } from '../../hooks/useData';
 import { useAuth } from '../../contexts/AuthContext';
 import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
 import dayjs from 'dayjs';
 import '../../styles/dashboard-analytics.css';
-import type { WorkItem, Transport, Milestone } from '@/types';
-import { StatCard, EmptyState } from '../../design/components';
-import { tokenAxisConfig, chartColors } from '../../design/chart-theme';
+import type { WorkItem, Transport } from '@/types';
+import { StatCard, EmptyState, ChartFrame } from '../../design/components';
+import { tokenAxisConfig, tokenChartInteraction, tokenChartLabel } from '../../design/chart-theme';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const C = {
-  bg: '#f0f2f5', card: '#ffffff', border: '#e8e8e8',
-  text: 'rgba(0,0,0,0.88)', textSec: 'rgba(0,0,0,0.45)',
-  accent: '#1677ff', green: 'var(--color-status-risk-low)', red: 'var(--color-status-risk-high)', amber: 'var(--color-status-risk-medium)',
-  orange: '#fa8c16', purple: '#722ed1', cyan: '#13c2c2', pink: '#eb2f96',
+  accent: '#1677ff',
+  green: 'var(--color-status-risk-low)',
+  amber: 'var(--color-status-risk-medium)',
+  red: 'var(--color-status-risk-high)',
+  orange: '#fa8c16',
+  purple: '#722ed1',
 };
 
 const APP_COLORS: Record<string, string> = { SAP: C.accent, Coupa: C.orange, Commercial: C.purple };
@@ -42,12 +44,19 @@ function getRAG(wi: WorkItem): string {
 }
 
 const RAG_LABELS: Record<string, string> = { GREEN: 'On Track', AMBER: 'At Risk', RED: 'Critical' };
-const RAG_COLORS: Record<string, string> = { GREEN: C.green, AMBER: C.amber, RED: C.red };
 
 const ExecutiveDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user, allowedApps } = useAuth();
+  const { allowedApps } = useAuth();
   const { data: allWorkItems = [], isLoading } = useWorkItems();
+  const { data: transports = [] } = useTransports();
+
+  const pipeline = useMemo(() => ({
+    dev: transports.filter((t: Transport) => t.currentSystem === 'DEV').length,
+    qas: transports.filter((t: Transport) => t.currentSystem === 'QAS').length,
+    prd: transports.filter((t: Transport) => t.currentSystem === 'PRD').length,
+    total: transports.length,
+  }), [transports]);
 
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
   const [filterApp, setFilterApp] = useState<string | undefined>();
@@ -183,8 +192,23 @@ const ExecutiveDashboard: React.FC = () => {
       render: (d: string) => d ? <Text type="secondary" className="fs-12">{d} ({daysFromNow(d)}d)</Text> : <Text type="secondary">—</Text>,
     },
     {
-      title: 'Progress', dataIndex: 'deploymentPct', key: 'pct', width: 120,
-      render: (pct: number) => <Progress percent={pct || 0} size="small" />,
+      title: 'Progress', dataIndex: 'deploymentPct', key: 'pct', width: 140,
+      render: (pct: number) => {
+        const v = pct || 0;
+        const stroke =
+          v >= 80 ? 'var(--color-status-risk-low)' :
+          v >= 40 ? 'var(--color-status-risk-medium)' :
+                    'var(--color-status-risk-high)';
+        return (
+          <Progress
+            percent={v}
+            size="small"
+            strokeColor={stroke}
+            trailColor="transparent"
+            format={(p) => <span style={{ fontWeight: 600 }}>{p}%</span>}
+          />
+        );
+      },
     },
   ];
 
@@ -202,91 +226,110 @@ const ExecutiveDashboard: React.FC = () => {
         <RangePicker size="middle" onChange={(dates) => setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)} />
         <Select placeholder="Application" allowClear value={filterApp} onChange={setFilterApp}
           className="filter-select-lg" options={availableApps.map(a => ({ value: a, label: a }))} />
-        <Button icon={<FilterOutlined />}>Filters</Button>
       </div>
 
-      {/* KPI Cards */}
-      <Row gutter={16} className="mb-20">
-        <Col xs={12} lg={6}>
-          <StatCard
-            icon={<TrophyOutlined />}
-            label="Active Projects"
-            value={activeProjects.length}
-            delta={{ direction: 'up', text: `${ragDist.GREEN} on track` }}
-            tone="info"
-            onClick={() => navigate('/tracker?app=all')}
-          />
-        </Col>
-        <Col xs={12} lg={6}>
-          <StatCard
-            icon={<CheckCircleOutlined />}
-            label="Completed"
-            value={completedCount}
-            caption="Across all applications"
-            tone="success"
-          />
-        </Col>
-        <Col xs={12} lg={6}>
-          <StatCard
-            label="Avg Progress"
-            value={`${avgDeployment}%`}
-            caption={`Test pass: ${testSummary.rate}%`}
-            tone="info"
-          />
-        </Col>
-        <Col xs={12} lg={6}>
-          <StatCard
-            label="Portfolio Health"
-            value={activeProjects.length}
-            caption={`On Track: ${ragDist.GREEN} · At Risk: ${ragDist.AMBER} · Critical: ${ragDist.RED}`}
-            tone={ragDist.RED > 0 ? 'danger' : ragDist.AMBER > 0 ? 'warning' : 'success'}
-          />
-        </Col>
-      </Row>
-
-      {/* Per-App Breakdown */}
-      <Row gutter={16} className="mb-20">
+      {/* KPI Cards — uniform grid, all tiles the same size */}
+      <div className="kpi-grid">
+        <StatCard
+          loading={isLoading}
+          icon={<TrophyOutlined />}
+          label="Active Projects"
+          value={activeProjects.length}
+          delta={{ direction: 'up', text: `${ragDist.GREEN} on track` }}
+          tone="info"
+          onClick={() => navigate('/tracker?app=all')}
+        />
+        <StatCard
+          loading={isLoading}
+          icon={<CheckCircleOutlined />}
+          label="Completed"
+          value={completedCount}
+          caption="Across all applications"
+          tone="success"
+          onClick={() => navigate('/tracker?app=all&status=Complete')}
+        />
+        <StatCard
+          loading={isLoading}
+          label="Avg Progress"
+          value={avgDeployment}
+          unit="%"
+          caption={`Test pass: ${testSummary.rate}%`}
+          tone="info"
+          onClick={() => navigate('/tracker?app=all&status=Active')}
+        />
+        <StatCard
+          loading={isLoading}
+          label="Portfolio Health"
+          value={activeProjects.length}
+          caption={`${ragDist.GREEN} · ${ragDist.AMBER} · ${ragDist.RED}`}
+          tone={ragDist.RED > 0 ? 'danger' : ragDist.AMBER > 0 ? 'warning' : 'success'}
+          onClick={() => navigate('/tracker?app=all&status=Active')}
+        />
         {appBreakdown.map(({ app, active, completed }) => (
-          <Col xs={24} sm={12} lg={8} key={app}>
-            <StatCard
-              icon={APP_ICONS[app]}
-              label={app}
-              value={active}
-              caption={`Active: ${active} · Done: ${completed}`}
-              tone="info"
-            />
-          </Col>
-        ))}
-      </Row>
-
-      {/* Risk & Go-Lives Mini KPIs */}
-      <Row gutter={16} className="mb-20">
-        <Col xs={24} sm={8}>
           <StatCard
-            icon={<WarningOutlined />}
-            label="Critical"
-            value={ragDist.RED}
-            caption="need attention"
-            tone="danger"
-          />
-        </Col>
-        <Col xs={24} sm={8}>
-          <StatCard
-            label="Risk Score"
-            value={totalRiskScore}
-            caption="aggregate"
-            tone={totalRiskScore > 200 ? 'danger' : 'warning'}
-          />
-        </Col>
-        <Col xs={24} sm={8}>
-          <StatCard
-            label="Go-Lives ≤90d"
-            value={upcomingGoLives.length}
-            caption="upcoming"
+            key={app}
+            loading={isLoading}
+            icon={APP_ICONS[app]}
+            label={app}
+            value={active}
+            caption={`Active: ${active} · Done: ${completed}`}
             tone="info"
+            onClick={() => navigate(`/tracker?app=${app.toLowerCase()}`)}
           />
-        </Col>
-      </Row>
+        ))}
+        <StatCard
+          loading={isLoading}
+          icon={<BugOutlined />}
+          label="Test Pass Rate"
+          value={testSummary.rate}
+          unit="%"
+          caption={`${testSummary.passed}/${testSummary.total} passed`}
+          tone={testSummary.rate >= 80 ? 'success' : testSummary.rate >= 50 ? 'warning' : 'danger'}
+          onClick={() => navigate('/tracker?app=all&status=Active')}
+        />
+        <StatCard
+          loading={isLoading}
+          icon={<WarningOutlined />}
+          label="Critical"
+          value={ragDist.RED}
+          caption="need attention"
+          tone="danger"
+          onClick={() => navigate('/tracker?app=all&status=Active&rag=RED')}
+        />
+        <StatCard
+          loading={isLoading}
+          label="At Risk"
+          value={ragDist.AMBER}
+          caption="being monitored"
+          tone="warning"
+          onClick={() => navigate('/tracker?app=all&status=Active&rag=AMBER')}
+        />
+        <StatCard
+          loading={isLoading}
+          label="Risk Score"
+          value={totalRiskScore}
+          caption="aggregate"
+          tone={totalRiskScore > 200 ? 'danger' : 'warning'}
+          onClick={() => navigate('/tracker?app=all&status=Active')}
+        />
+        <StatCard
+          loading={isLoading}
+          icon={<DeploymentUnitOutlined />}
+          label="Transports"
+          value={pipeline.total}
+          caption={`${pipeline.prd} in PRD`}
+          tone="info"
+          onClick={() => navigate('/pipeline')}
+        />
+        <StatCard
+          loading={isLoading}
+          label="Go-Lives ≤90d"
+          value={upcomingGoLives.length}
+          caption="upcoming"
+          tone="info"
+          onClick={() => navigate('/tracker?app=all&status=Active')}
+        />
+      </div>
 
       {/* Portfolio Overview */}
       <div className="analytics-chart-card chart-card-mb">
@@ -305,30 +348,42 @@ const ExecutiveDashboard: React.FC = () => {
                 </Space>
               ))}
             </Space>
-            {appChartData.length > 0 ? (
-              <Column data={appChartData} xField="app" yField="count" colorField="status"
-                stack={true} height={280} theme="classic"
-                scale={{ color: { domain: ['On Track', 'At Risk', 'Critical'], range: [C.green, C.amber, C.red] } }}
-                style={{ maxWidth: 60, radiusTopLeft: 4, radiusTopRight: 4 }}
-                axis={tokenAxisConfig()}
-                legend={false} />
-            ) : (
-              <div className="chart-empty-placeholder">
-                <EmptyState title="No data" />
-              </div>
-            )}
+            <ChartFrame
+              loading={isLoading}
+              height={280}
+              summary={`Projects by application and health. ${ragDist.GREEN} on track, ${ragDist.AMBER} at risk, ${ragDist.RED} critical across ${activeProjects.length} active projects.`}
+            >
+              {appChartData.length > 0 ? (
+                <Column data={appChartData} xField="app" yField="count" colorField="status"
+                  stack={true} height={280} theme="classic"
+                  scale={{ color: { domain: ['On Track', 'At Risk', 'Critical'], range: [C.green, C.amber, C.red] } }}
+                  style={{ maxWidth: 60, radiusTopLeft: 4, radiusTopRight: 4 }}
+                  axis={tokenAxisConfig()}
+                  interaction={tokenChartInteraction}
+                  legend={false} />
+              ) : (
+                <div className="chart-empty-placeholder">
+                  <EmptyState title="No data" />
+                </div>
+              )}
+            </ChartFrame>
           </Col>
           <Col xs={24} lg={10}>
             <div className="chart-section-header">
               <Text strong className="fs-14">Health Distribution</Text>
               <br /><Text type="secondary" className="fs-12">RAG status across all projects</Text>
             </div>
+            <ChartFrame
+              loading={isLoading}
+              height={280}
+              summary={`Health distribution donut. ${ragDist.GREEN} on track, ${ragDist.AMBER} at risk, ${ragDist.RED} critical.`}
+            >
             {ragDonutData.length > 0 ? (
               <div className="donut-chart-wrapper">
                 <Pie data={ragDonutData} angleField="value" colorField="status"
                   innerRadius={0.65} height={280} theme="classic"
                   scale={{ color: { domain: ['On Track', 'At Risk', 'Critical'], range: [C.green, C.amber, C.red] } }}
-                  label={false} legend={false} />
+                  label={false} legend={false} interaction={tokenChartInteraction} />
                 <div className="donut-center-label">
                   <div className="donut-value">{activeProjects.length}</div>
                   <div className="donut-sub">Active</div>
@@ -349,6 +404,7 @@ const ExecutiveDashboard: React.FC = () => {
                 <EmptyState title="No data" />
               </div>
             )}
+            </ChartFrame>
           </Col>
         </Row>
       </div>
@@ -362,39 +418,48 @@ const ExecutiveDashboard: React.FC = () => {
               <Text strong className="fs-14">Progress by Application</Text>
               <br /><Text type="secondary" className="fs-12">Average deployment % per platform</Text>
             </div>
-            {appProgressData.length > 0 ? (
-              <Bar data={appProgressData} xField="app" yField="progress"
-                height={Math.max(180, appProgressData.length * 56)} theme="classic"
-                style={{ fill: C.accent, radiusTopRight: 4, radiusBottomRight: 4 }}
-                axis={tokenAxisConfig()}
-                label={{ text: (d: any) => `${d.progress}%`, fontSize: 11 }} legend={false} />
-            ) : <EmptyState title="No data" />}
+            <ChartFrame loading={isLoading} height={200} summary={`Average deployment progress per application across ${appProgressData.length} platforms.`}>
+              {appProgressData.length > 0 ? (
+                <Bar data={appProgressData} xField="app" yField="progress"
+                  height={Math.max(180, appProgressData.length * 56)} theme="classic"
+                  style={{ fill: C.accent, radiusTopRight: 4, radiusBottomRight: 4 }}
+                  axis={tokenAxisConfig()}
+                  interaction={tokenChartInteraction}
+                  label={tokenChartLabel({ text: (d: any) => `${d.progress}%` })} legend={false} />
+              ) : <EmptyState title="No data" />}
+            </ChartFrame>
           </Col>
           <Col xs={24} lg={8}>
             <div className="chart-section-header">
               <Text strong className="fs-14">Risk by Application</Text>
               <br /><Text type="secondary" className="fs-12">Average risk per platform</Text>
             </div>
-            {appRiskData.length > 0 ? (
-              <Bar data={appRiskData} xField="app" yField="riskScore"
-                height={Math.max(180, appRiskData.length * 56)} theme="classic"
-                style={{ fill: C.red, radiusTopRight: 4, radiusBottomRight: 4 }}
-                axis={tokenAxisConfig()}
-                label={{ text: 'riskScore', fontSize: 11 }} legend={false} />
-            ) : <EmptyState title="No data" />}
+            <ChartFrame loading={isLoading} height={200} summary={`Average risk score per application across ${appRiskData.length} platforms.`}>
+              {appRiskData.length > 0 ? (
+                <Bar data={appRiskData} xField="app" yField="riskScore"
+                  height={Math.max(180, appRiskData.length * 56)} theme="classic"
+                  style={{ fill: C.red, radiusTopRight: 4, radiusBottomRight: 4 }}
+                  axis={tokenAxisConfig()}
+                  interaction={tokenChartInteraction}
+                  label={tokenChartLabel({ text: 'riskScore' })} legend={false} />
+              ) : <EmptyState title="No data" />}
+            </ChartFrame>
           </Col>
           <Col xs={24} lg={8}>
             <div className="chart-section-header">
               <Text strong className="fs-14">Priority Distribution</Text>
               <br /><Text type="secondary" className="fs-12">All active projects by priority</Text>
             </div>
-            {priorityData.length > 0 ? (
-              <Bar data={priorityData} xField="priority" yField="count"
-                height={Math.max(180, priorityData.length * 48)} theme="classic"
-                style={{ fill: C.purple, radiusTopRight: 4, radiusBottomRight: 4 }}
-                axis={tokenAxisConfig()}
-                label={{ text: 'count', fontSize: 11 }} legend={false} />
-            ) : <EmptyState title="No data" />}
+            <ChartFrame loading={isLoading} height={200} summary={`Priority distribution across ${priorityData.length} categories of active projects.`}>
+              {priorityData.length > 0 ? (
+                <Bar data={priorityData} xField="priority" yField="count"
+                  height={Math.max(180, priorityData.length * 48)} theme="classic"
+                  style={{ fill: C.purple, radiusTopRight: 4, radiusBottomRight: 4 }}
+                  axis={tokenAxisConfig()}
+                  interaction={tokenChartInteraction}
+                  label={tokenChartLabel({ text: 'count' })} legend={false} />
+              ) : <EmptyState title="No data" />}
+            </ChartFrame>
           </Col>
         </Row>
       </div>

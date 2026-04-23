@@ -8,3 +8,4 @@ export { RiskMeter, type RiskMeterProps } from './RiskMeter';
 export { UserAvatar, type UserAvatarProps } from './UserAvatar';
 export { DataTable, type DataTableProps } from './DataTable';
 export { Timeline, type TimelineItem, type TimelineProps } from './Timeline';
+export { ChartFrame, type ChartFrameProps } from './ChartFrame';

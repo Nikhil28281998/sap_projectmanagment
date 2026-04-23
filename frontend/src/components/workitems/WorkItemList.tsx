@@ -89,7 +89,8 @@ const WorkItemList: React.FC = () => {
   });
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
+  const ragParam = searchParams.get('rag') || '';
 
   // TR Search state
   const [trSearchTerm, setTrSearchTerm] = useState(searchParams.get('q') || '');
@@ -116,6 +117,8 @@ const WorkItemList: React.FC = () => {
     return workItems.filter((item: WorkItem) => {
       const matchesType = !typeKey || item.workItemType === typeKey;
       const matchesStatus = !statusFilter || item.status === statusFilter;
+      const matchesRag = !ragParam ||
+        (item.overallRAG || calculateRAG(item)) === ragParam.toUpperCase();
       const matchesSearch =
         !searchTerm ||
         item.workItemName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -123,9 +126,9 @@ const WorkItemList: React.FC = () => {
         item.snowTicket?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.leadDeveloper?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.projectCode?.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesType && matchesStatus && matchesSearch;
+      return matchesType && matchesStatus && matchesRag && matchesSearch;
     });
-  }, [workItems, activeTab, statusFilter, searchTerm]);
+  }, [workItems, activeTab, statusFilter, ragParam, searchTerm]);
 
   // ── TR search results ──
   const trResults = useMemo(() => {

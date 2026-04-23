@@ -6,9 +6,10 @@ export function useCurrentUser() {
   return useQuery({
     queryKey: ['currentUser'],
     queryFn: userApi.me,
-    staleTime: 30 * 60 * 1000,  // 30 min — user info rarely changes
+    staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
-    retry: 1,
+    retry: 3,
+    retryDelay: (attempt) => Math.min(500 * 2 ** attempt, 3000),
   });
 }
 

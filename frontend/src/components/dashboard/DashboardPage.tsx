@@ -1,26 +1,24 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Row, Col, Select, Typography, Tooltip, Space,
+  Row, Col, Select, Typography, Space,
   DatePicker, Button, Progress, Table, Tag
 } from 'antd';
 import {
-  FilterOutlined, InfoCircleOutlined,
   RocketOutlined, ShoppingCartOutlined,
   MedicineBoxOutlined, BugOutlined, ClockCircleOutlined, ThunderboltOutlined,
-  CheckCircleOutlined, WarningOutlined, ExperimentOutlined
+  CheckCircleOutlined, WarningOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { Column, Pie, Bar } from '@ant-design/charts';
 import { useWorkItems, useTransports } from '../../hooks/useData';
-import { useAuth } from '../../contexts/AuthContext';
 import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
 import dayjs from 'dayjs';
 import '../../styles/dashboard-analytics.css';
-import type { WorkItem, Transport, Milestone } from '@/types';
-import { StatCard, EmptyState } from '../../design/components';
-import { tokenAxisConfig, chartColors } from '../../design/chart-theme';
+import type { WorkItem, Transport } from '@/types';
+import { StatCard, EmptyState, ChartFrame } from '../../design/components';
+import { tokenAxisConfig, tokenChartInteraction, tokenChartLabel } from '../../design/chart-theme';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
 // ── Color palettes ──────────────────────────────────────────────────────────
@@ -156,7 +154,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
   const C = cfg.palette;
 
   const navigate = useNavigate();
-  const { data: allWorkItems = [] } = useWorkItems();
+  const { data: allWorkItems = [], isLoading } = useWorkItems();
   // Always called — React Query deduplicates; only used by SAP config
   const { data: transports = [] } = useTransports();
 
@@ -340,8 +338,23 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
       },
     },
     {
-      title: 'Progress', dataIndex: 'deploymentPct', key: 'pct', width: 100,
-      render: (pct: number) => <Progress percent={pct || 0} size="small" />,
+      title: 'Progress', dataIndex: 'deploymentPct', key: 'pct', width: 140,
+      render: (pct: number) => {
+        const v = pct || 0;
+        const stroke =
+          v >= 80 ? 'var(--color-status-risk-low)' :
+          v >= 40 ? 'var(--color-status-risk-medium)' :
+                    'var(--color-status-risk-high)';
+        return (
+          <Progress
+            percent={v}
+            size="small"
+            strokeColor={stroke}
+            trailColor="transparent"
+            format={(p) => <span style={{ fontWeight: 600 }}>{p}%</span>}
+          />
+        );
+      },
     },
   ];
 
@@ -368,124 +381,109 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
           <Select placeholder="Module" allowClear value={filterModule} onChange={setFilterModule}
             className="filter-select-md" options={modules.map(m => ({ value: m, label: m }))} />
         )}
-        <Button icon={<FilterOutlined />}>Filters</Button>
       </div>
 
-      {/* ── KPI Cards ── */}
-      <Row gutter={16} className="mb-20">
-        <Col xs={12} lg={6}>
+      {/* ── KPI Cards — uniform grid, every tile the same size ── */}
+      <div className="kpi-grid">
+        <StatCard
+          loading={isLoading}
+          icon={cfg.kpiIcon}
+          label={`Active ${cfg.itemLabel}`}
+          value={activeItems.length}
+          delta={{ direction: 'up', text: `${ragDist.GREEN} on track` }}
+          tone="info"
+          onClick={() => navigate(`/tracker?app=${application.toLowerCase()}&status=Active`)}
+        />
+        <StatCard
+          loading={isLoading}
+          icon={<ThunderboltOutlined />}
+          label="Risk Score"
+          value={totalRiskScore}
+          delta={
+            totalRiskScore > cfg.riskThreshold
+              ? { direction: 'up', text: application === 'SAP' ? 'High risk' : 'Elevated' }
+              : { direction: 'down', text: application === 'SAP' ? 'Low risk' : 'Normal' }
+          }
+          tone={totalRiskScore > cfg.riskThreshold ? 'danger' : 'success'}
+          onClick={() => navigate(`/tracker?app=${application.toLowerCase()}&status=Active`)}
+        />
+        <StatCard
+          loading={isLoading}
+          icon={<ClockCircleOutlined />}
+          label={`Avg ${application === 'SAP' ? 'Deployment' : 'Progress'}`}
+          value={avgDeployment}
+          unit="%"
+          caption={
+            application === 'SAP'
+              ? `${pipeline.prd}/${pipeline.total} in PRD`
+              : `Across active ${cfg.itemLabel.toLowerCase()}`
+          }
+          tone="info"
+          onClick={() => application === 'SAP' ? navigate('/pipeline') : navigate(`/tracker?app=${application.toLowerCase()}&status=Active`)}
+        />
+        <StatCard
+          loading={isLoading}
+          label={`Total ${cfg.itemLabel}`}
+          value={workItems.length}
+          caption={`${ragDist.GREEN} · ${ragDist.AMBER} · ${ragDist.RED}`}
+          tone="neutral"
+          onClick={() => navigate(`/tracker?app=${application.toLowerCase()}`)}
+        />
+        <StatCard
+          loading={isLoading}
+          icon={<BugOutlined />}
+          label="Test Pass Rate"
+          value={testSummary.rate}
+          unit="%"
+          caption={`${testSummary.passed}/${testSummary.total} passed`}
+          tone={testSummary.rate >= 80 ? 'success' : testSummary.rate >= 50 ? 'warning' : 'danger'}
+          onClick={() => navigate(`/tracker?app=${application.toLowerCase()}&status=Active`)}
+        />
+        <StatCard
+          loading={isLoading}
+          icon={<CheckCircleOutlined />}
+          label="Completed"
+          value={completedItems.length}
+          caption={`of ${workItems.length} total`}
+          tone="success"
+          onClick={() => navigate(`/tracker?app=${application.toLowerCase()}&status=Complete`)}
+        />
+        <StatCard
+          loading={isLoading}
+          icon={<WarningOutlined />}
+          label="Critical"
+          value={ragDist.RED}
+          caption="need attention"
+          tone="danger"
+          onClick={() => navigate(`/tracker?app=${application.toLowerCase()}&status=Active&rag=RED`)}
+        />
+        <StatCard
+          loading={isLoading}
+          label="At Risk"
+          value={ragDist.AMBER}
+          caption="being monitored"
+          tone="warning"
+          onClick={() => navigate(`/tracker?app=${application.toLowerCase()}&status=Active&rag=AMBER`)}
+        />
+        {application === 'SAP' && (
           <StatCard
-            icon={cfg.kpiIcon}
-            label={`Active ${cfg.itemLabel}`}
-            value={activeItems.length}
-            delta={{ direction: 'up', text: `${ragDist.GREEN} on track` }}
+            loading={isLoading}
+            label="Transports"
+            value={pipeline.total}
+            caption={`${pipeline.prd} in PRD`}
             tone="info"
-            onClick={() => navigate('/tracker')}
+            onClick={() => navigate('/pipeline')}
           />
-        </Col>
-        <Col xs={12} lg={6}>
-          <StatCard
-            icon={<ThunderboltOutlined />}
-            label="Risk Score"
-            value={totalRiskScore}
-            delta={
-              totalRiskScore > cfg.riskThreshold
-                ? { direction: 'up', text: application === 'SAP' ? 'High risk' : 'Elevated' }
-                : { direction: 'down', text: application === 'SAP' ? 'Low risk' : 'Normal' }
-            }
-            tone={totalRiskScore > cfg.riskThreshold ? 'danger' : 'success'}
-          />
-        </Col>
-        <Col xs={12} lg={6}>
-          <StatCard
-            icon={<ClockCircleOutlined />}
-            label={`Avg ${application === 'SAP' ? 'Deployment' : 'Progress'}`}
-            value={`${avgDeployment}%`}
-            caption={
-              application === 'SAP'
-                ? `Transport Pipeline: ${pipeline.prd}/${pipeline.total} in PRD`
-                : `Across active ${cfg.itemLabel.toLowerCase()}`
-            }
-            tone="info"
-          />
-        </Col>
-        <Col xs={12} lg={6}>
-          <StatCard
-            label={`Total ${cfg.itemLabel}`}
-            value={workItems.length}
-            caption={`On Track: ${ragDist.GREEN} · At Risk: ${ragDist.AMBER} · Critical: ${ragDist.RED}`}
-            tone="neutral"
-          />
-        </Col>
-      </Row>
-
-      {/* ── Mini Stats ── */}
-      <Row gutter={16} className="mb-20">
-        <Col xs={8} lg={4}>
-          <StatCard
-            icon={<BugOutlined />}
-            label="Test Pass Rate"
-            value={`${testSummary.rate}%`}
-            caption={`${testSummary.passed}/${testSummary.total}`}
-            tone={testSummary.rate >= 80 ? 'success' : testSummary.rate >= 50 ? 'warning' : 'danger'}
-          />
-        </Col>
-        <Col xs={8} lg={4}>
-          <StatCard
-            icon={<CheckCircleOutlined />}
-            label="Completed"
-            value={completedItems.length}
-            caption={`of ${workItems.length} total`}
-            tone="success"
-          />
-        </Col>
-        <Col xs={8} lg={4}>
-          <StatCard
-            icon={<WarningOutlined />}
-            label="Critical"
-            value={ragDist.RED}
-            caption="need attention"
-            tone="danger"
-          />
-        </Col>
-        <Col xs={8} lg={4}>
-          <StatCard
-            label="At Risk"
-            value={ragDist.AMBER}
-            caption="being monitored"
-            tone="warning"
-          />
-        </Col>
-        {application === 'SAP' ? (
-          <>
-            <Col xs={8} lg={4}>
-              <StatCard
-                label="Transports"
-                value={pipeline.total}
-                caption={`DEV:${pipeline.dev} QAS:${pipeline.qas} PRD:${pipeline.prd}`}
-                tone="info"
-              />
-            </Col>
-            <Col xs={8} lg={4}>
-              <StatCard
-                label="Go-Lives ≤90d"
-                value={upcomingGoLives.length}
-                caption="upcoming"
-                tone="info"
-              />
-            </Col>
-          </>
-        ) : (
-          <Col xs={16} lg={8}>
-            <StatCard
-              label="Go-Lives ≤90d"
-              value={upcomingGoLives.length}
-              caption={`upcoming ${application === 'Commercial' ? 'launches' : 'deployments'}`}
-              tone="info"
-            />
-          </Col>
         )}
-      </Row>
+        <StatCard
+          loading={isLoading}
+          label="Go-Lives ≤90d"
+          value={upcomingGoLives.length}
+          caption={application === 'SAP' ? 'upcoming' : `upcoming ${application === 'Commercial' ? 'launches' : 'deployments'}`}
+          tone="info"
+          onClick={() => navigate(`/tracker?app=${application.toLowerCase()}&status=Active`)}
+        />
+      </div>
 
       {/* ── Section 1: Phase & Type ── */}
       <div className="analytics-chart-card chart-card-mb">
@@ -504,31 +502,35 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                 </Space>
               ))}
             </Space>
-            {phaseChartData.length > 0 ? (
+            <ChartFrame
+              loading={isLoading}
+              empty={phaseChartData.length === 0}
+              height={280}
+              summary={`${cfg.itemLabel} by phase and health — ${ragDist.GREEN} on track, ${ragDist.AMBER} at risk, ${ragDist.RED} critical.`}
+            >
               <Column data={phaseChartData} xField="phase" yField="count" colorField="status"
                 stack={true} height={280} theme={C.chartTheme}
                 scale={{ color: { domain: ['On Track', 'At Risk', 'Critical'], range: [C.green, C.amber, C.red] } }}
                 style={{ maxWidth: 40, radiusTopLeft: 4, radiusTopRight: 4 }}
                 axis={tokenAxisConfig()}
+                interaction={tokenChartInteraction}
                 legend={false}
               />
-            ) : (
-              <div className="chart-empty-placeholder"><EmptyState title="No data" /></div>
-            )}
+            </ChartFrame>
           </Col>
           <Col xs={24} lg={10}>
             <div className="chart-section-header">
               <Text strong className="fs-14">{cfg.itemLabel} by Type</Text>
               <br /><Text type="secondary" className="fs-12">{cfg.typeSubtitle}</Text>
             </div>
-            {typeDonutData.length > 0 ? (
+            <ChartFrame loading={isLoading} empty={typeDonutData.length === 0} height={240} summary={`${workItems.length} ${cfg.itemLabel.toLowerCase()} grouped by type across ${typeDonutData.length} categories.`}>
               <div className="donut-chart-wrapper">
                 <div className="donut-chart-container">
                   <Pie data={typeDonutData} angleField="value" colorField="type"
                     innerRadius={0.65} height={240} theme={C.chartTheme}
                     autoFit={true}
                     scale={{ color: { range: typeDonutData.map(d => typeColorMap[d.type]) } }}
-                    label={false} legend={false}
+                    label={false} legend={false} interaction={tokenChartInteraction}
                   />
                   <div className="donut-center-label">
                     <div className="donut-value">{workItems.length}</div>
@@ -546,9 +548,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                   </div>
                 </div>
               </div>
-            ) : (
-              <div className="chart-empty-placeholder"><EmptyState title="No data" /></div>
-            )}
+            </ChartFrame>
           </Col>
         </Row>
       </div>
@@ -563,28 +563,30 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                 <Text strong className="fs-14">Items by SAP Module</Text>
                 <br /><Text type="secondary" className="fs-12">Active work items per functional area</Text>
               </div>
-              {moduleBarData.length > 0 ? (
+              <ChartFrame loading={isLoading} empty={moduleBarData.length === 0} height={220} summary={`Work items by SAP module across ${moduleBarData.length} functional areas.`}>
                 <Bar data={moduleBarData} xField="module" yField="count"
                   height={Math.max(200, moduleBarData.length * 48)} theme={C.chartTheme}
                   style={{ fill: C.accent, radiusTopRight: 4, radiusBottomRight: 4 }}
                   axis={tokenAxisConfig()}
-                  label={{ text: 'count', fontSize: 11, fill: C.textSec }} legend={false}
+                  interaction={tokenChartInteraction}
+                  label={tokenChartLabel({ text: 'count' })} legend={false}
                 />
-              ) : <EmptyState title="No data" />}
+              </ChartFrame>
             </Col>
             <Col xs={24} lg={12}>
               <div className="chart-section-header">
                 <Text strong className="fs-14">Risk Score by Module</Text>
                 <br /><Text type="secondary" className="fs-12">Average risk score per functional area</Text>
               </div>
-              {moduleRiskData.length > 0 ? (
+              <ChartFrame loading={isLoading} empty={moduleRiskData.length === 0} height={220} summary={`Average risk score per SAP module.`}>
                 <Bar data={moduleRiskData} xField="module" yField="riskScore"
                   height={Math.max(200, moduleRiskData.length * 48)} theme={C.chartTheme}
                   style={{ fill: C.red, radiusTopRight: 4, radiusBottomRight: 4 }}
                   axis={tokenAxisConfig()}
-                  label={{ text: 'riskScore', fontSize: 11, fill: C.textSec }} legend={false}
+                  interaction={tokenChartInteraction}
+                  label={tokenChartLabel({ text: 'riskScore' })} legend={false}
                 />
-              ) : <EmptyState title="No data" />}
+              </ChartFrame>
             </Col>
           </Row>
         )}
@@ -596,42 +598,45 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                 <Text strong className="fs-14">Priority Distribution</Text>
                 <br /><Text type="secondary" className="fs-12">Active deliverables by priority</Text>
               </div>
-              {priorityBarData.length > 0 ? (
+              <ChartFrame loading={isLoading} empty={priorityBarData.length === 0} height={200} summary={`Coupa deliverables by priority across ${priorityBarData.length} categories.`}>
                 <Bar data={priorityBarData} xField="priority" yField="count"
                   height={Math.max(180, priorityBarData.length * 48)} theme={C.chartTheme}
                   style={{ fill: C.orange, radiusTopRight: 4, radiusBottomRight: 4 }}
                   axis={tokenAxisConfig()}
-                  label={{ text: 'count', fontSize: 11 }} legend={false}
+                  interaction={tokenChartInteraction}
+                  label={tokenChartLabel({ text: 'count' })} legend={false}
                 />
-              ) : <EmptyState title="No data" />}
+              </ChartFrame>
             </Col>
             <Col xs={24} lg={8}>
               <div className="chart-section-header">
                 <Text strong className="fs-14">UAT Status Breakdown</Text>
                 <br /><Text type="secondary" className="fs-12">Testing status across deliverables</Text>
               </div>
-              {uatBarData.length > 0 ? (
+              <ChartFrame loading={isLoading} empty={uatBarData.length === 0} height={200} summary={`UAT status breakdown across ${uatBarData.length} states.`}>
                 <Bar data={uatBarData} xField="status" yField="count"
                   height={Math.max(180, uatBarData.length * 48)} theme={C.chartTheme}
                   style={{ fill: C.accent, radiusTopRight: 4, radiusBottomRight: 4 }}
                   axis={tokenAxisConfig()}
-                  label={{ text: 'count', fontSize: 11 }} legend={false}
+                  interaction={tokenChartInteraction}
+                  label={tokenChartLabel({ text: 'count' })} legend={false}
                 />
-              ) : <EmptyState title="No data" />}
+              </ChartFrame>
             </Col>
             <Col xs={24} lg={8}>
               <div className="chart-section-header">
                 <Text strong className="fs-14">Complexity Breakdown</Text>
                 <br /><Text type="secondary" className="fs-12">Deliverables by complexity level</Text>
               </div>
-              {complexityData.length > 0 ? (
+              <ChartFrame loading={isLoading} empty={complexityData.length === 0} height={200} summary={`Coupa complexity breakdown across ${complexityData.length} levels.`}>
                 <Bar data={complexityData} xField="complexity" yField="count"
                   height={Math.max(180, complexityData.length * 48)} theme={C.chartTheme}
                   style={{ fill: C.purple, radiusTopRight: 4, radiusBottomRight: 4 }}
                   axis={tokenAxisConfig()}
-                  label={{ text: 'count', fontSize: 11 }} legend={false}
+                  interaction={tokenChartInteraction}
+                  label={tokenChartLabel({ text: 'count' })} legend={false}
                 />
-              ) : <EmptyState title="No data" />}
+              </ChartFrame>
             </Col>
           </Row>
         )}
@@ -643,42 +648,45 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                 <Text strong className="fs-14">Priority Distribution</Text>
                 <br /><Text type="secondary" className="fs-12">Active items by priority level</Text>
               </div>
-              {priorityBarData.length > 0 ? (
+              <ChartFrame loading={isLoading} empty={priorityBarData.length === 0} height={200} summary={`Commercial items by priority across ${priorityBarData.length} levels.`}>
                 <Bar data={priorityBarData} xField="priority" yField="count"
                   height={Math.max(180, priorityBarData.length * 48)} theme={C.chartTheme}
                   style={{ fill: C.purple, radiusTopRight: 4, radiusBottomRight: 4 }}
                   axis={tokenAxisConfig()}
-                  label={{ text: 'count', fontSize: 11 }} legend={false}
+                  interaction={tokenChartInteraction}
+                  label={tokenChartLabel({ text: 'count' })} legend={false}
                 />
-              ) : <EmptyState title="No data" />}
+              </ChartFrame>
             </Col>
             <Col xs={24} lg={8}>
               <div className="chart-section-header">
                 <Text strong className="fs-14">Complexity Breakdown</Text>
                 <br /><Text type="secondary" className="fs-12">Active items by complexity</Text>
               </div>
-              {complexityData.length > 0 ? (
+              <ChartFrame loading={isLoading} empty={complexityData.length === 0} height={200} summary={`Commercial items by complexity across ${complexityData.length} levels.`}>
                 <Bar data={complexityData} xField="complexity" yField="count"
                   height={Math.max(180, complexityData.length * 48)} theme={C.chartTheme}
                   style={{ fill: C.cyan, radiusTopRight: 4, radiusBottomRight: 4 }}
                   axis={tokenAxisConfig()}
-                  label={{ text: 'count', fontSize: 11 }} legend={false}
+                  interaction={tokenChartInteraction}
+                  label={tokenChartLabel({ text: 'count' })} legend={false}
                 />
-              ) : <EmptyState title="No data" />}
+              </ChartFrame>
             </Col>
             <Col xs={24} lg={8}>
               <div className="chart-section-header">
                 <Text strong className="fs-14">Risk Distribution</Text>
                 <br /><Text type="secondary" className="fs-12">Items by risk score range</Text>
               </div>
-              {riskBucketData.some(d => d.count > 0) ? (
+              <ChartFrame loading={isLoading} empty={!riskBucketData.some(d => d.count > 0)} height={200} summary={`Commercial items by risk score range across ${riskBucketData.length} buckets.`}>
                 <Bar data={riskBucketData} xField="bucket" yField="count"
                   height={Math.max(180, riskBucketData.length * 48)} theme={C.chartTheme}
                   style={{ fill: C.red, radiusTopRight: 4, radiusBottomRight: 4 }}
                   axis={tokenAxisConfig()}
-                  label={{ text: 'count', fontSize: 11 }} legend={false}
+                  interaction={tokenChartInteraction}
+                  label={tokenChartLabel({ text: 'count' })} legend={false}
                 />
-              ) : <EmptyState title="No data" />}
+              </ChartFrame>
             </Col>
           </Row>
         )}
@@ -694,29 +702,31 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
                 <Text strong className="fs-14">Priority Distribution</Text>
                 <br /><Text type="secondary" className="fs-12">Active work items by priority level</Text>
               </div>
-              {priorityBarData.length > 0 ? (
+              <ChartFrame loading={isLoading} empty={priorityBarData.length === 0} height={200} summary={`SAP work items by priority across ${priorityBarData.length} levels.`}>
                 <Bar data={priorityBarData} xField="priority" yField="count"
                   height={Math.max(180, priorityBarData.length * 48)} theme={C.chartTheme}
                   style={{ fill: C.purple, radiusTopRight: 4, radiusBottomRight: 4 }}
                   axis={tokenAxisConfig()}
-                  label={{ text: 'count', fontSize: 11, fill: C.textSec }} legend={false}
+                  interaction={tokenChartInteraction}
+                  label={tokenChartLabel({ text: 'count' })} legend={false}
                 />
-              ) : <EmptyState title="No data" />}
+              </ChartFrame>
             </Col>
             <Col xs={24} lg={12}>
               <div className="chart-section-header">
                 <Text strong className="fs-14">Transport Pipeline</Text>
                 <br /><Text type="secondary" className="fs-12">Current transport distribution across SAP systems</Text>
               </div>
-              {pipelineData.some(d => d.count > 0) ? (
+              <ChartFrame loading={isLoading} empty={!pipelineData.some(d => d.count > 0)} height={220} summary={`Transport pipeline: ${pipeline.dev} in DEV, ${pipeline.qas} in QAS, ${pipeline.prd} in PRD.`}>
                 <Column data={pipelineData} xField="system" yField="count" height={220}
                   theme={C.chartTheme}
                   style={{ maxWidth: 60, radiusTopLeft: 4, radiusTopRight: 4 }}
                   scale={{ color: { range: [C.accent] } }}
                   axis={tokenAxisConfig()}
-                  label={{ text: 'count', fontSize: 12, fill: C.textSec }} legend={false}
+                  interaction={tokenChartInteraction}
+                  label={tokenChartLabel({ text: 'count', position: 'top', textAlign: 'center', dx: 0, dy: -4 })} legend={false}
                 />
-              ) : <EmptyState title="No transports" />}
+              </ChartFrame>
             </Col>
           </Row>
         </div>
