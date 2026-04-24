@@ -35,7 +35,7 @@ const TAB_CONFIGS: Record<ModuleKey, { key: string; label: string; icon: React.R
     { key: '', label: 'All', icon: <AppstoreOutlined /> },
     { key: 'Project', label: 'Projects', icon: <ProjectOutlined /> },
     { key: 'Enhancement', label: 'Enhancements', icon: <CodeOutlined /> },
-    { key: 'Break-fix', label: 'Break-Fixes', icon: <BugOutlined /> },
+    { key: 'Break-fix', label: 'Break Fix / Request', icon: <BugOutlined /> },
     { key: 'Upgrade', label: 'Upgrades', icon: <SwapOutlined /> },
     { key: 'Support', label: 'Support', icon: <CustomerServiceOutlined /> },
     { key: 'Hypercare', label: 'Hypercare', icon: <SafetyOutlined /> },

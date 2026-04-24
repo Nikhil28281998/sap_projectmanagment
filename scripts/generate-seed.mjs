@@ -250,11 +250,11 @@ const WI = {
   'IT-CC-00761':  { name: 'Global FICO/SD/MM Rollout (IT-CC-00761)',      type: 'Project',     snow: 'IT-CC-00761',  owner: 'NICRIVERA',    priority: 'P1', sapModule: 'FICO' },
   'IT-CC-00718':  { name: 'CALC Company Code Rollout (IT-CC-00718)',      type: 'Project',     snow: 'IT-CC-00718',  owner: 'MOIABDUL',     priority: 'P1', sapModule: 'FICO' },
   'IT-CC-00720':  { name: 'MLBS Company Code Rollout (IT-CC-00720)',      type: 'Project',     snow: 'IT-CC-00720',  owner: 'MOIABDUL',     priority: 'P1', sapModule: 'FICO' },
-  'CS0109281':    { name: 'FINCS BADI Rate Wrapper (CS0109281)',          type: 'Bug Fix',     snow: 'CS0109281',    owner: 'ROHSINGH',     priority: 'P2', sapModule: 'FI-CS' },
+  'CS0109281':    { name: 'FINCS BADI Rate Wrapper (CS0109281)',          type: 'Break-fix',     snow: 'CS0109281',    owner: 'ROHSINGH',     priority: 'P2', sapModule: 'FI-CS' },
   'CS0104930':    { name: 'APQR Report (SCTASK0010028/CS0104930)',        type: 'Enhancement', snow: 'SCTASK0010028', owner: 'ROHSINGH',    priority: 'P2', sapModule: 'QM' },
   'SCTASK0017638': { name: 'EMEA Company Codes (SCTASK0017638)', type: 'Project', snow: 'SCTASK0017638', owner: 'NIKKUMAR', priority: 'P1', sapModule: 'FICO' },
   'CS0116348':    { name: 'Framework Order Doc Type FO (CS0116348)',     type: 'Enhancement', snow: 'CS0116348',    owner: 'UDAGUNTA',     priority: 'P2', sapModule: 'MM' },
-  'CS0116179':    { name: 'IC COGS & GL Substitution (CS0116179)',       type: 'Bug Fix',     snow: 'CS0116179',    owner: 'VISPULIPATI',  priority: 'P2', sapModule: 'FI' },
+  'CS0116179':    { name: 'IC COGS & GL Substitution (CS0116179)',       type: 'Break-fix',     snow: 'CS0116179',    owner: 'VISPULIPATI',  priority: 'P2', sapModule: 'FI' },
   'CS0113738':    { name: 'Client Copy PS4/400 → DS4/210 (CS0113738)',   type: 'Infrastructure', snow: 'CS0113738', owner: 'MAHOLADRI',    priority: 'P2', sapModule: 'BC' },
   'SCTASK0020294':{ name: 'ABAP BlackLine GroupReporting Interface',       type: 'Enhancement', snow: 'SCTASK0020294', owner: 'UDAGUNTA',   priority: 'P2', sapModule: 'FI-CS' },
   'IT-CC-00706':  { name: 'MBC Situation Handling (IT-CC-00706)',         type: 'Project',     snow: 'IT-CC-00706',  owner: 'RAVDINDUR',    priority: 'P2', sapModule: 'BC-SEC' },
@@ -328,10 +328,14 @@ function inferSnow(desc) {
   return m ? m[1] : '';
 }
 function inferType(desc) {
-  if (/^INC\d/i.test(desc) || /\bINC\d{7,}/i.test(desc)) return 'Bug Fix';
+  // 'Break-fix' covers reactive / small routine work: single-TR IT-CC changes,
+  // ServiceNow Cases (CS*), and Incidents (INC*). Matches the "Break Fix / Request"
+  // tab in WorkItemList. Large multi-TR IT-CC programs stay as 'Project' because
+  // they're declared explicitly in the WI registry above, not via this fallback.
+  if (/^INC\d/i.test(desc) || /\bINC\d{7,}/i.test(desc)) return 'Break-fix';
   if (/\bSCTASK\d{7,}/i.test(desc)) return 'Enhancement';
-  if (/\bCS\d{7,}/i.test(desc)) return 'Bug Fix';
-  if (/\bIT-CC-\d{5}/i.test(desc)) return 'Project';
+  if (/\bCS\d{7,}/i.test(desc)) return 'Break-fix';
+  if (/\bIT-CC-\d{5}/i.test(desc)) return 'Break-fix';
   if (/sap\s*note\s+\d/i.test(desc) || /rd-implement\s+sap\s+notes?/i.test(desc)) return 'SAP Note';
   if (/spdd|client copy|package backup|client export/i.test(desc)) return 'Infrastructure';
   return 'Enhancement';
@@ -479,7 +483,8 @@ const mkTrId = () => uuid('e0000001', trCounter++);
 
 function workTypeAbbrev(type) {
   return ({
-    'Project': 'PRJ', 'Enhancement': 'ENH', 'Bug Fix': 'BUG',
+    'Project': 'PRJ', 'Enhancement': 'ENH',
+    'Bug Fix': 'BUG', 'Break-fix': 'FIX',
     'SAP Note': 'NOTE', 'Infrastructure': 'INFRA',
   })[type] || 'OTH';
 }
