@@ -18,7 +18,8 @@ frontend/playwright-report/
 # Playwright screenshots
 frontend/e2e/screenshots/
 
-# Local seed data and mock fixtures — not deployed to BTP,
-# local files kept for `npm run deploy:local` but untracked.
-db/data/*.csv
+# Mock fixtures — local dev only, not deployed to BTP.
 test/fixtures/*.json
+
+# Production seed CSVs are committed (shipped to HANA Cloud on BAS deploy).
+# Regenerate them from SAP via: node scripts/generate-seed.mjs
