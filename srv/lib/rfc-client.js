@@ -80,7 +80,10 @@ class RFCClient {
       return this._getMockTransports();
     }
 
-    const raw = await this._callWithRetry('Z_TCC_GET_TRANSPORTS', {
+    // FM name on DS4/400 is ZTCC_GET_TRANSPORTS (no underscore after Z).
+    // Override via env RFC_FM_NAME if the landscape uses a different one.
+    const fmName = process.env.RFC_FM_NAME || 'ZTCC_GET_TRANSPORTS';
+    const raw = await this._callWithRetry(fmName, {
       IV_FROM_DATE: startDate || process.env.TR_START_DATE || '20260101',
       IV_SYSTEMS: process.env.SAP_SYSTEMS || '',
       IV_MAX_ROWS: 5000,
