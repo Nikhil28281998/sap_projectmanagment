@@ -42,6 +42,8 @@ const WorkItemDetail: React.FC = () => {
   // Milestone add state
   const [addMilestoneOpen, setAddMilestoneOpen] = useState(false);
   const [newMilestone, setNewMilestone] = useState({ milestoneName: '', milestoneDate: '' });
+  // Milestone edit state (kept with other hooks to avoid React #310 on conditional-render paths)
+  const [editMs, setEditMs] = useState<any>(null);
 
   if (wiLoading) {
     return (
@@ -185,9 +187,6 @@ const WorkItemDetail: React.FC = () => {
       message.error('Failed to delete milestone');
     }
   };
-
-  // Edit Milestone modal state
-  const [editMs, setEditMs] = useState<any>(null);
 
   const openEditMilestone = (ms: any) => {
     setEditMs({

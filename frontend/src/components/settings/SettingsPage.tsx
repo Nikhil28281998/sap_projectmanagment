@@ -30,11 +30,14 @@ const SettingsPage: React.FC = () => {
   const [aiProvider, setAiProvider] = useState<string>('openrouter');
   const { canConfigure, canWrite } = useAuth();
 
-  // SAP RFC configuration state
-  const [rfcDestination, setRfcDestination] = useState('S4HANA_RFC_DS4');
-  const [rfcFmName, setRfcFmName] = useState('ZTCC_GET_TRANSPORTS');
-  const [rfcStartDate, setRfcStartDate] = useState<dayjs.Dayjs | null>(dayjs().subtract(90, 'day'));
+  // SAP RFC configuration state — values must be entered by Admin/SuperAdmin,
+  // no hardcoded defaults. Loaded from AppConfig in loadConfigs().
+  const [rfcDestination, setRfcDestination] = useState('');
+  const [rfcFmName, setRfcFmName] = useState('');
+  const [rfcStartDate, setRfcStartDate] = useState<dayjs.Dayjs | null>(null);
   const [rfcSystemsFilter, setRfcSystemsFilter] = useState('');
+  const [rfcSchedule, setRfcSchedule] = useState('');
+  const [rfcScheduleEnabled, setRfcScheduleEnabled] = useState(false);
   const [rfcSaving, setRfcSaving] = useState(false);
   const [rfcResult, setRfcResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -74,6 +77,8 @@ const SettingsPage: React.FC = () => {
           if (d.isValid()) setRfcStartDate(d);
         }
         if (c.configKey === 'RFC_SYSTEMS_FILTER') setRfcSystemsFilter(c.configValue || '');
+        if (c.configKey === 'RFC_SCHEDULE_CRON') setRfcSchedule(c.configValue || '');
+        if (c.configKey === 'RFC_SCHEDULE_ENABLED') setRfcScheduleEnabled(c.configValue === 'true');
         const key = c.configKey || c.key;
         if (c.valueType === 'boolean') {
           formValues[key] = c.configValue === 'true';
@@ -359,6 +364,46 @@ const SettingsPage: React.FC = () => {
           </Col>
         </Row>
 
+        <Divider orientation="left">
+          <Space><ClockCircleOutlined /> Auto-Sync Schedule</Space>
+        </Divider>
+
+        <Row gutter={16}>
+          <Col span={8}>
+            <div className="settings-field-group">
+              <Text strong className="settings-field-label">Enable scheduled auto-refresh</Text>
+              <Switch
+                checked={rfcScheduleEnabled}
+                onChange={setRfcScheduleEnabled}
+                checkedChildren="On"
+                unCheckedChildren="Off"
+                disabled={!canConfigure}
+              />
+              <Text type="secondary" className="field-hint">
+                When off, only the header Refresh button triggers a sync.
+              </Text>
+            </div>
+          </Col>
+          <Col span={16}>
+            <div className="settings-field-group">
+              <Text strong className="settings-field-label">Cron schedule</Text>
+              <Input
+                value={rfcSchedule}
+                onChange={e => setRfcSchedule(e.target.value)}
+                placeholder="0 2 * * *   (= every day at 02:00)"
+                disabled={!canConfigure || !rfcScheduleEnabled}
+              />
+              <Text type="secondary" className="field-hint">
+                Standard 5-field cron (min&nbsp;hour&nbsp;dom&nbsp;mon&nbsp;dow). Examples:
+                <code> */30 * * * *</code> every 30&nbsp;min,
+                <code> 0 */4 * * *</code> every 4&nbsp;h,
+                <code> 0 6 * * 1-5</code> weekdays 06:00.
+                Server timezone is UTC on BTP.
+              </Text>
+            </div>
+          </Col>
+        </Row>
+
         <Space style={{ marginTop: 8 }}>
           <Button
             type="primary"
@@ -376,6 +421,8 @@ const SettingsPage: React.FC = () => {
                   rfcStartDate ? rfcStartDate.format('YYYYMMDD') : ''
                 );
                 await configApi.update('RFC_SYSTEMS_FILTER', rfcSystemsFilter);
+                await configApi.update('RFC_SCHEDULE_CRON', rfcSchedule);
+                await configApi.update('RFC_SCHEDULE_ENABLED', String(rfcScheduleEnabled));
                 const msg = 'SAP RFC settings saved';
                 setRfcResult({ success: true, message: msg });
                 message.success(msg);

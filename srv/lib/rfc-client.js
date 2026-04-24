@@ -69,12 +69,12 @@ class RFCClient {
     this.circuitBreaker = new CircuitBreaker();
     this.maxRetries = 3;
     this.useMock = process.env.NODE_ENV !== 'production' || process.env.USE_MOCK_RFC === 'true';
-    this.destinationName = opts.destinationName
-      || process.env.RFC_DEST_NAME
-      || 'S4HANA_RFC_DS4';
-    this.fmName         = opts.fmName         || process.env.RFC_FM_NAME       || 'ZTCC_GET_TRANSPORTS';
-    this.startDate      = opts.startDate      || process.env.TR_START_DATE     || '20260101';
-    this.systemsFilter  = opts.systemsFilter  ?? process.env.SAP_SYSTEMS       ?? '';
+    // No hardcoded fallbacks — Admin/SuperAdmin must configure these in Settings.
+    // (Environment variables are still honoured for local/dev overrides.)
+    this.destinationName = opts.destinationName || process.env.RFC_DEST_NAME   || '';
+    this.fmName          = opts.fmName          || process.env.RFC_FM_NAME     || '';
+    this.startDate       = opts.startDate       || process.env.TR_START_DATE   || '';
+    this.systemsFilter   = opts.systemsFilter   ?? process.env.SAP_SYSTEMS     ?? '';
   }
 
   /**
@@ -94,6 +94,24 @@ class RFCClient {
     }
 
     // FM + systems filter + start date come from AppConfig (via constructor) or env fallback.
+    if (!this.fmName) {
+      throw new Error(
+        'RFC function module is not configured. ' +
+        'Admin/SuperAdmin must set it under Settings → SAP RFC Integration (RFC_FM_NAME).'
+      );
+    }
+    if (!this.destinationName) {
+      throw new Error(
+        'BTP Destination is not configured. ' +
+        'Admin/SuperAdmin must set it under Settings → SAP RFC Integration (RFC_DESTINATION_NAME).'
+      );
+    }
+    if (!this.startDate) {
+      throw new Error(
+        'TR start date is not configured. ' +
+        'Admin/SuperAdmin must set it under Settings → SAP RFC Integration (RFC_TR_START_DATE).'
+      );
+    }
     const raw = await this._callWithRetry(this.fmName, {
       IV_FROM_DATE: startDate || this.startDate,
       IV_SYSTEMS:   this.systemsFilter,

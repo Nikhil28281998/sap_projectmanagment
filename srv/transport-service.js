@@ -7,6 +7,7 @@ const { parseTestStatuses, testRAGImpact, getMethodologyList } = require('./lib/
 const { AIClient } = require('./lib/ai-client');
 const { encrypt, decrypt, maskKey } = require('./lib/crypto-utils');
 const { OutlookClient } = require('./lib/outlook-client');
+const { configureRfcScheduler } = require('./lib/rfc-scheduler');
 
 class TransportService extends cds.ApplicationService {
 
@@ -71,6 +72,20 @@ class TransportService extends cds.ApplicationService {
     this.on('changeWorkItemStatus', this._onChangeWorkItemStatus.bind(this));
     this.on('sendReport', this._onSendReport.bind(this));
     this.on('purgeActivityLog', this._onPurgeActivityLog.bind(this));
+
+    // Reconfigure the RFC scheduler whenever AppConfig is updated so Admins
+    // can change the cron expression / enabled flag without a redeploy.
+    this.after(['CREATE', 'UPDATE'], 'AppConfigs', async (data) => {
+      const key = data?.configKey;
+      if (key === 'RFC_SCHEDULE_CRON' || key === 'RFC_SCHEDULE_ENABLED') {
+        await this._reconfigureScheduler().catch(err =>
+          cds.log('rfc-scheduler').error('reconfigure failed:', err));
+      }
+    });
+
+    // Initial scheduler configuration (reads AppConfig once boot completes).
+    await this._reconfigureScheduler().catch(err =>
+      cds.log('rfc-scheduler').warn('initial configure skipped:', err?.message || err));
 
     await super.init();
   }
@@ -250,6 +265,29 @@ class TransportService extends cds.ApplicationService {
   }
 
   // ─── Refresh Transport Data from SAP (RFC) ───
+  // ─── RFC auto-refresh scheduler ───
+  async _reconfigureScheduler() {
+    const { AppConfig } = this._e;
+    const logger = cds.log('rfc-scheduler');
+    await configureRfcScheduler({
+      readConfig: async () => {
+        const rows = await SELECT.from(AppConfig).where({
+          configKey: { in: ['RFC_SCHEDULE_CRON', 'RFC_SCHEDULE_ENABLED'] }
+        });
+        const map = Object.fromEntries((rows || []).map(r => [r.configKey, r.configValue]));
+        return {
+          enabled: map.RFC_SCHEDULE_ENABLED === 'true',
+          cron:    map.RFC_SCHEDULE_CRON || '',
+        };
+      },
+      runRefresh: async () => {
+        // Run the same refresh flow the UI button triggers, without an http req.
+        await this._onRefreshTransportData({ data: {}, headers: {}, user: { id: 'scheduler' } });
+      },
+      logger,
+    });
+  }
+
   async _onRefreshTransportData(req) {
     const { TransportWorkItems, SyncLog, AppConfig } = this._e;
     const startTime = Date.now();
