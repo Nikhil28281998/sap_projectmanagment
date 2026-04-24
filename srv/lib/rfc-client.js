@@ -58,10 +58,23 @@ class CircuitBreaker {
 }
 
 class RFCClient {
-  constructor() {
+  /**
+   * @param {object} [opts] Runtime overrides sourced from AppConfig at call time.
+   * @param {string} [opts.destinationName] BTP destination name (default: env/RFC_DEST_NAME or S4HANA_RFC_DS4)
+   * @param {string} [opts.fmName]          FM name (default: env/RFC_FM_NAME or ZTCC_GET_TRANSPORTS)
+   * @param {string} [opts.startDate]       YYYYMMDD string
+   * @param {string} [opts.systemsFilter]   Comma-separated system IDs (e.g. 'DS4,QS4,PS4')
+   */
+  constructor(opts = {}) {
     this.circuitBreaker = new CircuitBreaker();
     this.maxRetries = 3;
     this.useMock = process.env.NODE_ENV !== 'production' || process.env.USE_MOCK_RFC === 'true';
+    this.destinationName = opts.destinationName
+      || process.env.RFC_DEST_NAME
+      || 'S4HANA_RFC_DS4';
+    this.fmName         = opts.fmName         || process.env.RFC_FM_NAME       || 'ZTCC_GET_TRANSPORTS';
+    this.startDate      = opts.startDate      || process.env.TR_START_DATE     || '20260101';
+    this.systemsFilter  = opts.systemsFilter  ?? process.env.SAP_SYSTEMS       ?? '';
   }
 
   /**
@@ -80,13 +93,11 @@ class RFCClient {
       return this._getMockTransports();
     }
 
-    // FM name on DS4/400 is ZTCC_GET_TRANSPORTS (no underscore after Z).
-    // Override via env RFC_FM_NAME if the landscape uses a different one.
-    const fmName = process.env.RFC_FM_NAME || 'ZTCC_GET_TRANSPORTS';
-    const raw = await this._callWithRetry(fmName, {
-      IV_FROM_DATE: startDate || process.env.TR_START_DATE || '20260101',
-      IV_SYSTEMS: process.env.SAP_SYSTEMS || '',
-      IV_MAX_ROWS: 5000,
+    // FM + systems filter + start date come from AppConfig (via constructor) or env fallback.
+    const raw = await this._callWithRetry(this.fmName, {
+      IV_FROM_DATE: startDate || this.startDate,
+      IV_SYSTEMS:   this.systemsFilter,
+      IV_MAX_ROWS:  5000,
     });
 
     // Parse the JSON response from SAP
@@ -282,7 +293,7 @@ class RFCClient {
       );
     }
 
-    const destName = process.env.RFC_DEST_NAME || 'S4HANA_RFC';
+    const destName = this.destinationName;
     const icfPath = `/sap/bc/srt/rfc/sap/${functionName.toLowerCase()}`;
 
     const response = await executeHttpRequest(

@@ -251,7 +251,7 @@ class TransportService extends cds.ApplicationService {
 
   // ─── Refresh Transport Data from SAP (RFC) ───
   async _onRefreshTransportData(req) {
-    const { TransportWorkItems, SyncLog } = this._e;
+    const { TransportWorkItems, SyncLog, AppConfig } = this._e;
     const startTime = Date.now();
     const syncEntry = {
       source: 'RFC',
@@ -262,7 +262,18 @@ class TransportService extends cds.ApplicationService {
     };
 
     try {
-      const rfcClient = new RFCClient();
+      // Load admin-configurable RFC settings from AppConfig (fall back to env in RFCClient).
+      const rfcCfgRows = await SELECT.from(AppConfig).where({
+        configKey: { in: ['RFC_DESTINATION_NAME','RFC_FM_NAME','RFC_TR_START_DATE','RFC_SYSTEMS_FILTER'] }
+      });
+      const rfcCfg = Object.fromEntries((rfcCfgRows || []).map(r => [r.configKey, r.configValue]));
+
+      const rfcClient = new RFCClient({
+        destinationName: rfcCfg.RFC_DESTINATION_NAME,
+        fmName:          rfcCfg.RFC_FM_NAME,
+        startDate:       rfcCfg.RFC_TR_START_DATE,
+        systemsFilter:   rfcCfg.RFC_SYSTEMS_FILTER,
+      });
       const transports = await rfcClient.getTransports();
 
       let updated = 0;

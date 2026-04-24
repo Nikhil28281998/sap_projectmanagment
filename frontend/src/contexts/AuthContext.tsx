@@ -52,7 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     hasRole,
     hasAnyRole,
     canWrite: hasRole('Admin') || hasRole('Manager'),
-    canConfigure: hasRole('Admin'),
+    canConfigure: hasRole('Admin') || hasRole('SuperAdmin'),
     canViewReports: hasAnyRole('Admin', 'Manager', 'Executive'),
     isSuperAdmin: user?.isSuperAdmin ?? false,
     allowedApps: user?.allowedApps ?? [],
