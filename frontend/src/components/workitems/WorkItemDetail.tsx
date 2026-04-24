@@ -156,6 +156,58 @@ const WorkItemDetail: React.FC = () => {
     );
   };
 
+  // Editable Select for enum fields (priority, complexity, phase, RAG).
+  const editableSelect = (
+    fieldName: string,
+    value: string | undefined,
+    options: { value: string; label: string }[],
+    render?: (v: string | undefined) => React.ReactNode,
+  ) => {
+    if (!canWrite) return render ? render(value) : <Text>{value || '—'}</Text>;
+    return (
+      <Select
+        value={value || undefined}
+        onChange={async (newVal) => {
+          try {
+            await workItemApi.update(workItem.ID, { [fieldName]: newVal || null });
+            message.success(`${fieldName} updated`);
+            refetchWI();
+          } catch {
+            message.error(`Failed to update ${fieldName}`);
+          }
+        }}
+        options={options}
+        size="small"
+        style={{ width: 130 }}
+        allowClear
+      />
+    );
+  };
+
+  // Editable DatePicker for date fields (goLiveDate, kickoffDate).
+  const editableDate = (fieldName: string, value: string | null | undefined) => {
+    const parsed = value ? dayjs(value) : null;
+    if (!canWrite) {
+      return value ? <Text>{new Date(value).toLocaleDateString()}</Text> : <Text>—</Text>;
+    }
+    return (
+      <DatePicker
+        value={parsed}
+        size="small"
+        format="YYYY-MM-DD"
+        onChange={async (d) => {
+          try {
+            await workItemApi.update(workItem.ID, { [fieldName]: d ? d.format('YYYY-MM-DD') : null });
+            message.success(`${fieldName} updated`);
+            refetchWI();
+          } catch {
+            message.error(`Failed to update ${fieldName}`);
+          }
+        }}
+      />
+    );
+  };
+
   // ── Milestone CRUD ──
   const handleAddMilestone = async () => {
     if (!newMilestone.milestoneName.trim()) { message.warning('Milestone name is required'); return; }
@@ -395,19 +447,37 @@ const WorkItemDetail: React.FC = () => {
           <Card title="Work Item Details" size="small" style={{ marginBottom: 16 }}>
             <Descriptions bordered size="small" column={{ xs: 1, sm: 2 }}>
               <Descriptions.Item label="Priority">
-                <Tag color={workItem.priority === 'P1' ? 'red' : workItem.priority === 'P2' ? 'orange' : 'blue'}>
-                  {workItem.priority}
-                </Tag>
+                {editableSelect(
+                  'priority',
+                  workItem.priority,
+                  [
+                    { value: 'P1', label: 'P1' },
+                    { value: 'P2', label: 'P2' },
+                    { value: 'P3', label: 'P3' },
+                  ],
+                  (v) => (
+                    <Tag color={v === 'P1' ? 'red' : v === 'P2' ? 'orange' : 'blue'}>{v || '—'}</Tag>
+                  ),
+                )}
               </Descriptions.Item>
-              <Descriptions.Item label="Module">
-                <Tag>{workItem.sapModule}</Tag>
+              <Descriptions.Item label="Complexity">
+                {editableSelect(
+                  'complexity',
+                  workItem.complexity,
+                  [
+                    { value: 'Low', label: 'Low' },
+                    { value: 'Medium', label: 'Medium' },
+                    { value: 'High', label: 'High' },
+                  ],
+                )}
               </Descriptions.Item>
+              <Descriptions.Item label="Module">{editableField('sapModule', workItem.sapModule)}</Descriptions.Item>
               <Descriptions.Item label="Business Owner">{editableField('businessOwner', workItem.businessOwner)}</Descriptions.Item>
               <Descriptions.Item label="System Owner">{editableField('systemOwner', workItem.systemOwner)}</Descriptions.Item>
               <Descriptions.Item label="Lead Developer">{editableField('leadDeveloper', workItem.leadDeveloper)}</Descriptions.Item>
               <Descriptions.Item label="Functional Lead">{editableField('functionalLead', workItem.functionalLead)}</Descriptions.Item>
               <Descriptions.Item label="QA Lead">{editableField('qaLead', workItem.qaLead)}</Descriptions.Item>
-              <Descriptions.Item label="SNOW Ticket">{workItem.snowTicket || '—'}</Descriptions.Item>
+              <Descriptions.Item label="SNOW Ticket">{editableField('snowTicket', workItem.snowTicket ?? undefined)}</Descriptions.Item>
               <Descriptions.Item label="Veeva CC">
                 <Space>
                   {workItem.veevaCCNumber || '—'}
@@ -428,17 +498,17 @@ const WorkItemDetail: React.FC = () => {
                 </Descriptions.Item>
               )}
               <Descriptions.Item label="Start Date">
-                {workItem.kickoffDate ? new Date(workItem.kickoffDate).toLocaleDateString() : '—'}
+                {editableDate('kickoffDate', workItem.kickoffDate)}
               </Descriptions.Item>
               <Descriptions.Item label="Go-Live Date">
-                {workItem.goLiveDate ? (
-                  <Space>
-                    {new Date(workItem.goLiveDate).toLocaleDateString()}
+                <Space>
+                  {editableDate('goLiveDate', workItem.goLiveDate)}
+                  {workItem.goLiveDate && (
                     <Text type={daysFromNow(new Date(workItem.goLiveDate)) <= 7 ? 'danger' : 'secondary'}>
                       ({daysFromNow(new Date(workItem.goLiveDate))}d)
                     </Text>
-                  </Space>
-                ) : '—'}
+                  )}
+                </Space>
               </Descriptions.Item>
               <Descriptions.Item label="Total Transports">{totalTR}</Descriptions.Item>
               <Descriptions.Item label="In Production">{prodTR}</Descriptions.Item>

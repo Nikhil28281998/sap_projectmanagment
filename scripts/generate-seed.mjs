@@ -252,7 +252,9 @@ const WI = {
   'IT-CC-00720':  { name: 'MLBS Company Code Rollout (IT-CC-00720)',      type: 'Project',     snow: 'IT-CC-00720',  owner: 'MOIABDUL',     priority: 'P1', sapModule: 'FICO' },
   'CS0109281':    { name: 'FINCS BADI Rate Wrapper (CS0109281)',          type: 'Bug Fix',     snow: 'CS0109281',    owner: 'ROHSINGH',     priority: 'P2', sapModule: 'FI-CS' },
   'CS0104930':    { name: 'APQR Report (SCTASK0010028/CS0104930)',        type: 'Enhancement', snow: 'SCTASK0010028', owner: 'ROHSINGH',    priority: 'P2', sapModule: 'QM' },
-  'SCTASK0017638':{ name: 'Bank of America & EMEA Company Codes',          type: 'Enhancement', snow: 'SCTASK0017638', owner: 'NIKKUMAR',    priority: 'P2', sapModule: 'FICO' },
+  'SCTASK0017638-BOA':  { name: 'Bank of America Accounts (SCTASK0017638)',           type: 'Enhancement', snow: 'SCTASK0017638', owner: 'NIKKUMAR', priority: 'P2', sapModule: 'FICO' },
+  'SCTASK0017638-EMEA': { name: 'EMEA Company Codes (SCTASK0017638)',                  type: 'Enhancement', snow: 'SCTASK0017638', owner: 'NIKKUMAR', priority: 'P2', sapModule: 'FICO' },
+  'SCTASK0017638-ASSET':{ name: 'Asset GL Account Updates (SCTASK0017638)',            type: 'Enhancement', snow: 'SCTASK0017638', owner: 'NIKKUMAR', priority: 'P2', sapModule: 'FICO' },
   'CS0116348':    { name: 'Framework Order Doc Type FO (CS0116348)',     type: 'Enhancement', snow: 'CS0116348',    owner: 'UDAGUNTA',     priority: 'P2', sapModule: 'MM' },
   'CS0116179':    { name: 'IC COGS & GL Substitution (CS0116179)',       type: 'Bug Fix',     snow: 'CS0116179',    owner: 'VISPULIPATI',  priority: 'P2', sapModule: 'FI' },
   'CS0113738':    { name: 'Client Copy PS4/400 → DS4/210 (CS0113738)',   type: 'Infrastructure', snow: 'CS0113738', owner: 'MAHOLADRI',    priority: 'P2', sapModule: 'BC' },
@@ -299,7 +301,13 @@ function classifyTR(tr) {
   // Explicit multi-TR projects by ticket match (first match wins)
   if (/CS0109281/i.test(d)) return 'CS0109281';
   if (/SCTASK0010028|CS0104930/i.test(d)) return 'CS0104930';
-  if (/SCTASK0017638/i.test(d)) return 'SCTASK0017638';
+  if (/SCTASK0017638/i.test(d)) {
+    // Split this umbrella ticket into three distinct projects.
+    if (/bank\s*of\s*america/i.test(d))         return 'SCTASK0017638-BOA';
+    if (/EMEA|company\s*codes/i.test(d))         return 'SCTASK0017638-EMEA';
+    if (/asset\s*gl|assest\s*gl/i.test(d))       return 'SCTASK0017638-ASSET';
+    return 'SCTASK0017638-ASSET'; // fallback (ToCs that only say "v2")
+  }
   if (/CS0116348/i.test(d)) return 'CS0116348';
   if (/CS0116179/i.test(d)) return 'CS0116179';
   if (/CS0113738/i.test(d)) return 'CS0113738';
@@ -367,7 +375,17 @@ function statusMap(t) {
   return t === 'R' ? 'Released' : t === 'L' ? 'Locked' : 'Modifiable';
 }
 function sysMap(tr) {
-  return tr.trstatus === 'R' ? 'PRD' : tr.trfunction === 'K' ? 'DEV' : 'DEV';
+  // Modifiable (D/L) -> still in DEV.
+  if (tr.trstatus !== 'R') return 'DEV';
+  // Released TRs land in DEV first, promote through QAS, then PRD.
+  // Without a live import-history table (TSTRFCOR is gone on S/4HANA and
+  // the cofile API isn't wired yet) we can't read the true current system,
+  // so approximate: recent releases tend to sit in QAS pending final promotion,
+  // older ones are already in PRD. Use TR-number ordinal as the tie-breaker
+  // so the distribution is deterministic and stable across regenerations.
+  const ord = parseInt((tr.trkorr.match(/\d+$/) || ['0'])[0], 10);
+  // 40% QAS / 60% PRD - matches a typical landscape snapshot.
+  return (ord % 5) < 2 ? 'QAS' : 'PRD';
 }
 function itemStatus(trstatuses) {
   // All released → Done. Any modifiable → Active.
