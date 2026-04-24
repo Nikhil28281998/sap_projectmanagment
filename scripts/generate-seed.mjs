@@ -252,9 +252,7 @@ const WI = {
   'IT-CC-00720':  { name: 'MLBS Company Code Rollout (IT-CC-00720)',      type: 'Project',     snow: 'IT-CC-00720',  owner: 'MOIABDUL',     priority: 'P1', sapModule: 'FICO' },
   'CS0109281':    { name: 'FINCS BADI Rate Wrapper (CS0109281)',          type: 'Bug Fix',     snow: 'CS0109281',    owner: 'ROHSINGH',     priority: 'P2', sapModule: 'FI-CS' },
   'CS0104930':    { name: 'APQR Report (SCTASK0010028/CS0104930)',        type: 'Enhancement', snow: 'SCTASK0010028', owner: 'ROHSINGH',    priority: 'P2', sapModule: 'QM' },
-  'SCTASK0017638-BOA':  { name: 'Bank of America Accounts (SCTASK0017638)',           type: 'Enhancement', snow: 'SCTASK0017638', owner: 'NIKKUMAR', priority: 'P2', sapModule: 'FICO' },
-  'SCTASK0017638-EMEA': { name: 'EMEA Company Codes (SCTASK0017638)',                  type: 'Enhancement', snow: 'SCTASK0017638', owner: 'NIKKUMAR', priority: 'P2', sapModule: 'FICO' },
-  'SCTASK0017638-ASSET':{ name: 'Asset GL Account Updates (SCTASK0017638)',            type: 'Enhancement', snow: 'SCTASK0017638', owner: 'NIKKUMAR', priority: 'P2', sapModule: 'FICO' },
+  'SCTASK0017638': { name: 'EMEA Company Codes (SCTASK0017638)', type: 'Project', snow: 'SCTASK0017638', owner: 'NIKKUMAR', priority: 'P1', sapModule: 'FICO' },
   'CS0116348':    { name: 'Framework Order Doc Type FO (CS0116348)',     type: 'Enhancement', snow: 'CS0116348',    owner: 'UDAGUNTA',     priority: 'P2', sapModule: 'MM' },
   'CS0116179':    { name: 'IC COGS & GL Substitution (CS0116179)',       type: 'Bug Fix',     snow: 'CS0116179',    owner: 'VISPULIPATI',  priority: 'P2', sapModule: 'FI' },
   'CS0113738':    { name: 'Client Copy PS4/400 → DS4/210 (CS0113738)',   type: 'Infrastructure', snow: 'CS0113738', owner: 'MAHOLADRI',    priority: 'P2', sapModule: 'BC' },
@@ -301,13 +299,10 @@ function classifyTR(tr) {
   // Explicit multi-TR projects by ticket match (first match wins)
   if (/CS0109281/i.test(d)) return 'CS0109281';
   if (/SCTASK0010028|CS0104930/i.test(d)) return 'CS0104930';
-  if (/SCTASK0017638/i.test(d)) {
-    // Split this umbrella ticket into three distinct projects.
-    if (/bank\s*of\s*america/i.test(d))         return 'SCTASK0017638-BOA';
-    if (/EMEA|company\s*codes/i.test(d))         return 'SCTASK0017638-EMEA';
-    if (/asset\s*gl|assest\s*gl/i.test(d))       return 'SCTASK0017638-ASSET';
-    return 'SCTASK0017638-ASSET'; // fallback (ToCs that only say "v2")
-  }
+  // All SCTASK0017638 TRs belong to the same project: EMEA Company Codes.
+  // (Bank of America account setup and Asset GL updates are sub-tasks
+  // needed to stand up the new EMEA company codes, not separate projects.)
+  if (/SCTASK0017638/i.test(d)) return 'SCTASK0017638';
   if (/CS0116348/i.test(d)) return 'CS0116348';
   if (/CS0116179/i.test(d)) return 'CS0116179';
   if (/CS0113738/i.test(d)) return 'CS0113738';
