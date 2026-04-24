@@ -370,8 +370,9 @@ function sysMap(tr) {
   return tr.trstatus === 'R' ? 'PRD' : tr.trfunction === 'K' ? 'DEV' : 'DEV';
 }
 function itemStatus(trstatuses) {
-  // All released → Complete. Any modifiable → Active.
-  return trstatuses.every(s => s === 'R') ? 'Complete' : 'Active';
+  // All released → Done. Any modifiable → Active.
+  // 'Done' matches the backend validator + UI Select options.
+  return trstatuses.every(s => s === 'R') ? 'Done' : 'Active';
 }
 
 // First pass — assign
@@ -401,7 +402,7 @@ for (const [key, meta] of Object.entries(WI)) {
     complexity: members.length > 5 ? 'High' : members.length > 2 ? 'Medium' : 'Low',
     priority: meta.priority,
     status: itemStatus(members.map(m => m.tr.trstatus)),
-    currentPhase: itemStatus(members.map(m => m.tr.trstatus)) === 'Complete' ? 'Complete' : 'Development',
+    currentPhase: itemStatus(members.map(m => m.tr.trstatus)) === 'Done' ? 'Complete' : 'Development',
     methodology: 'Agile',
     overallRAG: 'GREEN',
     riskScore: 20,
@@ -441,14 +442,14 @@ for (const { tr, key } of assignments) {
       estimatedTRCount: 1,
       complexity: 'Low',
       priority: inferPriority(tr.desc),
-      status: tr.trstatus === 'R' ? 'Complete' : 'Active',
+      status: tr.trstatus === 'R' ? 'Done' : 'Active',
       currentPhase: tr.trstatus === 'R' ? 'Complete' : 'Development',
       methodology: 'Agile',
       overallRAG: 'GREEN',
       riskScore: 10,
       deploymentPct: tr.trstatus === 'R' ? 100 : 0,
       testTotal: 0, testPassed: 0, testFailed: 0, testBlocked: 0, testTBD: 0, testSkipped: 0,
-      testCompletionPct: 0, uatStatus: tr.trstatus === 'R' ? 'Complete' : 'Not Started', goLiveDate: '',
+      testCompletionPct: 0, uatStatus: tr.trstatus === 'R' ? 'Done' : 'Not Started', goLiveDate: '',
       veevaCCNumber: '', sharepointUrl: '',
       amsTicket: snow.startsWith('IT-CC') ? snow : '',
       notes: '',

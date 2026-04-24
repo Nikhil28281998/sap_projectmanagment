@@ -446,7 +446,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
           value={completedItems.length}
           caption={`of ${workItems.length} total`}
           tone="success"
-          onClick={() => navigate(`/tracker?app=${application.toLowerCase()}&status=Complete`)}
+          onClick={() => navigate(`/tracker?app=${application.toLowerCase()}&status=Done`)}
         />
         <StatCard
           loading={isLoading}

@@ -2192,8 +2192,11 @@ ${JSON.stringify(projectData, null, 2)}`;
   }
 
   async _onChangeWorkItemStatus(req) {
-    const { workItemId, status } = req.data;
+    let { workItemId, status } = req.data;
     const { WorkItems, ActivityLog } = this._e;
+
+    // Normalize legacy synonyms so old data / RFC refreshes don't reject.
+    if (status === 'Complete' || status === 'Completed') status = 'Done';
 
     const validStatuses = ['Active', 'On Hold', 'Done', 'Cancelled'];
     if (!validStatuses.includes(status)) {

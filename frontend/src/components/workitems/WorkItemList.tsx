@@ -112,11 +112,17 @@ const WorkItemList: React.FC = () => {
   };
 
   // ── Work Items table ──
+  // Treat 'Complete'/'Completed'/'Done' as synonyms so drill-downs work
+  // regardless of whether data comes from RFC (Complete) or local writes (Done).
+  const DONE_SYNONYMS = ['complete', 'completed', 'done'];
   const filteredItems = useMemo(() => {
     const typeKey = activeTab === 'tr-search' ? '' : activeTab;
     return workItems.filter((item: WorkItem) => {
       const matchesType = !typeKey || item.workItemType === typeKey;
-      const matchesStatus = !statusFilter || item.status === statusFilter;
+      const matchesStatus = !statusFilter ||
+        (DONE_SYNONYMS.includes(statusFilter.toLowerCase())
+          ? DONE_SYNONYMS.includes((item.status || '').toLowerCase())
+          : item.status === statusFilter);
       const matchesRag = !ragParam ||
         (item.overallRAG || calculateRAG(item)) === ragParam.toUpperCase();
       const matchesSearch =
@@ -215,9 +221,11 @@ const WorkItemList: React.FC = () => {
       key: 'status',
       render: (status: string) => {
         const colorMap: Record<string, string> = {
-          Active: 'processing', 'On Hold': 'warning', Done: 'success', Cancelled: 'default',
+          Active: 'processing', 'On Hold': 'warning',
+          Done: 'success', Complete: 'success', Completed: 'success',
+          Cancelled: 'default',
         };
-        return <Tag color={colorMap[status] || 'default'}>{status}</Tag>;
+        return <Tag color={colorMap[status] || 'default'}>{status || '—'}</Tag>;
       },
     },
     {

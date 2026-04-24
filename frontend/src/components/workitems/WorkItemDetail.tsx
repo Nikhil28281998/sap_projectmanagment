@@ -287,7 +287,9 @@ const WorkItemDetail: React.FC = () => {
         {canWrite && (
           <>
             <Select
-              value={workItem.status}
+              // Map legacy 'Complete'/'Completed' to canonical 'Done' so the
+              // Select always shows a matching option.
+              value={(['Complete', 'Completed'].includes(workItem.status) ? 'Done' : workItem.status) || 'Active'}
               onChange={(status) => {
                 statusMutation.mutate({ workItemId: workItem.ID, status }, {
                   onSuccess: (res) => { message.success(res.message); refetchWI(); queryClient.invalidateQueries({ queryKey: ['workItems'] }); },

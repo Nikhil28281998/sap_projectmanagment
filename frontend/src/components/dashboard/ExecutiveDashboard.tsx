@@ -246,7 +246,7 @@ const ExecutiveDashboard: React.FC = () => {
           value={completedCount}
           caption="Across all applications"
           tone="success"
-          onClick={() => navigate('/tracker?app=all&status=Complete')}
+          onClick={() => navigate('/tracker?app=all&status=Done')}
         />
         <StatCard
           loading={isLoading}
