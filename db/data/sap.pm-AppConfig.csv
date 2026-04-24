@@ -1,7 +1,7 @@
-configKey;configValue;valueType;description
-RFC_DESTINATION_NAME;S4HANA_RFC_DS4;string;BTP Destination for all RFC calls
-RFC_FM_NAME;ZTCC_GET_TRANSPORTS;string;ABAP function module called by refresh
-RFC_TR_START_DATE;;string;YYYYMMDD — set to today after first deploy
-RFC_SYSTEMS_FILTER;;string;"Comma-separated system IDs; blank = all"
-RFC_SCHEDULE_ENABLED;false;boolean;Toggle for auto-refresh cron
-RFC_SCHEDULE_CRON;0 */4 * * *;string;"5-field cron; e.g. every 4h"
+configKey;configValue;description
+RFC_DESTINATION_NAME;S4HANA_RFC_DS4;BTP Destination for all RFC calls
+RFC_FM_NAME;ZTCC_GET_TRANSPORTS;ABAP function module called by refresh
+RFC_TR_START_DATE;;YYYYMMDD — set to today after first deploy
+RFC_SYSTEMS_FILTER;;"Comma-separated system IDs; blank = all"
+RFC_SCHEDULE_ENABLED;false;Toggle for auto-refresh cron
+RFC_SCHEDULE_CRON;0 */4 * * *;"5-field cron; e.g. every 4h"

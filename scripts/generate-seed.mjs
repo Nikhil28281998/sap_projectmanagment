@@ -534,15 +534,15 @@ writeCsv(path.join(outDir, 'sap.pm-TransportWorkItems.csv'), trHeader, transport
 
 // Small AppConfig stub so admin can see defaults post-deploy
 const cfgRows = [
-  { configKey: 'RFC_DESTINATION_NAME', configValue: 'S4HANA_RFC_DS4',   valueType: 'string',  description: 'BTP Destination for all RFC calls' },
-  { configKey: 'RFC_FM_NAME',          configValue: 'ZTCC_GET_TRANSPORTS', valueType: 'string', description: 'ABAP function module called by refresh' },
-  { configKey: 'RFC_TR_START_DATE',    configValue: '',                  valueType: 'string',  description: 'YYYYMMDD — set to today after first deploy' },
-  { configKey: 'RFC_SYSTEMS_FILTER',   configValue: '',                  valueType: 'string',  description: 'Comma-separated system IDs; blank = all' },
-  { configKey: 'RFC_SCHEDULE_ENABLED', configValue: 'false',             valueType: 'boolean', description: 'Toggle for auto-refresh cron' },
-  { configKey: 'RFC_SCHEDULE_CRON',    configValue: '0 */4 * * *',       valueType: 'string',  description: '5-field cron; e.g. every 4h' },
+  { configKey: 'RFC_DESTINATION_NAME', configValue: 'S4HANA_RFC_DS4',     description: 'BTP Destination for all RFC calls' },
+  { configKey: 'RFC_FM_NAME',          configValue: 'ZTCC_GET_TRANSPORTS', description: 'ABAP function module called by refresh' },
+  { configKey: 'RFC_TR_START_DATE',    configValue: '',                    description: 'YYYYMMDD — set to today after first deploy' },
+  { configKey: 'RFC_SYSTEMS_FILTER',   configValue: '',                    description: 'Comma-separated system IDs; blank = all' },
+  { configKey: 'RFC_SCHEDULE_ENABLED', configValue: 'false',               description: 'Toggle for auto-refresh cron' },
+  { configKey: 'RFC_SCHEDULE_CRON',    configValue: '0 */4 * * *',         description: '5-field cron; e.g. every 4h' },
 ];
 writeCsv(path.join(outDir, 'sap.pm-AppConfig.csv'),
-  ['configKey','configValue','valueType','description'],
+  ['configKey','configValue','description'],
   cfgRows);
 
 console.log('\nSummary:');
