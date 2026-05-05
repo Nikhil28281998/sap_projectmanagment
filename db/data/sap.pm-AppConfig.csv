@@ -5,3 +5,5 @@ RFC_TR_START_DATE;;YYYYMMDD — set to today after first deploy
 RFC_SYSTEMS_FILTER;;"Comma-separated system IDs; blank = all"
 RFC_SCHEDULE_ENABLED;false;Toggle for auto-refresh cron
 RFC_SCHEDULE_CRON;0 */4 * * *;"5-field cron; e.g. every 4h"
+AI_DESTINATION_NAME;Ai_Core;BTP Destination name for SAP AI Core (set by Admin in Settings → SAP AI Core Integration)
+AI_CORE_DEPLOYMENT_ID;d8e31dc8207d4ea9;Deployment ID from AI Core ML Operations → Deployments (set by Admin)

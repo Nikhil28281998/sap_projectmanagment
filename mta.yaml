@@ -24,9 +24,8 @@ modules:
       disk-quota: 512M
     properties:
       APP_ENCRYPTION_KEY: sap-pm-enc-key-2026-bridgebio-change-me
-      AI_DESTINATION_NAME: Ai_Core
-      AI_CORE_DEPLOYMENT_ID: d8e31dc8207d4ea9
-      AI_CORE_RESOURCE_GROUP: default
+      # AI_DESTINATION_NAME and AI_CORE_DEPLOYMENT_ID are read from AppConfig at runtime
+      # (set by Admin in Settings → SAP AI Core Integration — no redeploy needed)
     build-parameters:
       builder: npm
     provides:
@@ -114,31 +113,9 @@ resources:
           instance:
             existing_destinations_policy: update
             destinations:
-              - Name: SAP_PM_AI_OPENROUTER
-                Description: OpenRouter AI Proxy (Free models)
-                URL: https://openrouter.ai/api/v1
-                Type: HTTP
-                ProxyType: Internet
-                Authentication: NoAuthentication
-                # API key passed as bearer token in code
-              - Name: SAP_PM_AI_CLAUDE
-                Description: Anthropic Claude API
-                URL: https://api.anthropic.com/v1
-                Type: HTTP
-                ProxyType: Internet
-                Authentication: NoAuthentication
-              - Name: SAP_PM_AI_OPENAI
-                Description: OpenAI ChatGPT API
-                URL: https://api.openai.com/v1
-                Type: HTTP
-                ProxyType: Internet
-                Authentication: NoAuthentication
-              - Name: SAP_PM_AI_GEMINI
-                Description: Google Gemini API
-                URL: https://generativelanguage.googleapis.com/v1beta
-                Type: HTTP
-                ProxyType: Internet
-                Authentication: NoAuthentication
+              # AI is provided via SAP AI Core using the "Ai_Core" BTP Destination
+              # configured manually in BTP Cockpit with OAuth2ClientCredentials
+              # from the AI Core service key. No additional destinations needed here.
 
   # ─── BTP Connectivity Service (Cloud Connector → SAP on-prem) ─
   - name: sap-pm-connectivity

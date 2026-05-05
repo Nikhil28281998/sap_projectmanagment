@@ -1,33 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Card, Form, Input, InputNumber, Switch, Button, Select, Typography,
+  Card, Form, Input, InputNumber, Switch, Button, Typography,
   Divider, Space, message, Alert, Row, Col, DatePicker,
 } from 'antd';
 import dayjs from 'dayjs';
 import {
   SettingOutlined, SaveOutlined, RobotOutlined, SyncOutlined,
   ClockCircleOutlined, ThunderboltOutlined, CheckCircleOutlined,
-  CloseCircleOutlined, ApiOutlined, CloudOutlined, DeploymentUnitOutlined
+  CloseCircleOutlined, CloudOutlined, DeploymentUnitOutlined
 } from '@ant-design/icons';
 import { configApi, aiApi, sharePointApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 const { Title, Text } = Typography;
-const { Option } = Select;
-
-const AI_PROVIDERS = [
-  { value: 'openrouter', label: 'OpenRouter (Multi-model, FREE)' },
-  { value: 'gemini',     label: 'Gemini (Google, FREE)' },
-  { value: 'claude',     label: 'Claude (Anthropic)' },
-  { value: 'chatgpt',    label: 'ChatGPT (OpenAI)' },
-];
 
 const SettingsPage: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [aiTestResult, setAiTestResult] = useState<{ success: boolean; message: string; provider?: string } | null>(null);
   const [aiTesting, setAiTesting] = useState(false);
-  const [aiProvider, setAiProvider] = useState<string>('openrouter');
   const { canConfigure, canWrite } = useAuth();
 
   // SAP RFC configuration state — values must be entered by Admin/SuperAdmin,
@@ -50,6 +41,13 @@ const SettingsPage: React.FC = () => {
   const [spSaving, setSpSaving] = useState(false);
   const [spResult, setSpResult] = useState<{ success: boolean; message: string } | null>(null);
 
+  // SAP AI Core configuration state
+  const [aiDestination, setAiDestination] = useState('');
+  const [aiDeploymentId, setAiDeploymentId] = useState('');
+  const [aiResourceGroup, setAiResourceGroup] = useState('');
+  const [aiCoreSaving, setAiCoreSaving] = useState(false);
+  const [aiCoreResult, setAiCoreResult] = useState<{ success: boolean; message: string } | null>(null);
+
   useEffect(() => {
     loadConfigs();
   }, []);
@@ -60,9 +58,6 @@ const SettingsPage: React.FC = () => {
       const data = res.value || [];
       const formValues: any = {};
       data.forEach((c: any) => {
-        if (c.configKey === 'AI_PROVIDER') {
-          setAiProvider(c.configValue || 'openrouter');
-        }
         // Populate SharePoint fields from saved config
         if (c.configKey === 'SHAREPOINT_TENANT_ID') setSpTenantId(c.configValue || '');
         if (c.configKey === 'SHAREPOINT_CLIENT_ID') setSpClientId(c.configValue || '');
@@ -79,6 +74,9 @@ const SettingsPage: React.FC = () => {
         if (c.configKey === 'RFC_SYSTEMS_FILTER') setRfcSystemsFilter(c.configValue || '');
         if (c.configKey === 'RFC_SCHEDULE_CRON') setRfcSchedule(c.configValue || '');
         if (c.configKey === 'RFC_SCHEDULE_ENABLED') setRfcScheduleEnabled(c.configValue === 'true');
+        if (c.configKey === 'AI_DESTINATION_NAME') setAiDestination(c.configValue || '');
+        if (c.configKey === 'AI_CORE_DEPLOYMENT_ID') setAiDeploymentId(c.configValue || '');
+        if (c.configKey === 'AI_CORE_RESOURCE_GROUP') setAiResourceGroup(c.configValue || '');
         const key = c.configKey || c.key;
         if (c.valueType === 'boolean') {
           formValues[key] = c.configValue === 'true';
@@ -163,73 +161,6 @@ const SettingsPage: React.FC = () => {
             tooltip="Use local mock data instead of live Microsoft Graph API calls">
             <Switch checkedChildren="Mock" unCheckedChildren="Live" />
           </Form.Item>
-
-          <Divider orientation="left">
-            <Space><RobotOutlined /> AI Integration</Space>
-          </Divider>
-
-          <Alert type="info" showIcon icon={<ApiOutlined />} style={{ marginBottom: 16 }}
-            message="AI Provider (BTP Destination)"
-            description={
-              <Text style={{ fontSize: 12 }}>
-                Select which AI provider the backend should use. API keys are managed securely via
-                <strong> SAP BTP Destinations</strong> — configure them in the BTP Cockpit under
-                Connectivity → Destinations (e.g. <code>SAP_PM_AI_OPENROUTER</code>).
-                No API keys are stored in the frontend.
-              </Text>
-            }
-          />
-
-          {/* AI Provider Dropdown */}
-          <Form.Item label="AI Provider">
-            <Select
-              value={aiProvider}
-              onChange={async (val) => {
-                setAiProvider(val);
-                setAiTestResult(null);
-                try {
-                  await aiApi.saveConfig(val, '__BTP_DESTINATION__');
-                  message.success(`AI provider set to ${AI_PROVIDERS.find(p => p.value === val)?.label || val}`);
-                } catch { message.error('Failed to update provider'); }
-              }}
-              style={{ width: 400 }}
-              size="large"
-              disabled={!canConfigure}
-            >
-              {AI_PROVIDERS.map(p => (
-                <Option key={p.value} value={p.value}>{p.label}</Option>
-              ))}
-            </Select>
-            {!canConfigure && (
-              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
-                Only Admin can change AI provider.
-              </Text>
-            )}
-          </Form.Item>
-
-          {/* Test Connection */}
-          <Space style={{ marginBottom: 16 }}>
-            <Button icon={<ThunderboltOutlined />} loading={aiTesting}
-              onClick={async () => {
-                setAiTesting(true); setAiTestResult(null);
-                try {
-                  const result = await aiApi.testConnection();
-                  setAiTestResult(result);
-                  if (result.success) message.success('AI connection verified!');
-                } catch (err: any) { setAiTestResult({ success: false, message: err.message || 'Test failed' }); }
-                finally { setAiTesting(false); }
-              }}>
-              Test Connection
-            </Button>
-          </Space>
-
-          {aiTestResult && (
-            <Alert type={aiTestResult.success ? 'success' : 'error'} showIcon
-              icon={aiTestResult.success ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-              style={{ marginBottom: 16 }}
-              message={aiTestResult.success ? 'AI Connected' : 'Connection Failed'}
-              description={aiTestResult.message} />
-          )}
 
           <Divider orientation="left">
             <Space><SettingOutlined /> Transport Settings</Space>
@@ -450,6 +381,120 @@ const SettingsPage: React.FC = () => {
             style={{ marginTop: 12 }}
             message={rfcResult.success ? 'SAP RFC Configured' : 'Configuration Error'}
             description={rfcResult.message}
+          />
+        )}
+      </Card>
+
+      {/* SAP AI Core Integration Card */}
+      <Card
+        title={<Space><RobotOutlined /> SAP AI Core Integration</Space>}
+        size="small"
+        style={{ marginBottom: 16 }}
+      >
+        <Alert
+          type="info"
+          showIcon
+          icon={<RobotOutlined />}
+          style={{ marginBottom: 16 }}
+          message="SAP Generative AI Hub"
+          description={
+            <Text style={{ fontSize: 12 }}>
+              Configure the BTP Destination and deployment used for all AI features (chat, document
+              analysis, weekly digest). Values are stored in AppConfig and read by the backend on
+              every request — no redeploy needed. The destination must be created in
+              <strong> BTP Cockpit → Connectivity → Destinations</strong> with
+              OAuth2ClientCredentials using your AI Core service key.
+            </Text>
+          }
+        />
+
+        <Row gutter={16}>
+          <Col span={12}>
+            <div className="settings-field-group">
+              <Text strong className="settings-field-label">BTP Destination Name</Text>
+              <Input
+                value={aiDestination}
+                onChange={e => setAiDestination(e.target.value)}
+                placeholder="Ai_Core"
+                disabled={!canConfigure}
+              />
+              <Text type="secondary" className="field-hint">
+                Name of the destination configured in BTP Cockpit (e.g. Ai_Core).
+              </Text>
+            </div>
+          </Col>
+          <Col span={12}>
+            <div className="settings-field-group">
+              <Text strong className="settings-field-label">Deployment ID</Text>
+              <Input
+                value={aiDeploymentId}
+                onChange={e => setAiDeploymentId(e.target.value)}
+                placeholder="d8e31dc8207d4ea9"
+                disabled={!canConfigure}
+              />
+              <Text type="secondary" className="field-hint">
+                Found in AI Core → ML Operations → Deployments.
+              </Text>
+            </div>
+          </Col>
+        </Row>
+
+        <Row gutter={16}>
+          <Col span={12}>
+            <div className="settings-field-group">
+              <Text strong className="settings-field-label">Resource Group</Text>
+              <Input
+                value={aiResourceGroup}
+                onChange={e => setAiResourceGroup(e.target.value)}
+                placeholder="default"
+                disabled={!canConfigure}
+              />
+              <Text type="secondary" className="field-hint">
+                AI Core resource group (usually "default").
+              </Text>
+            </div>
+          </Col>
+        </Row>
+
+        <Space style={{ marginTop: 8 }}>
+          <Button
+            type="primary"
+            icon={<SaveOutlined />}
+            loading={aiCoreSaving}
+            disabled={!canConfigure}
+            onClick={async () => {
+              setAiCoreSaving(true);
+              setAiCoreResult(null);
+              try {
+                await configApi.update('AI_DESTINATION_NAME', aiDestination);
+                await configApi.update('AI_CORE_DEPLOYMENT_ID', aiDeploymentId);
+                await configApi.update('AI_CORE_RESOURCE_GROUP', aiResourceGroup);
+                setAiCoreResult({ success: true, message: 'SAP AI Core settings saved' });
+                message.success('SAP AI Core settings saved');
+              } catch (err: any) {
+                setAiCoreResult({ success: false, message: err?.message || 'Failed to save' });
+                message.error('Failed to save AI Core settings');
+              } finally {
+                setAiCoreSaving(false);
+              }
+            }}
+          >
+            Save AI Core Config
+          </Button>
+          {!canConfigure && (
+            <Text type="secondary" className="field-hint">
+              Only Admin / SuperAdmin can change AI Core settings.
+            </Text>
+          )}
+        </Space>
+
+        {aiCoreResult && (
+          <Alert
+            type={aiCoreResult.success ? 'success' : 'error'}
+            showIcon
+            style={{ marginTop: 12 }}
+            message={aiCoreResult.success ? 'AI Core Configured' : 'Configuration Error'}
+            description={aiCoreResult.message}
           />
         )}
       </Card>

@@ -594,42 +594,11 @@ class TransportService extends cds.ApplicationService {
     }
   }
 
-  // ─── Save AI Configuration ───
+  // ─── Save AI Configuration (no-op — AI is configured via BTP Destination) ───
   async _onSaveAIConfig(req) {
-    const { provider, apiKey } = req.data;
-    const { AppConfig } = this._e;
-
-    try {
-      // Save provider choice
-      const existingProvider = await SELECT.one.from(AppConfig).where({ configKey: 'AI_PROVIDER' });
-      if (existingProvider) {
-        await UPDATE(AppConfig).set({ configValue: provider }).where({ configKey: 'AI_PROVIDER' });
-      } else {
-        await INSERT.into(AppConfig).entries({ configKey: 'AI_PROVIDER', configValue: provider, description: 'AI provider: claude or chatgpt' });
-      }
-
-      // Encrypt and save API key for the chosen provider
-      const keyConfigName = provider === 'chatgpt' ? 'OPENAI_API_KEY' : provider === 'gemini' ? 'GEMINI_API_KEY' : provider === 'openrouter' ? 'OPENROUTER_API_KEY' : 'CLAUDE_API_KEY';
-      const encryptedKey = encrypt(apiKey);
-      const existingKey = await SELECT.one.from(AppConfig).where({ configKey: keyConfigName });
-      if (existingKey) {
-        await UPDATE(AppConfig).set({ configValue: encryptedKey }).where({ configKey: keyConfigName });
-      } else {
-        await INSERT.into(AppConfig).entries({ configKey: keyConfigName, configValue: encryptedKey, description: `${provider} API key (encrypted)` });
-      }
-
-      // Enable AI
-      const existingEnable = await SELECT.one.from(AppConfig).where({ configKey: 'ENABLE_AI' });
-      if (existingEnable) {
-        await UPDATE(AppConfig).set({ configValue: 'true' }).where({ configKey: 'ENABLE_AI' });
-      } else {
-        await INSERT.into(AppConfig).entries({ configKey: 'ENABLE_AI', configValue: 'true', description: 'Enable AI features' });
-      }
-
-      return { success: true, message: `${provider} configured successfully` };
-    } catch (err) {
-      return { success: false, message: `Failed to save AI config: ${err.message}` };
-    }
+    // AI auth is managed entirely through the BTP Destination "Ai_Core".
+    // Destination name and deployment ID are saved via the generic updateConfig action.
+    return { success: true, message: 'AI is configured via BTP Destination. Use Settings → SAP AI Core Integration to update the destination name and deployment ID.' };
   }
 
   // ─── Chat with AI Agent ───
@@ -642,7 +611,7 @@ class TransportService extends cds.ApplicationService {
     try {
       const ai = await AIClient.create(this.db, this._e);
       if (!ai.enabled) {
-        return { success: false, answer: 'AI is not configured. Go to Settings → AI Integration to connect your Claude, ChatGPT, Gemini, or OpenRouter account.', provider: '' };
+        return { success: false, answer: 'AI is not configured. Go to Settings → SAP AI Core Integration and set the Deployment ID.', provider: '' };
       }
 
       // Gather app data filtered by user's allowed applications

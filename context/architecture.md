@@ -10,7 +10,7 @@
 | Database Prod| SAP HANA Cloud (HDI container)   | Production data store on BTP                     |
 | Auth Dev    | Mocked via Vite proxy             | Auto-injects manager@test.com on all /api requests |
 | Auth Prod   | XSUAA (xs-security.json)          | 3 roles: Manager, Developer, Executive            |
-| AI          | Claude (Anthropic) or ChatGPT (OpenAI) | User-configured in Settings; unified via ai-client.js |
+| AI          | SAP AI Core (Generative AI Hub) via BTP Destination | Primary. SuperAdmin configures Destination Name, Deployment ID, Resource Group in Settings → SAP AI Core Integration. Falls back to Claude/ChatGPT/Gemini/OpenRouter via AppConfig or env vars |
 | App Router  | @sap/approuter                    | Auth gateway for BTP deployment                  |
 | Hosting     | SAP BTP Cloud Foundry             | MTA deployment via mta.yaml                      |
 
@@ -32,8 +32,14 @@
 
 - **SQLite / HANA Cloud**: All entities live in the CDS schema — WorkItems,
   TransportWorkItems, Milestones, Notifications, SyncLog, AppConfig
-- **AppConfig**: Key-value store for runtime settings — AI_PROVIDER,
-  CLAUDE_API_KEY, OPENAI_API_KEY, ENABLE_AI, refresh intervals
+- **AppConfig**: Key-value store for runtime settings. Managed via Settings page
+  (Admin/SuperAdmin only). Key groups:
+  - AI provider: AI_PROVIDER, CLAUDE_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY
+  - SAP AI Core: AI_DESTINATION_NAME, AI_CORE_DEPLOYMENT_ID, AI_CORE_RESOURCE_GROUP
+    (SuperAdmin sets these in Settings → SAP AI Core Integration; backend reads on every request)
+  - RFC sync: RFC_DESTINATION_NAME, RFC_FM_NAME, RFC_TR_START_DATE, RFC_SYSTEMS_FILTER,
+    RFC_SCHEDULE_ENABLED, RFC_SCHEDULE_CRON
+  - App: ENABLE_AI, REFRESH_INTERVAL_MINUTES, TR_PREFIX, STUCK_THRESHOLD_DAYS, etc.
 - **No blob/file storage**: Reports are generated in-memory and returned
   as response payload; no file uploads currently
 
@@ -56,8 +62,12 @@
    as `this._e` at runtime due to CDS conflict. Always use `this._e`
 3. Never use `npx cds` — use `node node_modules\@sap\cds-dk\bin\cds.js` directly.
    npx has executable resolution issues on this Windows setup
-4. Never hardcode Claude-only AI — all AI calls go through `ai-client.js`
-   which supports both Claude and ChatGPT based on AppConfig
+4. Never hardcode AI provider or destination — all AI calls go through `ai-client.js`.
+   The destination name, deployment ID, and resource group are read from AppConfig
+   (set by SuperAdmin in Settings → SAP AI Core Integration) on every request.
+   The destination is resolved by the CAP backend via Cloud SDK — never from the frontend.
+   AI Core is detected by destination name (`Ai_Core`) or domain (`ml.hana.ondemand.com`),
+   NOT by checking for `/v2/inference` in the URL (which is only the base URL in the destination).
 5. All CSV seed files use semicolons as delimiter (CDS convention) — never
    change to commas or other delimiters
 6. Do not delete `claude-client.js` — legacy file still referenced by some tests
