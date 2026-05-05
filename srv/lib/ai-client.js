@@ -67,14 +67,14 @@ class AIClient {
   async _callAICore(systemPrompt, userMessage, maxTokens) {
     const destName     = this._aiDestName;
     const deploymentId = this._aiDeploymentId;
-    const path         = `/v2/inference/deployments/${deploymentId}/chat/completions`;
+    const path         = `/v2/inference/deployments/${deploymentId}/chat/completions?api-version=2025-01-01-preview`;
 
     const body = {
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user',   content: userMessage  },
       ],
-      max_tokens: maxTokens,
+      max_completion_tokens: maxTokens,
     };
 
     // ── Strategy 1: Cloud SDK executeHttpRequest ──
@@ -268,7 +268,7 @@ EMAIL STRUCTURE:
 8. "Please let us know if you have any questions."
 9. "Best regards,\\nSAP Project Management Team"`,
         `Transform this raw project data into a polished Outlook HTML email. Keep every number accurate. Output ONLY HTML:\n\n${rawReport}`,
-        6000
+        3000
       );
       if (result.trimStart().startsWith('```')) {
         result = result.replace(/^[\s]*```(?:html)?\s*\n?/, '').replace(/\n?```\s*$/, '');

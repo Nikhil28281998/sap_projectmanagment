@@ -650,8 +650,15 @@ class TransportService extends cds.ApplicationService {
 
     const now = new Date();
     const lines = [];
-    lines.push(`=== WORK ITEMS (${workItems.length} total) ===`);
-    for (const wi of workItems) {
+
+    // Split active vs done — send full details only for active items to reduce token usage
+    const activeItems = workItems.filter(w => w.status !== 'Done');
+    const doneItems   = workItems.filter(w => w.status === 'Done');
+
+    lines.push(`=== WORK ITEMS (${workItems.length} total: ${activeItems.length} active, ${doneItems.length} done) ===`);
+
+    // Active items — full detail
+    for (const wi of activeItems) {
       const goLiveDays = wi.goLiveDate ? Math.ceil((new Date(wi.goLiveDate) - now) / 86400000) : null;
       lines.push(`- ${wi.workItemName} [${wi.workItemType}] | Code: ${wi.projectCode} | Module: ${wi.sapModule}`);
       lines.push(`  RAG: ${wi.overallRAG || 'N/A'} | Phase: ${wi.currentPhase || 'N/A'} | Status: ${wi.status} | Methodology: ${wi.methodology || 'N/A'}`);
@@ -662,6 +669,11 @@ class TransportService extends cds.ApplicationService {
       lines.push(`  Business Owner: ${wi.businessOwner || 'N/A'} | System Owner: ${wi.systemOwner || 'N/A'} | Dev Lead: ${wi.leadDeveloper || 'N/A'}`);
       if (wi.goLiveDate) lines.push(`  Go-Live: ${wi.goLiveDate} (${goLiveDays > 0 ? goLiveDays + ' days away' : 'OVERDUE'})`);
       if (wi.notes) lines.push(`  Notes: ${wi.notes}`);
+    }
+
+    // Done items — summary only (one line each)
+    if (doneItems.length > 0) {
+      lines.push(`Done items: ${doneItems.map(w => `${w.workItemName} [${w.workItemType}]`).join('; ')}`);
     }
 
     lines.push(`\n=== TRANSPORTS (${transports.length} total) ===`);
@@ -911,7 +923,7 @@ ${emailContent}
 Template name: ${templateName || 'Custom Template'}
 Scope: ${scope || 'single'} (${scope === 'multi' ? 'all projects summary' : scope === 'both' ? 'works for single and multi' : 'single project report'})`;
 
-      let html = await ai._call(systemPrompt, userMessage, 6000);
+      let html = await ai._call(systemPrompt, userMessage, 3000);
 
       // Strip code fences if AI wraps in ```html
       if (html.trimStart().startsWith('```')) {
@@ -1795,7 +1807,7 @@ Approaching Go-Live (30 days): ${approachingGoLive.length}
 PROJECT DETAILS:
 ${projectSummaries || '(No active projects)'}`;
 
-      let response = await ai._call(systemPrompt, userMessage, 6000);
+      let response = await ai._call(systemPrompt, userMessage, 3000);
 
       // Strip code fences
       response = response.trim();
