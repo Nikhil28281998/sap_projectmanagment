@@ -10,8 +10,20 @@
       "csrfProtection": true
     },
     {
+      "source": "^/assets/(.*)$",
+      "target": "/assets/$1",
+      "localDir": "webapp",
+      "authenticationType": "xsuaa"
+    },
+    {
+      "source": "^.*\\.(js|css|ico|png|jpg|svg|webp|woff|woff2|json|map|txt)$",
+      "target": "$0",
+      "localDir": "webapp",
+      "authenticationType": "xsuaa"
+    },
+    {
       "source": "^(.*)$",
-      "target": "$1",
+      "target": "/index.html",
       "localDir": "webapp",
       "authenticationType": "xsuaa"
     }

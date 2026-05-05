@@ -144,7 +144,12 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
 
   const avgDeployment = useMemo(() => {
     if (activeItems.length === 0) return 0;
-    return Math.round(activeItems.reduce((s: number, wi: any) => s + (wi.deploymentPct || 0), 0) / activeItems.length);
+    const sum = activeItems.reduce((s: number, wi: any) => {
+      const v = parseFloat(wi.deploymentPct) || 0;
+      return s + (isNaN(v) ? 0 : v);
+    }, 0);
+    const result = Math.round(sum / activeItems.length);
+    return isNaN(result) ? 0 : result;
   }, [activeItems]);
 
   const ragDist = useMemo(() => {
@@ -275,9 +280,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
       render: (pct: number) => {
         const v = pct || 0;
         const stroke =
-          v >= 80 ? 'var(--color-status-risk-low)' :
-          v >= 40 ? 'var(--color-status-risk-medium)' :
-                    'var(--color-status-risk-high)';
+          v >= 80 ? '#52c41a' :
+          v >= 40 ? '#faad14' :
+                    '#ff4d4f';
         return (
           <Progress
             percent={v}

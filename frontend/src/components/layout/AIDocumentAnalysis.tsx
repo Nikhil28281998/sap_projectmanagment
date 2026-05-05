@@ -75,7 +75,17 @@ const AIDocumentAnalysis: React.FC<Props> = ({ open, defaultApp, onClose, onCrea
   const [spFolder,     setSpFolder]     = useState('');
   const [spFetching,   setSpFetching]   = useState<string | null>(null);
 
+  const MAX_FILE_BYTES = 200 * 1024; // 200 KB — AI context limit
+
   const handleDocFileUpload = useCallback((file: File) => {
+    if (file.name.toLowerCase().endsWith('.pdf')) {
+      antMessage.error('PDF files are not supported. Please copy the text from the PDF and paste it below, or export to .txt.');
+      return false;
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      antMessage.error(`File is too large (${Math.round(file.size / 1024)} KB). Maximum is 200 KB. Please trim the content or paste only the relevant section.`);
+      return false;
+    }
     const reader = new FileReader();
     reader.onerror = () => antMessage.error('Failed to read file');
     reader.onload  = (e) => {
@@ -261,17 +271,28 @@ const AIDocumentAnalysis: React.FC<Props> = ({ open, defaultApp, onClose, onCrea
                 beforeUpload={handleDocFileUpload} style={{ padding: '20px 0' }}>
                 <p className="ant-upload-drag-icon"><InboxOutlined style={{ color: '#1677ff', fontSize: 32 }} /></p>
                 <p className="ant-upload-text">Click or drag file to upload</p>
-                <p className="ant-upload-hint">Supports: .eml, .msg, .txt, .html, .csv, .doc</p>
+                <p className="ant-upload-hint">Supports: .eml, .msg, .txt, .html, .csv (max 200 KB). For PDFs, copy and paste the text content below.</p>
               </Dragger>
             ) : (
               <div>
-                <TextArea value={docContent} onChange={e => setDocContent(e.target.value)}
+                <TextArea value={docContent} onChange={e => {
+                  if (e.target.value.length > 150000) {
+                    antMessage.warning('Content exceeds 150,000 characters. Please trim to the relevant section.');
+                    return;
+                  }
+                  setDocContent(e.target.value);
+                }}
                   placeholder="Paste document content here..." rows={6}
                   style={{ fontFamily: 'monospace', fontSize: 11 }} />
-                <Button type="link" size="small" onClick={() => { setDocContent(''); setDocFileName(''); }}
-                  style={{ padding: 0, fontSize: 11, marginTop: 4 }}>
-                  Clear content
-                </Button>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                  <span style={{ fontSize: 11, color: docContent.length > 120000 ? '#ff4d4f' : '#999' }}>
+                    {docContent.length.toLocaleString()} / 150,000 chars
+                  </span>
+                  <Button type="link" size="small" onClick={() => { setDocContent(''); setDocFileName(''); }}
+                    style={{ padding: 0, fontSize: 11 }}>
+                    Clear content
+                  </Button>
+                </div>
               </div>
             )}
           </div>

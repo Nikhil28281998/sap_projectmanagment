@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Row, Col, Select, Typography, Tooltip, Space,
+  Row, Col, Typography, Tooltip, Space,
   DatePicker, Button, Table, Tag, Progress
 } from 'antd';
 import {
@@ -59,11 +59,9 @@ const ExecutiveDashboard: React.FC = () => {
   }), [transports]);
 
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
-  const [filterApp, setFilterApp] = useState<string | undefined>();
 
   const workItems = useMemo(() => {
     let items = allWorkItems.filter((wi: WorkItem) => !wi.application || allowedApps.includes(wi.application));
-    if (filterApp) items = items.filter((wi: WorkItem) => wi.application === filterApp);
     if (dateRange) {
       items = items.filter((wi: WorkItem) => {
         if (!wi.goLiveDate) return true;
@@ -72,7 +70,7 @@ const ExecutiveDashboard: React.FC = () => {
       });
     }
     return items;
-  }, [allWorkItems, allowedApps, filterApp, dateRange]);
+  }, [allWorkItems, allowedApps, dateRange]);
 
   const activeProjects = workItems.filter((wi: WorkItem) => wi.status === 'Active');
   const completedCount = workItems.filter((wi: WorkItem) => ['Complete', 'Completed', 'Done'].includes(wi.status)).length;
@@ -87,7 +85,12 @@ const ExecutiveDashboard: React.FC = () => {
 
   const avgDeployment = useMemo(() => {
     if (activeProjects.length === 0) return 0;
-    return Math.round(activeProjects.reduce((s: number, wi: any) => s + (wi.deploymentPct || 0), 0) / activeProjects.length);
+    const sum = activeProjects.reduce((s: number, wi: any) => {
+      const v = parseFloat(wi.deploymentPct) || 0;
+      return s + (isNaN(v) ? 0 : v);
+    }, 0);
+    const result = Math.round(sum / activeProjects.length);
+    return isNaN(result) ? 0 : result;
   }, [activeProjects]);
 
   const testSummary = useMemo(() => {
@@ -107,18 +110,35 @@ const ExecutiveDashboard: React.FC = () => {
       .slice(0, 5),
     [activeProjects]);
 
-  // Chart: By Application & Health
-  const appChartData = useMemo(() => {
-    const apps = ['SAP'];
-    const data: { app: string; count: number; status: string }[] = [];
-    for (const app of apps) {
-      const appItems = activeProjects.filter((wi: WorkItem) => wi.application === app);
+  // Chart: By Phase & Health (SAP-only — all items are SAP)
+  const phaseChartData = useMemo(() => {
+    const phases = ['Planning', 'Development', 'Testing', 'Go-Live', 'Hypercare', 'Complete'];
+    const data: { phase: string; count: number; status: string }[] = [];
+    for (const phase of phases) {
+      const phaseItems = activeProjects.filter((wi: WorkItem) => (wi.currentPhase || 'Planning') === phase);
       for (const [ragKey, label] of [['GREEN', 'On Track'], ['AMBER', 'At Risk'], ['RED', 'Critical']] as const) {
-        const count = appItems.filter((wi: WorkItem) => getRAG(wi) === ragKey).length;
-        if (count > 0) data.push({ app, count, status: label });
+        const count = phaseItems.filter((wi: WorkItem) => getRAG(wi) === ragKey).length;
+        if (count > 0) data.push({ phase, count, status: label });
       }
     }
     return data;
+  }, [activeProjects]);
+
+  // Chart: By Module
+  const moduleBarData = useMemo(() => {
+    const mods: Record<string, number> = {};
+    for (const wi of activeProjects) {
+      const m = wi.sapModule || 'Other';
+      mods[m] = (mods[m] || 0) + 1;
+    }
+    return Object.entries(mods).map(([module, count]) => ({ module, count })).sort((a, b) => b.count - a.count);
+  }, [activeProjects]);
+
+  // Chart: Priority distribution
+  const priorityBarData = useMemo(() => {
+    const pr: Record<string, number> = {};
+    for (const wi of activeProjects) pr[wi.priority || 'N/A'] = (pr[wi.priority || 'N/A'] || 0) + 1;
+    return Object.entries(pr).map(([priority, count]) => ({ priority, count })).sort((a, b) => a.priority.localeCompare(b.priority));
   }, [activeProjects]);
 
   // Donut: RAG distribution
@@ -130,41 +150,6 @@ const ExecutiveDashboard: React.FC = () => {
     return data;
   }, [ragDist]);
 
-  // Bar: Progress by App
-  const appProgressData = useMemo(() => {
-    return ['SAP'].map(app => {
-      const items = activeProjects.filter((wi: WorkItem) => wi.application === app);
-      const avg = items.length > 0 ? Math.round(items.reduce((s: number, w: any) => s + (w.deploymentPct || 0), 0) / items.length) : 0;
-      return { app, progress: avg };
-    }).filter(d => d.progress > 0);
-  }, [activeProjects]);
-
-  // Bar: Risk by App
-  const appRiskData = useMemo(() => {
-    return ['SAP'].map(app => {
-      const items = activeProjects.filter((wi: WorkItem) => wi.application === app);
-      const avg = items.length > 0 ? Math.round(items.reduce((s: number, w: any) => s + (w.riskScore || 0), 0) / items.length) : 0;
-      return { app, riskScore: avg };
-    }).filter(d => d.riskScore > 0);
-  }, [activeProjects]);
-
-  // Per-app counts
-  const appBreakdown = useMemo(() => {
-    return ['SAP'].map(app => {
-      const items = activeProjects.filter((wi: WorkItem) => wi.application === app);
-      const completed = workItems.filter((wi: WorkItem) => wi.application === app && ['Complete', 'Completed', 'Done'].includes(wi.status)).length;
-      return { app, active: items.length, completed, total: items.length + completed };
-    });
-  }, [activeProjects, workItems]);
-
-  // Priority chart across all apps
-  const priorityData = useMemo(() => {
-    const pr: Record<string, number> = {};
-    for (const wi of activeProjects) pr[wi.priority || 'N/A'] = (pr[wi.priority || 'N/A'] || 0) + 1;
-    return Object.entries(pr).map(([priority, count]) => ({ priority, count }));
-  }, [activeProjects]);
-
-  const availableApps = ['SAP'].filter(a => allowedApps.includes(a));
 
   // Project table columns
   const tableCols = [
@@ -196,9 +181,9 @@ const ExecutiveDashboard: React.FC = () => {
       render: (pct: number) => {
         const v = pct || 0;
         const stroke =
-          v >= 80 ? 'var(--color-status-risk-low)' :
-          v >= 40 ? 'var(--color-status-risk-medium)' :
-                    'var(--color-status-risk-high)';
+          v >= 80 ? '#52c41a' :
+          v >= 40 ? '#faad14' :
+                    '#ff4d4f';
         return (
           <Progress
             percent={v}
@@ -224,8 +209,6 @@ const ExecutiveDashboard: React.FC = () => {
 
       <div className="analytics-filter-bar">
         <RangePicker size="middle" onChange={(dates) => setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)} />
-        <Select placeholder="Application" allowClear value={filterApp} onChange={setFilterApp}
-          className="filter-select-lg" options={availableApps.map(a => ({ value: a, label: a }))} />
       </div>
 
       {/* KPI Cards — uniform grid, all tiles the same size */}
@@ -265,18 +248,15 @@ const ExecutiveDashboard: React.FC = () => {
           tone={ragDist.RED > 0 ? 'danger' : ragDist.AMBER > 0 ? 'warning' : 'success'}
           onClick={() => navigate('/tracker?app=all&status=Active')}
         />
-        {appBreakdown.map(({ app, active, completed }) => (
-          <StatCard
-            key={app}
-            loading={isLoading}
-            icon={APP_ICONS[app]}
-            label={app}
-            value={active}
-            caption={`Active: ${active} · Done: ${completed}`}
-            tone="info"
-            onClick={() => navigate(`/tracker?app=${app.toLowerCase()}`)}
-          />
-        ))}
+        <StatCard
+          loading={isLoading}
+          icon={APP_ICONS['SAP']}
+          label="SAP Work Items"
+          value={activeProjects.length}
+          caption={`Active: ${activeProjects.length} · Done: ${completedCount}`}
+          tone="info"
+          onClick={() => navigate('/tracker')}
+        />
         <StatCard
           loading={isLoading}
           icon={<BugOutlined />}
@@ -337,8 +317,8 @@ const ExecutiveDashboard: React.FC = () => {
         <Row gutter={24}>
           <Col xs={24} lg={14}>
             <div className="chart-section-header">
-              <Text strong className="fs-14">Projects by Application & Health</Text>
-              <br /><Text type="secondary" className="fs-12">Cross-platform portfolio distribution</Text>
+              <Text strong className="fs-14">Projects by Phase &amp; Health</Text>
+              <br /><Text type="secondary" className="fs-12">Active SAP work items by implementation phase</Text>
             </div>
             <Space size={16} className="mb-12">
               {[['On Track', C.green], ['At Risk', C.amber], ['Critical', C.red]].map(([label, color]) => (
@@ -351,10 +331,10 @@ const ExecutiveDashboard: React.FC = () => {
             <ChartFrame
               loading={isLoading}
               height={280}
-              summary={`Projects by application and health. ${ragDist.GREEN} on track, ${ragDist.AMBER} at risk, ${ragDist.RED} critical across ${activeProjects.length} active projects.`}
+              summary={`Projects by phase and health. ${ragDist.GREEN} on track, ${ragDist.AMBER} at risk, ${ragDist.RED} critical across ${activeProjects.length} active projects.`}
             >
-              {appChartData.length > 0 ? (
-                <Column data={appChartData} xField="app" yField="count" colorField="status"
+              {phaseChartData.length > 0 ? (
+                <Column data={phaseChartData} xField="phase" yField="count" colorField="status"
                   stack={true} height={280} theme="classic"
                   scale={{ color: { domain: ['On Track', 'At Risk', 'Critical'], range: [C.green, C.amber, C.red] } }}
                   style={{ maxWidth: 60, radiusTopLeft: 4, radiusTopRight: 4 }}
@@ -363,7 +343,7 @@ const ExecutiveDashboard: React.FC = () => {
                   legend={false} />
               ) : (
                 <div className="chart-empty-placeholder">
-                  <EmptyState title="No data" />
+                  <EmptyState title="No active projects" />
                 </div>
               )}
             </ChartFrame>
@@ -371,12 +351,12 @@ const ExecutiveDashboard: React.FC = () => {
           <Col xs={24} lg={10}>
             <div className="chart-section-header">
               <Text strong className="fs-14">Health Distribution</Text>
-              <br /><Text type="secondary" className="fs-12">RAG status across all projects</Text>
+              <br /><Text type="secondary" className="fs-12">RAG status across all active projects</Text>
             </div>
             <ChartFrame
               loading={isLoading}
               height={280}
-              summary={`Health distribution donut. ${ragDist.GREEN} on track, ${ragDist.AMBER} at risk, ${ragDist.RED} critical.`}
+              summary={`Health distribution. ${ragDist.GREEN} on track, ${ragDist.AMBER} at risk, ${ragDist.RED} critical.`}
             >
             {ragDonutData.length > 0 ? (
               <div className="donut-chart-wrapper">
@@ -401,7 +381,7 @@ const ExecutiveDashboard: React.FC = () => {
               </div>
             ) : (
               <div className="chart-empty-placeholder">
-                <EmptyState title="No data" />
+                <EmptyState title="No active projects" />
               </div>
             )}
             </ChartFrame>
@@ -409,51 +389,35 @@ const ExecutiveDashboard: React.FC = () => {
         </Row>
       </div>
 
-      {/* Application Comparison */}
+      {/* SAP Analysis */}
       <div className="analytics-chart-card chart-card-mb">
-        <div className="chart-title">Application Comparison</div>
+        <div className="chart-title">SAP Portfolio Analysis</div>
         <Row gutter={24}>
-          <Col xs={24} lg={8}>
+          <Col xs={24} lg={14}>
             <div className="chart-section-header">
-              <Text strong className="fs-14">Progress by Application</Text>
-              <br /><Text type="secondary" className="fs-12">Average deployment % per platform</Text>
+              <Text strong className="fs-14">Items by SAP Module</Text>
+              <br /><Text type="secondary" className="fs-12">Active work items per functional area</Text>
             </div>
-            <ChartFrame loading={isLoading} height={200} summary={`Average deployment progress per application across ${appProgressData.length} platforms.`}>
-              {appProgressData.length > 0 ? (
-                <Bar data={appProgressData} xField="app" yField="progress"
-                  height={Math.max(180, appProgressData.length * 56)} theme="classic"
+            <ChartFrame loading={isLoading} height={220} summary={`Work items by SAP module across ${moduleBarData.length} functional areas.`}>
+              {moduleBarData.length > 0 ? (
+                <Bar data={moduleBarData} xField="module" yField="count"
+                  height={Math.max(200, moduleBarData.length * 40)} theme="classic"
                   style={{ fill: C.accent, radiusTopRight: 4, radiusBottomRight: 4 }}
                   axis={tokenAxisConfig()}
                   interaction={tokenChartInteraction}
-                  label={tokenChartLabel({ text: (d: any) => `${d.progress}%` })} legend={false} />
+                  label={tokenChartLabel({ text: 'count' })} legend={false} />
               ) : <EmptyState title="No data" />}
             </ChartFrame>
           </Col>
-          <Col xs={24} lg={8}>
-            <div className="chart-section-header">
-              <Text strong className="fs-14">Risk by Application</Text>
-              <br /><Text type="secondary" className="fs-12">Average risk per platform</Text>
-            </div>
-            <ChartFrame loading={isLoading} height={200} summary={`Average risk score per application across ${appRiskData.length} platforms.`}>
-              {appRiskData.length > 0 ? (
-                <Bar data={appRiskData} xField="app" yField="riskScore"
-                  height={Math.max(180, appRiskData.length * 56)} theme="classic"
-                  style={{ fill: C.red, radiusTopRight: 4, radiusBottomRight: 4 }}
-                  axis={tokenAxisConfig()}
-                  interaction={tokenChartInteraction}
-                  label={tokenChartLabel({ text: 'riskScore' })} legend={false} />
-              ) : <EmptyState title="No data" />}
-            </ChartFrame>
-          </Col>
-          <Col xs={24} lg={8}>
+          <Col xs={24} lg={10}>
             <div className="chart-section-header">
               <Text strong className="fs-14">Priority Distribution</Text>
-              <br /><Text type="secondary" className="fs-12">All active projects by priority</Text>
+              <br /><Text type="secondary" className="fs-12">Active projects by priority level</Text>
             </div>
-            <ChartFrame loading={isLoading} height={200} summary={`Priority distribution across ${priorityData.length} categories of active projects.`}>
-              {priorityData.length > 0 ? (
-                <Bar data={priorityData} xField="priority" yField="count"
-                  height={Math.max(180, priorityData.length * 48)} theme="classic"
+            <ChartFrame loading={isLoading} height={220} summary={`Priority distribution across ${priorityBarData.length} levels.`}>
+              {priorityBarData.length > 0 ? (
+                <Bar data={priorityBarData} xField="priority" yField="count"
+                  height={Math.max(200, priorityBarData.length * 48)} theme="classic"
                   style={{ fill: C.purple, radiusTopRight: 4, radiusBottomRight: 4 }}
                   axis={tokenAxisConfig()}
                   interaction={tokenChartInteraction}

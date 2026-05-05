@@ -38,8 +38,8 @@ export function useTransports() {
       }
       return items;
     },
-    staleTime: 5 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
   });
 }
 
@@ -56,7 +56,8 @@ export function useWorkItems() {
       }
       return items;
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 60 * 1000, // 1 min — reflects recent edits promptly
+    gcTime: 10 * 60 * 1000,
   });
 }
 
