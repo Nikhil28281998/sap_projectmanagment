@@ -4,88 +4,169 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Production deployment preparation (SAP BTP Cloud Foundry)
+Post-deployment feature hardening — app is live on SAP BTP Cloud Foundry.
 
 ## Current Goal
 
-- Configure HANA Cloud HDI container and XSUAA for BTP deployment
-- Execute MTA build and cf deploy to Cloud Foundry
+- Continuous quality improvements: analytics, AI accuracy, TR classification
+- User-facing: better dashboard insights, faster categorization, cleaner pipeline view
 
 ## Completed
 
+### Infrastructure & Deployment
 - [x] CDS data model (schema.cds) — WorkItems, TransportWorkItems, Milestones,
       Notifications, SyncLog, AppConfig
-- [x] CAP service layer (transport-service.cds + transport-service.js ~650 lines)
+- [x] CAP service layer (transport-service.cds + transport-service.js ~1500 lines)
 - [x] React frontend (React 18 + Ant Design 5 + TypeScript via Vite 5)
-- [x] AppShell with left nav, header, floating AI button (always accessible)
-- [x] HomeDashboard — KPI tiles, pipeline summary, work item table
-- [x] TransportPipeline — DEV/QAS/PRD columns with stuck/failed detection
-- [x] WorkItemList — table with drag-and-drop TR categorization
-- [x] WorkItemDetail — test progress card (circular progress + stacked bar),
-      milestones, linked TRs, SharePoint URL banner
-- [x] UnassignedTRs — view and categorize unlinked TRs
-- [x] Test tracking — 10 fields per work item, 5 methodology templates, RAG auto-escalation
-- [x] ReportBuilder — structured weekly email report (works without AI)
-- [x] AI integration — unified ai-client.js (Claude + ChatGPT), chat agent,
-      report polish, test risk analysis (rule-based)
-- [x] AIChatDrawer — right-side drawer with quick questions, context-aware
-- [x] SettingsPage — 3-step AI provider setup (choose → enter key → test)
-- [x] TRSearch tool
-- [x] Veeva CC number (IT-CC-****) tracking per transport
-- [x] SharePoint URL per work item
 - [x] XSUAA auth configuration (xs-security.json) for BTP
 - [x] MTA deployment descriptor (mta.yaml)
 - [x] SAP App Router (approuter/) configuration
-- [x] 12 seed work items with full test tracking data
-- [x] 45 seed transports, 30 milestones, 10 notifications, 8 sync logs
-- [x] Mocked RFC integration (rfc-client.js — mock in dev)
-- [x] Mocked SharePoint integration (sharepoint-client.js — mock in dev)
-- [x] Backend Jest tests
-- [x] Frontend Vitest tests
-- [x] Fiori Elements removed (session 9) — pure React architecture confirmed
+- [x] Deployed to SAP BTP Cloud Foundry — live in production
+
+### AI Integration (SAP AI Core — completed 2026-05)
+- [x] **AI is exclusively SAP AI Core via BTP Destination** — all Claude/Gemini/OpenAI/OpenRouter
+      support removed. No more API keys stored in AppConfig.
+- [x] `srv/lib/ai-client.js` — full rewrite to SAP AI Core only
+      - Three-strategy auth: executeHttpRequest (Cloud SDK) → getDestination + manual fetch → VCAP_SERVICES
+      - Deployment path: `/v2/inference/deployments/{id}/chat/completions?api-version=2025-01-01-preview`
+      - Body uses `max_completion_tokens` (required by GPT-5 and gpt-4.1 on AI Core)
+      - Factory reads `AI_DESTINATION_NAME` and `AI_CORE_DEPLOYMENT_ID` from AppConfig at runtime (no redeploy)
+- [x] `SettingsPage.tsx` — AI provider dropdown removed; replaced with SAP AI Core Integration card
+      (Destination Name + Deployment ID fields, Admin/SuperAdmin only)
+- [x] `AppConfig` seed — stores `AI_DESTINATION_NAME=Ai_Core` and `AI_CORE_DEPLOYMENT_ID=d8e31dc8207d4ea9`
+- [x] `mta.yaml` — removed all non-SAP-AI-Core destination entries; AI Core destination is
+      manual in BTP Cockpit (OAuth2ClientCredentials from AI Core service key)
+- [x] Context trimming in `_gatherAgentContext()`: active items get 7-field detail,
+      Done items get single-line summary — ~50% token reduction
+- [x] Report polish and weekly digest: max_tokens reduced 6000 → 3000
+
+### Work Item Management
+- [x] AppShell with left nav, header, floating AI chat button
+- [x] Multi-application support: SAP / Coupa / Commercial (module selector in sidebar)
+- [x] WorkItemList — typed tabs per application (SAP: Projects/Enhancements/Break-fix/etc.)
+- [x] WorkItemDetail — test progress card, milestones, linked TRs, SharePoint URL banner
+- [x] Break-fix / Request bucket added as work item type (BRK)
+- [x] Veeva CC number (IT-CC-****) tracking per transport
+- [x] SharePoint URL per work item
+- [x] Drag-and-drop TR categorization + bulk categorize
+- [x] Auto-link: SNOW/INC/CS ticket pattern matching TRs to work items
+      Bug fixed: O(n²) + double-update race condition corrected (2026-05)
+- [x] UnassignedTRs — view and categorize unlinked TRs
+
+### Dashboard & Analytics
+- [x] HomeDashboard — KPI tiles, pipeline summary, work item table
+- [x] DashboardPage — per-application analytics (SAP/Coupa/Commercial):
+      phase×health stacked bar, type donut, module bar, risk-by-module bar,
+      UAT status (Coupa), complexity breakdown, go-live table
+- [x] ExecutiveDashboard — cross-application portfolio view (go-live filter, app filter,
+      RAG distribution, portfolio health)
+- [x] Date range filter bug fixed: now inclusive on both ends (2026-05)
+- [x] Division-by-zero guard in moduleRiskData when count = 0 (2026-05)
+- [x] Transports KPI card now shows stuck/unassigned counts in caption (2026-05)
+- [x] Pipeline useMemo extended with `unassigned` and `stuck` counts (2026-05)
+
+### TransportPipeline
+- [x] DEV/QAS/PRD columns with stuck/failed detection
+- [x] Age column showing days since TR creation, with warning icon for stuck TRs (2026-05)
+- [x] Linked column (green link icon = assigned to work item; grey = needs categorization) (2026-05)
+- [x] Stuck TR row highlighting — amber background via `.tr-row-stuck` CSS (2026-05)
+- [x] Unassigned stat card added to summary row (2026-05)
+- [x] Stuck badge on system card headers when count > 0 (2026-05)
+- [x] Stuck TR definition corrected: Released TRs excluded (they're queued, not stuck) (2026-05)
+
+### WorkItemList Improvements
+- [x] Test completion % column added (progress bar + pass/fail/total tooltip) (2026-05)
+- [x] TR type column shows confidence badges: M=manually categorized, A=auto-linked via
+      ticket match, ?=keyword-inferred (unverified) (2026-05)
+- [x] TR type codes (PRJ/ENH/BRK/UPG/SUP/HYP) now correctly resolve to colors in
+      WORK_TYPE_MAP and WORK_TYPE_COLORS (previously showed grey for all TR types) (2026-05)
+
+### API / Hooks
+- [x] Pagination limits raised: transports 200→2000, work items 100→500 (2026-05)
+- [x] `useTransports` and `useWorkItems` now log a console.warn if results are truncated (2026-05)
+
+### Test & UAT Tracking
+- [x] 10 test tracking fields per work item (total, passed, failed, blocked, TBD, skipped,
+      completion %, UAT status, and more)
+- [x] 5 methodology templates (Waterfall, Agile, Hybrid, SAFe, Break-fix)
+- [x] RAG auto-escalation (GREEN → AMBER → RED) — never auto-downgrades
+
+### Reports & AI Features
+- [x] ReportBuilder — structured weekly email report (works without AI)
+- [x] AIChatDrawer — right-side drawer, context-aware using live project data
+- [x] AI polish: report polishing, test risk analysis
+- [x] Weekly digest generation
+
+### TR Parser
+- [x] `srv/lib/tr-parser.js` — full-format prefix match (HIGH confidence), SNOW-only (MEDIUM),
+      keyword-based suggestion (LOW confidence)
+- [x] `frontend/src/utils/tr-parser.ts` — client-side mirror with confidence-derivable logic
+
+### Seed Data
+- [x] 12+ seed work items with full test tracking data
+- [x] 45+ seed transports, 30 milestones, 10 notifications, 8 sync logs
+
+### Integrations
+- [x] RFC client (rfc-client.js) — mocked in dev, live via BTP Destination in prod
+- [x] SharePoint client (sharepoint-client.js) — mocked in dev, live via MS Graph in prod
+- [x] RFC auto-refresh scheduler (rfc-scheduler.js) — cron-based, configurable via AppConfig
 
 ## In Progress
 
-- [ ] BTP deployment — HANA Cloud setup and cf push
+- [ ] Create `gpt-4.1` deployment in SAP AI Launchpad and update Deployment ID in Settings
+      (current deployment uses `gpt-5-2025-08-07` — works but expensive due to reasoning tokens)
 
 ## Next Up
 
-- [ ] Provision HANA Cloud HDI container on BTP
-- [ ] Configure XSUAA service instance from xs-security.json
-- [ ] Configure SAP Cloud Connector for RFC live connectivity to on-premise SAP
-- [ ] Run `mbt build` and `cf deploy mta_archives/sap-project-mgmt_*.mtar`
-- [ ] Verify end-to-end in BTP environment (auth, RFC, SharePoint, AI)
-- [ ] Switch RFC client from mock to live SAP connection
+- [ ] Add `workTypeConfidence` column to schema (HIGH/MEDIUM/LOW) to persist classification
+      quality alongside TR records
+- [ ] Retroactive auto-matching: re-run classification on unassigned TRs when a new work
+      item is created with a matching SNOW ticket
+- [ ] Application isolation for TR Search tab (currently shows all SAP TRs regardless of
+      work item application)
+- [ ] Switch RFC client from mock to live SAP connection when Cloud Connector is ready
 
 ## Open Questions
 
-- Which BTP subaccount/org/space to deploy to?
-- RFC destination name in SAP Cloud Connector for on-premise S/4HANA
+- Will the team adopt the PRJ-CHG0098765 | description naming convention for all new TRs?
+  (High-confidence auto-classification depends on this prefix format)
+- RFC destination name in SAP Cloud Connector for on-premise S/4HANA (`S4HANA_RFC_DS4`)
 - SharePoint tenant details for live MS Graph API connection
-- Should AI provider default to Claude or remain user-configured?
 
 ## Architecture Decisions
 
-- React + Ant Design chosen over Fiori Elements (session 9) — full UX control
-  needed for complex dashboard; Fiori Elements too constrained for drag-and-drop
-  and custom pipeline visualization
-- Dual AI provider (Claude + ChatGPT) — enterprise flexibility; user stores
-  their own API key in AppConfig to avoid hardcoding keys in code
-- `this._e` instead of `this.entities` in transport-service.js — CDS runtime
-  stores entities under `_e` due to naming conflict; discovered and fixed in
-  early sessions
-- Reports always work without AI — structured output is the baseline;
-  AI polish is optional enhancement. Avoids dependency on external API availability
-- SQLite in dev / HANA in prod — zero-config local setup; CDS auto-creates
-  from schema on first deploy
-- RAG escalation-only (no auto-downgrade) — prevents misleading status improvements
-  that haven't been manually verified
+- **React + Ant Design chosen over Fiori Elements** (session 9) — full UX control needed
+  for complex dashboard; Fiori Elements too constrained for drag-and-drop and pipeline viz
+- **AI exclusively via SAP AI Core BTP Destination** (2026-05) — removed all third-party
+  AI providers (Claude/Gemini/OpenAI/OpenRouter). Enterprise-grade: no API keys in code,
+  auth fully managed by BTP Destination (OAuth2ClientCredentials from AI Core service key)
+- **`gpt-4.1` is the recommended model** for this app — not `gpt-5` (reasoning model,
+  consumes 10-20× tokens due to reasoning overhead, ~$0.30-0.50 per chat call).
+  `gpt-4.1` is cheaper, better at instruction following, and doesn't use reasoning tokens
+- **Resource group in BTP Destination additional properties** — `URL.headers.AI-Resource-Group`
+  header is injected by Cloud SDK automatically; not stored in AppConfig
+- **Three-strategy AI auth fallback** — ensures the app works in CF (Strategy 1: Cloud SDK),
+  on-prem-like environments (Strategy 2: getDestination + manual fetch), and direct VCAP
+  bindings (Strategy 3). All three must be preserved
+- **Context trimming** (2026-05) — active work items get full AI context detail; Done items
+  get single-line summaries only. ~50% token reduction with no loss of chat quality
+- **Stuck TR definition** (2026-05) — TR is stuck if: not in PRD AND not Released AND
+  created > 5 days ago. Released TRs awaiting import are in the queue, not stuck
+- **Pagination raised** (2026-05) — SAP production can have thousands of TRs;
+  2000/500 defaults cover realistic data volumes
+- **Dual CSV seed files use semicolons** (CDS convention) — never change to commas
+- **`this._e` instead of `this.entities`** — CDS runtime conflict discovered early;
+  all entity access in transport-service.js uses `this._e`
+- **RAG escalation-only** — prevents misleading status improvements that haven't been
+  manually verified
 
 ## Session Notes
 
-- Last session: AI dual-provider integration complete (2026-04-01)
-- App is feature-complete for the planned scope
-- BTP deployment is the primary remaining task
+- 2026-05-05: AI Core integration hardened, context trimming, token optimization,
+  dashboard bug fixes (date filter, division-by-zero), TR confidence badges,
+  test completion % column, TransportPipeline improvements (age, linked, stuck highlights),
+  pagination raised, auto-link bug fixed
+- 2026-04-01: AI dual-provider integration complete (now superseded — removed in 2026-05)
 - `npm run dev` (port 4004) + `cd frontend && npx vite --port 3000` to run locally
-- All test data available: 12 work items, 45 TRs, 30 milestones in seed CSVs
-- Do not use npx cds — use `node node_modules\@sap\cds-dk\bin\cds.js` directly
+- Do not use `npx cds` — use `node node_modules\@sap\cds-dk\bin\cds.js` directly
+- All test data in seed CSVs under `db/data/`
