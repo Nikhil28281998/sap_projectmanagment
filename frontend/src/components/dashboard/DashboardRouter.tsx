@@ -1,7 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { useModule } from '../../contexts/ModuleContext';
 import DashboardPage from './DashboardPage';
 
 /**
@@ -13,7 +12,6 @@ import DashboardPage from './DashboardPage';
  */
 const DashboardRouter: React.FC = () => {
   const { user } = useAuth();
-  const { activeModule } = useModule();
 
   const isAdmin = user?.isAdmin ?? false;
   const isExecutive = user?.isExecutive ?? false;
@@ -26,13 +24,7 @@ const DashboardRouter: React.FC = () => {
     return <Navigate to="/executive" replace />;
   }
 
-  // Module-specific dashboard — all handled by a single parameterized component
-  switch (activeModule) {
-    case 'coupa':      return <DashboardPage application="Coupa" />;
-    case 'commercial': return <DashboardPage application="Commercial" />;
-    case 'sap':
-    default:           return <DashboardPage application="SAP" />;
-  }
+  return <DashboardPage application="SAP" />;
 };
 
 export default DashboardRouter;

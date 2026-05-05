@@ -31,8 +31,6 @@ interface Digest {
 const APP_OPTIONS = [
   { value: 'ALL', label: '🌐 All Applications' },
   { value: 'SAP', label: '⚙️ SAP Project Management' },
-  { value: 'Coupa', label: '🛒 Coupa Project Management' },
-  { value: 'Commercial', label: '💊 Commercial Project Management' },
 ];
 
 const WeeklyDigestPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
@@ -42,9 +40,7 @@ const WeeklyDigestPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }
   const [digests, setDigests] = useState<Digest[]>([]);
   const [selectedDigest, setSelectedDigest] = useState<Digest | null>(null);
   const [viewTab, setViewTab] = useState<'preview' | 'text'>('preview');
-  const [appFilter, setAppFilter] = useState<string>(
-    activeModule === 'sap' ? 'SAP' : activeModule === 'coupa' ? 'Coupa' : 'Commercial'
-  );
+  const [appFilter, setAppFilter] = useState<string>('SAP');
 
   const loadDigests = async () => {
     setLoading(true);
@@ -95,7 +91,7 @@ const WeeklyDigestPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }
     }
   };
 
-  const appColor: Record<string, string> = { SAP: 'blue', Coupa: 'green', Commercial: 'purple', ALL: 'default' };
+  const appColor: Record<string, string> = { SAP: 'blue', ALL: 'default' };
 
   return (
     <div>

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-export type ModuleKey = 'sap' | 'coupa' | 'commercial';
+export type ModuleKey = 'sap';
 
 export interface ModuleDefinition {
   key: ModuleKey;
@@ -37,40 +37,6 @@ export const MODULE_DEFINITIONS: Record<ModuleKey, ModuleDefinition> = {
       workItem: 'Work Item',
     },
     phases: ['Planning', 'Development', 'Testing', 'Go-Live', 'Hypercare', 'Complete'],
-  },
-  coupa: {
-    key: 'coupa',
-    name: 'Coupa Project Management',
-    shortName: 'Coupa PM',
-    icon: '🛝',
-    color: '#0070d2',
-    description: 'Coupa Project Management — Implementation, Integration, Configuration & Enablement',
-    workItemTypes: ['Implementation', 'Integration', 'Configuration', 'Data Migration', 'Upgrade', 'Support', 'Optimization', 'Supplier Enablement'],
-    terminology: {
-      transport: 'Configuration Item',
-      pipeline: 'Deployment Pipeline',
-      system: 'Coupa Tenant',
-      environments: 'Sandbox → Staging → Production',
-      workItem: 'Deliverable',
-    },
-    phases: ['Design', 'Configure', 'Build', 'Test', 'Deploy', 'Optimize'],
-  },
-  commercial: {
-    key: 'commercial',
-    name: 'Commercial Project Management',
-    shortName: 'Commercial PM',
-    icon: '💊',
-    color: '#722ed1',
-    description: 'Commercial Project Management — Life Sciences Commercial Operations, Product Launches, Compliance & Market Access',
-    workItemTypes: ['Product Launch', 'Campaign', 'Compliance Initiative', 'Market Access', 'Field Force', 'MLR Review', 'Veeva Implementation', 'Analytics Project'],
-    terminology: {
-      transport: 'Deliverable',
-      pipeline: 'Delivery Pipeline',
-      system: 'Platform',
-      environments: 'Dev → Staging → Production',
-      workItem: 'Initiative',
-    },
-    phases: ['Planning', 'Pre-Launch', 'Execution', 'Monitoring', 'Close-Out'],
   },
 };
 

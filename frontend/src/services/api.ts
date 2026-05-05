@@ -4,7 +4,8 @@
  */
 
 import type {
-  Transport, WorkItem, Milestone, Notification, SyncLog, AppConfig,
+  Transport, WorkItem, Milestone, Risk, ActionItem, ProgressSnapshot,
+  Notification, SyncLog, AppConfig,
   ReportTemplate, WeeklyDigest, DashboardSummary, PipelineSummary, HealthStatus,
   ActionResult, BulkCategorizeResult, RefreshResult, TestStatusResult,
   AIChatResult, AIAnalyzeResult, AITemplateResult, AIDigestResult, AIRiskResult,
@@ -103,7 +104,7 @@ export const workItemApi = {
     const qs = buildODataQuery({ top: params?.top ?? 500, skip: params?.skip, filter: params?.filter, count: true });
     return request<ODataResponse<WorkItem> & { '@odata.count'?: number }>(`/WorkItems${qs}`);
   },
-  getById: (id: string) => request<WorkItem>(`/WorkItems(${id})?$expand=transports,milestones`),
+  getById: (id: string) => request<WorkItem>(`/WorkItems(${id})?$expand=transports,milestones,risks,actionItems,progressSnapshots`),
   create: (data: Partial<WorkItem>) =>
     request<WorkItem>('/WorkItems', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: Partial<WorkItem>) =>
@@ -316,6 +317,36 @@ export const templateApi = {
       method: 'POST',
       body: JSON.stringify({ id }),
     }),
+};
+
+// ─── Risk Register ───
+export const riskApi = {
+  getByWorkItem: (workItemId: string) =>
+    request<ODataResponse<Risk>>(`/Risks?$filter=workItem_ID eq '${workItemId}'&$orderby=riskScore desc`),
+  create: (data: Partial<Risk>) =>
+    request<Risk>('/Risks', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: Partial<Risk>) =>
+    request<Risk>(`/Risks(${id})`, { method: 'PATCH', body: JSON.stringify(data) }),
+  remove: (id: string) =>
+    request<void>(`/Risks(${id})`, { method: 'DELETE' }),
+};
+
+// ─── Action Items (Parking Lot) ───
+export const actionItemApi = {
+  getByWorkItem: (workItemId: string) =>
+    request<ODataResponse<ActionItem>>(`/ActionItems?$filter=workItem_ID eq '${workItemId}'&$orderby=dueDate asc`),
+  create: (data: Partial<ActionItem>) =>
+    request<ActionItem>('/ActionItems', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: Partial<ActionItem>) =>
+    request<ActionItem>(`/ActionItems(${id})`, { method: 'PATCH', body: JSON.stringify(data) }),
+  remove: (id: string) =>
+    request<void>(`/ActionItems(${id})`, { method: 'DELETE' }),
+};
+
+// ─── Progress Snapshots ───
+export const snapshotApi = {
+  getByWorkItem: (workItemId: string) =>
+    request<ODataResponse<ProgressSnapshot>>(`/ProgressSnapshots?$filter=workItem_ID eq '${workItemId}'&$orderby=snapshotDate asc&$top=90`),
 };
 
 // ─── Config ───

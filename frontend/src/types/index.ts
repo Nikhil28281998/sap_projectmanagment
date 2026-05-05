@@ -68,6 +68,9 @@ export interface WorkItem {
   testCompletionPct?: number | null;
   transports?: Transport[];
   milestones?: Milestone[];
+  risks?: Risk[];
+  actionItems?: ActionItem[];
+  progressSnapshots?: ProgressSnapshot[];
 }
 
 // ─── Milestone Types ───
@@ -282,4 +285,46 @@ export interface AutoDetectResult extends ActionResult {
 
 export interface AutoLinkResult extends ActionResult {
   linked: number;
+}
+
+// ─── Risk Register ───
+export interface Risk {
+  ID: string;
+  workItem_ID: string;
+  description: string;
+  likelihood: 'Low' | 'Medium' | 'High';
+  impact: 'Low' | 'Medium' | 'High';
+  riskScore: number;
+  owner: string;
+  mitigation: string;
+  status: 'Open' | 'Mitigated' | 'Accepted' | 'Closed';
+  dueDate: string | null;
+  createdAt?: string;
+  modifiedAt?: string;
+}
+
+// ─── Action Items (Parking Lot) ───
+export interface ActionItem {
+  ID: string;
+  workItem_ID: string;
+  description: string;
+  owner: string;
+  dueDate: string | null;
+  status: 'Open' | 'In Progress' | 'Done' | 'Cancelled';
+  priority: 'Low' | 'Medium' | 'High';
+  source: string;
+  createdAt?: string;
+  modifiedAt?: string;
+}
+
+// ─── Progress Snapshots (trend data) ───
+export interface ProgressSnapshot {
+  ID: string;
+  workItem_ID: string;
+  snapshotDate: string;
+  deploymentPct: number;
+  testPassRate: number;
+  ragStatus: string;
+  testPassed: number;
+  testTotal: number;
 }

@@ -824,8 +824,6 @@
 .w-80pct-center { width: 80%; margin: 0 auto; }
 .border-none { border: none; }
 .steps-container { max-width: 700px; margin: 0 auto; padding: 16px 0; }
-.coupa-banner { background: linear-gradient(135deg, #0070d2 0%, #004990 100%); }
-.commercial-banner { background: linear-gradient(135deg, #722ed1 0%, #531dab 100%); }
 .card-success-light { background: #f6ffed; border: 1px solid #b7eb8f; }
 .text-green-light { color: #b7eb8f; }
 

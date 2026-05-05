@@ -191,9 +191,7 @@ const AIDocumentAnalysis: React.FC<Props> = ({ open, defaultApp, onClose, onCrea
         if      (name.includes('veeva') || name.includes('change control')) setDocType('veeva');
         else if (name.includes('email') || name.includes('.msg'))           setDocType('email');
         else                                                                  setDocType('sharepoint');
-        if      (name.includes('sap') || name.includes('fico'))  setDocApp('SAP');
-        else if (name.includes('coupa'))                          setDocApp('Coupa');
-        else if (name.includes('veeva') || name.includes('pharma')) setDocApp('Commercial');
+        setDocApp('SAP');
         setSpBrowseOpen(false);
         antMessage.success(`Loaded: ${doc.name}`);
       } else {
@@ -243,9 +241,7 @@ const AIDocumentAnalysis: React.FC<Props> = ({ open, defaultApp, onClose, onCrea
               <Text strong style={{ display: 'block', marginBottom: 6 }}>Target Application</Text>
               <Select value={docApp} onChange={setDocApp} style={{ width: '100%' }}
                 options={[
-                  { value: 'SAP',        label: '⚙️ SAP' },
-                  { value: 'Coupa',      label: '🛒 Coupa' },
-                  { value: 'Commercial', label: '💊 Commercial' },
+                  { value: 'SAP', label: '⚙️ SAP' },
                 ]} />
             </Col>
           </Row>

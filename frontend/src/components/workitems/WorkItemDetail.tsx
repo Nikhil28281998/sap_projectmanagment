@@ -3,19 +3,20 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Card, Row, Col, Tag, Descriptions, Timeline, Table, Button, Space,
   Typography, Progress, Tooltip, Divider, Spin, Empty, Modal, Input, InputNumber, Select, message,
-  DatePicker, Popconfirm
+  DatePicker, Popconfirm, Badge
 } from 'antd';
 import {
   ArrowLeftOutlined, CheckCircleOutlined, ClockCircleOutlined,
   ExclamationCircleOutlined, EditOutlined, SyncOutlined, LinkOutlined,
   FileExcelOutlined, ExperimentOutlined, BarChartOutlined,
-  PlusOutlined, DeleteOutlined
+  PlusOutlined, DeleteOutlined, AlertOutlined, UnorderedListOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useWorkItem, useTransports, useMethodologies, useDeleteWorkItem, useChangeWorkItemStatus } from '../../hooks/useData';
 import { useAuth } from '../../contexts/AuthContext';
 import { calculateRAG, daysFromNow, WORK_TYPE_MAP, WORK_TYPE_COLORS } from '../../utils/tr-parser';
-import { workItemApi, testStatusApi, milestoneApi } from '../../services/api';
+import { workItemApi, testStatusApi, milestoneApi, riskApi, actionItemApi } from '../../services/api';
+import type { Risk, ActionItem } from '../../types';
 import { useQueryClient } from '@tanstack/react-query';
 
 const { Title, Text, Paragraph } = Typography;
@@ -44,6 +45,14 @@ const WorkItemDetail: React.FC = () => {
   const [newMilestone, setNewMilestone] = useState({ milestoneName: '', milestoneDate: '' });
   // Milestone edit state (kept with other hooks to avoid React #310 on conditional-render paths)
   const [editMs, setEditMs] = useState<any>(null);
+  // Risk Register state
+  const [riskModalOpen, setRiskModalOpen] = useState(false);
+  const [editRisk, setEditRisk] = useState<Partial<Risk> | null>(null);
+  const [riskSaving, setRiskSaving] = useState(false);
+  // Action Items state
+  const [actionModalOpen, setActionModalOpen] = useState(false);
+  const [editAction, setEditAction] = useState<Partial<ActionItem> | null>(null);
+  const [actionSaving, setActionSaving] = useState(false);
 
   if (wiLoading) {
     return (
@@ -270,6 +279,78 @@ const WorkItemDetail: React.FC = () => {
     } catch {
       message.error('Failed to update milestone');
     }
+  };
+
+  // ── Risk CRUD ──
+  const SCORE_MAP: Record<string, number> = { Low: 1, Medium: 2, High: 3 };
+  const computeRiskScore = (likelihood: string, impact: string) =>
+    (SCORE_MAP[likelihood] || 1) * (SCORE_MAP[impact] || 1);
+
+  const openAddRisk = () => {
+    setEditRisk({ workItem_ID: workItem.ID, likelihood: 'Medium', impact: 'Medium', status: 'Open', riskScore: 4 });
+    setRiskModalOpen(true);
+  };
+
+  const openEditRisk = (r: Risk) => { setEditRisk({ ...r }); setRiskModalOpen(true); };
+
+  const handleSaveRisk = async () => {
+    if (!editRisk?.description?.trim()) { message.warning('Description is required'); return; }
+    setRiskSaving(true);
+    try {
+      const score = computeRiskScore(editRisk.likelihood || 'Medium', editRisk.impact || 'Medium');
+      const payload = { ...editRisk, riskScore: score };
+      if (editRisk.ID) {
+        await riskApi.update(editRisk.ID, payload);
+      } else {
+        await riskApi.create({ ...payload, workItem_ID: workItem.ID });
+      }
+      message.success(editRisk.ID ? 'Risk updated' : 'Risk added');
+      setRiskModalOpen(false);
+      setEditRisk(null);
+      refetchWI();
+    } catch { message.error('Failed to save risk'); }
+    finally { setRiskSaving(false); }
+  };
+
+  const handleDeleteRisk = async (id: string) => {
+    try {
+      await riskApi.remove(id);
+      message.success('Risk removed');
+      refetchWI();
+    } catch { message.error('Failed to delete risk'); }
+  };
+
+  // ── Action Item CRUD ──
+  const openAddAction = () => {
+    setEditAction({ workItem_ID: workItem.ID, status: 'Open', priority: 'Medium' });
+    setActionModalOpen(true);
+  };
+
+  const openEditAction = (a: ActionItem) => { setEditAction({ ...a }); setActionModalOpen(true); };
+
+  const handleSaveAction = async () => {
+    if (!editAction?.description?.trim()) { message.warning('Description is required'); return; }
+    setActionSaving(true);
+    try {
+      if (editAction.ID) {
+        await actionItemApi.update(editAction.ID, editAction);
+      } else {
+        await actionItemApi.create({ ...editAction, workItem_ID: workItem.ID });
+      }
+      message.success(editAction.ID ? 'Action item updated' : 'Action item added');
+      setActionModalOpen(false);
+      setEditAction(null);
+      refetchWI();
+    } catch { message.error('Failed to save action item'); }
+    finally { setActionSaving(false); }
+  };
+
+  const handleDeleteAction = async (id: string) => {
+    try {
+      await actionItemApi.remove(id);
+      message.success('Action item removed');
+      refetchWI();
+    } catch { message.error('Failed to delete action item'); }
   };
 
   // Build methodology options from backend + empty
@@ -714,6 +795,283 @@ const WorkItemDetail: React.FC = () => {
           </Card>
         </Col>
       </Row>
+
+      {/* ── Risk Register ── */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col xs={24} lg={12}>
+          <Card
+            title={
+              <Space>
+                <AlertOutlined />
+                Risk Register
+                <Badge count={(workItem.risks || []).filter((r: Risk) => r.status === 'Open').length} color="red" />
+              </Space>
+            }
+            size="small"
+            extra={canWrite && (
+              <Button type="link" size="small" icon={<PlusOutlined />} onClick={openAddRisk}>Add</Button>
+            )}
+          >
+            <Table
+              dataSource={workItem.risks || []}
+              rowKey="ID"
+              size="small"
+              pagination={false}
+              locale={{ emptyText: <Empty description="No risks logged" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+              columns={[
+                {
+                  title: 'Description',
+                  dataIndex: 'description',
+                  key: 'desc',
+                  ellipsis: true,
+                },
+                {
+                  title: 'L×I',
+                  key: 'score',
+                  width: 60,
+                  render: (_: any, r: Risk) => {
+                    const score = r.riskScore || computeRiskScore(r.likelihood, r.impact);
+                    const color = score >= 6 ? 'red' : score >= 3 ? 'orange' : 'green';
+                    return <Tag color={color}>{score}</Tag>;
+                  },
+                },
+                {
+                  title: 'Status',
+                  dataIndex: 'status',
+                  key: 'status',
+                  width: 90,
+                  render: (s: string) => {
+                    const colors: Record<string, string> = { Open: 'red', Mitigated: 'blue', Accepted: 'orange', Closed: 'green' };
+                    return <Tag color={colors[s] || 'default'}>{s}</Tag>;
+                  },
+                },
+                {
+                  title: 'Owner',
+                  dataIndex: 'owner',
+                  key: 'owner',
+                  width: 110,
+                  ellipsis: true,
+                  render: (v: string) => v || '—',
+                },
+                {
+                  title: '',
+                  key: 'actions',
+                  width: 64,
+                  render: (_: any, r: Risk) => canWrite ? (
+                    <Space size={0}>
+                      <Button type="text" size="small" icon={<EditOutlined />} onClick={() => openEditRisk(r)} />
+                      <Popconfirm title="Delete risk?" onConfirm={() => handleDeleteRisk(r.ID)} okText="Delete" okButtonProps={{ danger: true }}>
+                        <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                      </Popconfirm>
+                    </Space>
+                  ) : null,
+                },
+              ]}
+            />
+          </Card>
+        </Col>
+
+        {/* ── Action Items (Parking Lot) ── */}
+        <Col xs={24} lg={12}>
+          <Card
+            title={
+              <Space>
+                <UnorderedListOutlined />
+                Action Items
+                <Badge count={(workItem.actionItems || []).filter((a: ActionItem) => a.status === 'Open' || a.status === 'In Progress').length} color="blue" />
+              </Space>
+            }
+            size="small"
+            extra={canWrite && (
+              <Button type="link" size="small" icon={<PlusOutlined />} onClick={openAddAction}>Add</Button>
+            )}
+          >
+            <Table
+              dataSource={workItem.actionItems || []}
+              rowKey="ID"
+              size="small"
+              pagination={false}
+              locale={{ emptyText: <Empty description="No action items" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+              columns={[
+                {
+                  title: 'Description',
+                  dataIndex: 'description',
+                  key: 'desc',
+                  ellipsis: true,
+                },
+                {
+                  title: 'Priority',
+                  dataIndex: 'priority',
+                  key: 'priority',
+                  width: 75,
+                  render: (p: string) => {
+                    const colors: Record<string, string> = { High: 'red', Medium: 'orange', Low: 'blue' };
+                    return <Tag color={colors[p] || 'default'}>{p}</Tag>;
+                  },
+                },
+                {
+                  title: 'Status',
+                  dataIndex: 'status',
+                  key: 'status',
+                  width: 95,
+                  render: (s: string) => {
+                    const colors: Record<string, string> = { Open: 'default', 'In Progress': 'processing', Done: 'success', Cancelled: 'error' };
+                    return <Tag color={colors[s] || 'default'}>{s}</Tag>;
+                  },
+                },
+                {
+                  title: 'Due',
+                  dataIndex: 'dueDate',
+                  key: 'due',
+                  width: 90,
+                  render: (d: string | null) => {
+                    if (!d) return '—';
+                    const overdue = daysFromNow(new Date(d)) < 0;
+                    return <Text type={overdue ? 'danger' : undefined}>{new Date(d).toLocaleDateString()}</Text>;
+                  },
+                },
+                {
+                  title: '',
+                  key: 'actions',
+                  width: 64,
+                  render: (_: any, a: ActionItem) => canWrite ? (
+                    <Space size={0}>
+                      <Button type="text" size="small" icon={<EditOutlined />} onClick={() => openEditAction(a)} />
+                      <Popconfirm title="Delete action item?" onConfirm={() => handleDeleteAction(a.ID)} okText="Delete" okButtonProps={{ danger: true }}>
+                        <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                      </Popconfirm>
+                    </Space>
+                  ) : null,
+                },
+              ]}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Risk Register Modal */}
+      <Modal
+        title={editRisk?.ID ? 'Edit Risk' : 'Add Risk'}
+        open={riskModalOpen}
+        onOk={handleSaveRisk}
+        confirmLoading={riskSaving}
+        onCancel={() => { setRiskModalOpen(false); setEditRisk(null); }}
+        okText="Save"
+        width={520}
+      >
+        {editRisk && (
+          <Space direction="vertical" className="w-full" size="small">
+            <div>
+              <Text strong className="d-block mb-4">Description *</Text>
+              <Input.TextArea rows={3} value={editRisk.description || ''}
+                onChange={(e) => setEditRisk({ ...editRisk, description: e.target.value })}
+                placeholder="Describe the risk..." />
+            </div>
+            <Row gutter={12}>
+              <Col span={12}>
+                <Text strong className="d-block mb-4">Likelihood</Text>
+                <Select className="w-full" value={editRisk.likelihood || 'Medium'}
+                  onChange={(v) => setEditRisk({ ...editRisk, likelihood: v as Risk['likelihood'] })}
+                  options={[{ value: 'Low', label: 'Low' }, { value: 'Medium', label: 'Medium' }, { value: 'High', label: 'High' }]} />
+              </Col>
+              <Col span={12}>
+                <Text strong className="d-block mb-4">Impact</Text>
+                <Select className="w-full" value={editRisk.impact || 'Medium'}
+                  onChange={(v) => setEditRisk({ ...editRisk, impact: v as Risk['impact'] })}
+                  options={[{ value: 'Low', label: 'Low' }, { value: 'Medium', label: 'Medium' }, { value: 'High', label: 'High' }]} />
+              </Col>
+            </Row>
+            <Row gutter={12}>
+              <Col span={12}>
+                <Text strong className="d-block mb-4">Status</Text>
+                <Select className="w-full" value={editRisk.status || 'Open'}
+                  onChange={(v) => setEditRisk({ ...editRisk, status: v as Risk['status'] })}
+                  options={[
+                    { value: 'Open', label: 'Open' },
+                    { value: 'Mitigated', label: 'Mitigated' },
+                    { value: 'Accepted', label: 'Accepted' },
+                    { value: 'Closed', label: 'Closed' },
+                  ]} />
+              </Col>
+              <Col span={12}>
+                <Text strong className="d-block mb-4">Target Date</Text>
+                <DatePicker className="w-full" format="YYYY-MM-DD"
+                  value={editRisk.dueDate ? dayjs(editRisk.dueDate) : null}
+                  onChange={(d) => setEditRisk({ ...editRisk, dueDate: d ? d.format('YYYY-MM-DD') : null })} />
+              </Col>
+            </Row>
+            <div>
+              <Text strong className="d-block mb-4">Owner</Text>
+              <Input value={editRisk.owner || ''} placeholder="Risk owner name"
+                onChange={(e) => setEditRisk({ ...editRisk, owner: e.target.value })} />
+            </div>
+            <div>
+              <Text strong className="d-block mb-4">Mitigation Plan</Text>
+              <Input.TextArea rows={2} value={editRisk.mitigation || ''} placeholder="How will this be mitigated?"
+                onChange={(e) => setEditRisk({ ...editRisk, mitigation: e.target.value })} />
+            </div>
+          </Space>
+        )}
+      </Modal>
+
+      {/* Action Item Modal */}
+      <Modal
+        title={editAction?.ID ? 'Edit Action Item' : 'Add Action Item'}
+        open={actionModalOpen}
+        onOk={handleSaveAction}
+        confirmLoading={actionSaving}
+        onCancel={() => { setActionModalOpen(false); setEditAction(null); }}
+        okText="Save"
+        width={480}
+      >
+        {editAction && (
+          <Space direction="vertical" className="w-full" size="small">
+            <div>
+              <Text strong className="d-block mb-4">Description *</Text>
+              <Input.TextArea rows={3} value={editAction.description || ''}
+                onChange={(e) => setEditAction({ ...editAction, description: e.target.value })}
+                placeholder="Describe the action item..." />
+            </div>
+            <Row gutter={12}>
+              <Col span={12}>
+                <Text strong className="d-block mb-4">Priority</Text>
+                <Select className="w-full" value={editAction.priority || 'Medium'}
+                  onChange={(v) => setEditAction({ ...editAction, priority: v as ActionItem['priority'] })}
+                  options={[{ value: 'Low', label: 'Low' }, { value: 'Medium', label: 'Medium' }, { value: 'High', label: 'High' }]} />
+              </Col>
+              <Col span={12}>
+                <Text strong className="d-block mb-4">Status</Text>
+                <Select className="w-full" value={editAction.status || 'Open'}
+                  onChange={(v) => setEditAction({ ...editAction, status: v as ActionItem['status'] })}
+                  options={[
+                    { value: 'Open', label: 'Open' },
+                    { value: 'In Progress', label: 'In Progress' },
+                    { value: 'Done', label: 'Done' },
+                    { value: 'Cancelled', label: 'Cancelled' },
+                  ]} />
+              </Col>
+            </Row>
+            <Row gutter={12}>
+              <Col span={12}>
+                <Text strong className="d-block mb-4">Owner</Text>
+                <Input value={editAction.owner || ''} placeholder="Owner name"
+                  onChange={(e) => setEditAction({ ...editAction, owner: e.target.value })} />
+              </Col>
+              <Col span={12}>
+                <Text strong className="d-block mb-4">Due Date</Text>
+                <DatePicker className="w-full" format="YYYY-MM-DD"
+                  value={editAction.dueDate ? dayjs(editAction.dueDate) : null}
+                  onChange={(d) => setEditAction({ ...editAction, dueDate: d ? d.format('YYYY-MM-DD') : null })} />
+              </Col>
+            </Row>
+            <div>
+              <Text strong className="d-block mb-4">Source</Text>
+              <Input value={editAction.source || ''} placeholder="e.g., Steering Committee 2026-05-01"
+                onChange={(e) => setEditAction({ ...editAction, source: e.target.value })} />
+            </div>
+          </Space>
+        )}
+      </Modal>
 
       {/* Veeva CC Modal */}
       <Modal

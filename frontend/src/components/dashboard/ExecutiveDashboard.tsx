@@ -4,7 +4,7 @@ import {
   DatePicker, Button, Table, Tag, Progress
 } from 'antd';
 import {
-  ApartmentOutlined, ShoppingCartOutlined, MedicineBoxOutlined,
+  ApartmentOutlined,
   CheckCircleOutlined, TrophyOutlined, WarningOutlined,
   BugOutlined, DeploymentUnitOutlined
 } from '@ant-design/icons';
@@ -31,9 +31,9 @@ const C = {
   purple: '#722ed1',
 };
 
-const APP_COLORS: Record<string, string> = { SAP: C.accent, Coupa: C.orange, Commercial: C.purple };
+const APP_COLORS: Record<string, string> = { SAP: C.accent };
 const APP_ICONS: Record<string, React.ReactNode> = {
-  SAP: <ApartmentOutlined />, Coupa: <ShoppingCartOutlined />, Commercial: <MedicineBoxOutlined />,
+  SAP: <ApartmentOutlined />,
 };
 
 function getRAG(wi: WorkItem): string {
@@ -109,7 +109,7 @@ const ExecutiveDashboard: React.FC = () => {
 
   // Chart: By Application & Health
   const appChartData = useMemo(() => {
-    const apps = ['SAP', 'Coupa', 'Commercial'];
+    const apps = ['SAP'];
     const data: { app: string; count: number; status: string }[] = [];
     for (const app of apps) {
       const appItems = activeProjects.filter((wi: WorkItem) => wi.application === app);
@@ -132,7 +132,7 @@ const ExecutiveDashboard: React.FC = () => {
 
   // Bar: Progress by App
   const appProgressData = useMemo(() => {
-    return ['SAP', 'Coupa', 'Commercial'].map(app => {
+    return ['SAP'].map(app => {
       const items = activeProjects.filter((wi: WorkItem) => wi.application === app);
       const avg = items.length > 0 ? Math.round(items.reduce((s: number, w: any) => s + (w.deploymentPct || 0), 0) / items.length) : 0;
       return { app, progress: avg };
@@ -141,7 +141,7 @@ const ExecutiveDashboard: React.FC = () => {
 
   // Bar: Risk by App
   const appRiskData = useMemo(() => {
-    return ['SAP', 'Coupa', 'Commercial'].map(app => {
+    return ['SAP'].map(app => {
       const items = activeProjects.filter((wi: WorkItem) => wi.application === app);
       const avg = items.length > 0 ? Math.round(items.reduce((s: number, w: any) => s + (w.riskScore || 0), 0) / items.length) : 0;
       return { app, riskScore: avg };
@@ -150,7 +150,7 @@ const ExecutiveDashboard: React.FC = () => {
 
   // Per-app counts
   const appBreakdown = useMemo(() => {
-    return ['SAP', 'Coupa', 'Commercial'].map(app => {
+    return ['SAP'].map(app => {
       const items = activeProjects.filter((wi: WorkItem) => wi.application === app);
       const completed = workItems.filter((wi: WorkItem) => wi.application === app && ['Complete', 'Completed', 'Done'].includes(wi.status)).length;
       return { app, active: items.length, completed, total: items.length + completed };
@@ -164,7 +164,7 @@ const ExecutiveDashboard: React.FC = () => {
     return Object.entries(pr).map(([priority, count]) => ({ priority, count }));
   }, [activeProjects]);
 
-  const availableApps = ['SAP', 'Coupa', 'Commercial'].filter(a => allowedApps.includes(a));
+  const availableApps = ['SAP'].filter(a => allowedApps.includes(a));
 
   // Project table columns
   const tableCols = [

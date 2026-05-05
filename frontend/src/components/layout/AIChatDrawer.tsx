@@ -73,7 +73,7 @@ const INITIAL_MESSAGE: ChatMessage = {
 
 const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ open, onClose }) => {
   const { activeModule } = useModule();
-  const defaultApp = activeModule === 'sap' ? 'SAP' : activeModule === 'coupa' ? 'Coupa' : 'Commercial';
+  const defaultApp = 'SAP';
 
   const [messages,     setMessages]     = useState<ChatMessage[]>([INITIAL_MESSAGE]);
   const [input,        setInput]        = useState('');

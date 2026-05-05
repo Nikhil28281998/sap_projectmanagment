@@ -1,19 +1,19 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  Layout, Menu, Button, Badge, Space, Typography, Tooltip, Avatar, Dropdown, Tag, Select
+  Layout, Menu, Button, Badge, Space, Typography, Tooltip, Avatar, Dropdown, Tag
 } from 'antd';
 import {
   HomeOutlined, DashboardOutlined, ProjectOutlined,
   SettingOutlined, FileTextOutlined,
   BellOutlined, ReloadOutlined, WarningOutlined,
   AppstoreOutlined, RobotOutlined, TeamOutlined,
-  ShoppingCartOutlined, MedicineBoxOutlined, ApartmentOutlined,
-  FundProjectionScreenOutlined, LogoutOutlined, SwapOutlined, MenuOutlined
+  ApartmentOutlined,
+  FundProjectionScreenOutlined, LogoutOutlined, MenuOutlined
 } from '@ant-design/icons';
 import { useNotifications, useRefreshTransports } from '../../hooks/useData';
 import { useAuth } from '../../contexts/AuthContext';
-import { useModule, MODULE_DEFINITIONS, ModuleKey } from '../../contexts/ModuleContext';
+import { useModule, ModuleKey } from '../../contexts/ModuleContext';
 import AIChatDrawer from './AIChatDrawer';
 import NotificationDrawer from './NotificationDrawer';
 
@@ -22,8 +22,6 @@ const { Text } = Typography;
 
 const APP_ICONS: Record<ModuleKey, React.ReactNode> = {
   sap: <ApartmentOutlined />,
-  coupa: <ShoppingCartOutlined />,
-  commercial: <MedicineBoxOutlined />,
 };
 
 const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -35,7 +33,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { data: notifications = [] } = useNotifications();
   const refreshMutation = useRefreshTransports();
   const { user, canWrite, canConfigure, allowedApps } = useAuth();
-  const { activeModule, setActiveModule, moduleDef } = useModule();
+  const { activeModule, moduleDef } = useModule();
 
   const isAdmin = user?.isAdmin ?? false;
   const isExecutive = user?.isExecutive ?? false;
@@ -49,17 +47,6 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     : user?.isExecutive ? { color: '#87d068', text: 'Executive' }
     : { color: '#108ee9', text: 'Developer' };
 
-  // Determine which apps the user can access
-  const availableApps = useMemo(() => {
-    const appKeys: ModuleKey[] = ['sap', 'coupa', 'commercial'];
-    return appKeys.filter((k) =>
-      allowedApps.includes(k.charAt(0).toUpperCase() + k.slice(1)) ||
-      allowedApps.includes(k.toUpperCase()) ||
-      allowedApps.includes(MODULE_DEFINITIONS[k].shortName)
-    );
-  }, [allowedApps]);
-
-  const hasMultipleApps = availableApps.length > 1;
   const isSAP = activeModule === 'sap';
 
   // Build menu items — no more Applications submenu (moved to sidebar header)
@@ -127,11 +114,6 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     navigate(key);
   };
 
-  const handleAppSwitch = (appKey: ModuleKey) => {
-    setActiveModule(appKey);
-    // Stay on current page — just switch context (data re-filters automatically)
-  };
-
   return (
     <Layout className="app-layout">
       {/* §1 skip-links: Skip to main content for keyboard users */}
@@ -146,9 +128,9 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         width={220}
         className="app-sider"
       >
-        {/* Sidebar header — logo + app switcher */}
+        {/* Sidebar header — logo */}
         <div className={`sider-header ${collapsed ? 'sider-header-collapsed' : 'sider-header-expanded'}`}>
-          <div className={`sider-brand ${hasMultipleApps && !collapsed ? 'mb-8' : 'mb-0'}`}>
+          <div className="sider-brand mb-0">
             <AppstoreOutlined className="sider-brand-icon" style={{ color: moduleDef.color }} />
             {!collapsed && (
               <Text strong className="sider-brand-text">
@@ -156,41 +138,6 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               </Text>
             )}
           </div>
-          {/* App switcher — only show for multi-app users */}
-          {hasMultipleApps && !collapsed && (
-            <Select
-              value={activeModule}
-              onChange={handleAppSwitch}
-              className="w-full"
-              size="small"
-              suffixIcon={<SwapOutlined />}
-              options={availableApps.map((k) => ({
-                value: k,
-                label: (
-                  <Space size={4}>
-                    {APP_ICONS[k]}
-                    <span className="module-tag-sm">{MODULE_DEFINITIONS[k].shortName}</span>
-                  </Space>
-                ),
-              }))}
-            />
-          )}
-          {hasMultipleApps && collapsed && (
-            <Tooltip title={`Switch app (current: ${moduleDef.shortName})`} placement="right">
-              <Button
-                size="small"
-                type="text"
-                icon={<SwapOutlined />}
-                className="sider-cycle-btn"
-                onClick={() => {
-                  // Cycle through apps
-                  const idx = availableApps.indexOf(activeModule);
-                  const next = availableApps[(idx + 1) % availableApps.length];
-                  handleAppSwitch(next);
-                }}
-              />
-            </Tooltip>
-          )}
         </div>
         <Menu
           mode="inline"

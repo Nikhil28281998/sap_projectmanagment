@@ -13,7 +13,7 @@ import { useGenerateReport, useWorkItems, useReportTemplates } from '../../hooks
 import { reportApi } from '../../services/api';
 import {
   weeklyStatusTemplate, executiveSummaryTemplate, goLiveReadinessTemplate,
-  coupaWeeklyTemplate, commercialWeeklyTemplate, steeringCommitteeTemplate,
+  steeringCommitteeTemplate,
   getEmailSubject, TEMPLATES,
   type ReportData, type ProjectData,
 } from '../../utils/report-templates';
@@ -155,12 +155,6 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
       const project = reportData.projects[0];
       if (!project) { message.error('No project data available'); return; }
       html = goLiveReadinessTemplate(reportData, project);
-    } else if (selectedTemplate === 'coupa-weekly') {
-      const project = selectedProject ? reportData.projects[0] : null;
-      html = coupaWeeklyTemplate(reportData, project);
-    } else if (selectedTemplate === 'commercial-weekly') {
-      const project = selectedProject ? reportData.projects[0] : null;
-      html = commercialWeeklyTemplate(reportData, project);
     } else if (selectedTemplate === 'steering-committee') {
       html = steeringCommitteeTemplate(reportData);
     }
@@ -257,6 +251,26 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
     a.download = `${emailSubject.replace(/[^a-zA-Z0-9 -]/g, '')}.html`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadEml = () => {
+    if (!renderedHtml) return;
+    const subject = emailSubject || 'Weekly Status Report';
+    const emlContent = [
+      `Subject: ${subject}`,
+      'MIME-Version: 1.0',
+      'Content-Type: text/html; charset=UTF-8',
+      '',
+      renderedHtml,
+    ].join('\r\n');
+    const blob = new Blob([emlContent], { type: 'message/rfc822' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${subject.replace(/[^a-zA-Z0-9 -]/g, '')}.eml`;
+    a.click();
+    URL.revokeObjectURL(url);
+    message.success('Downloaded — double-click the .eml file to open in Outlook ready to send');
   };
 
   const handleExportExcel = () => {
@@ -483,14 +497,14 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
               Copy HTML
             </Button>
           </Tooltip>
-          <Tooltip title="Copies HTML + opens new email with subject pre-filled">
-            <Button icon={<MailOutlined />} onClick={handleOpenOutlook}>
-              Open in Outlook
+          <Tooltip title="Download as .eml — double-click to open in Outlook with subject pre-filled, ready to send">
+            <Button icon={<MailOutlined />} onClick={handleDownloadEml} type="primary">
+              Open in Outlook (.eml)
             </Button>
           </Tooltip>
           <Tooltip title="Send email directly via Microsoft Graph API (requires Outlook config in Settings)">
-            <Button type="primary" icon={<MailOutlined />} onClick={() => setSendModalOpen(true)}>
-              Send via Email
+            <Button icon={<MailOutlined />} onClick={() => setSendModalOpen(true)}>
+              Send via Graph API
             </Button>
           </Tooltip>
           <Tooltip title="Download as .html file">

@@ -17,6 +17,9 @@ class TransportService extends cds.ApplicationService {
       TransportWorkItems,
       WorkItems,
       Milestones,
+      Risks,
+      ActionItems,
+      ProgressSnapshots,
       Notifications,
       SyncLog,
       ActivityLog,
@@ -26,7 +29,7 @@ class TransportService extends cds.ApplicationService {
     } = db.entities('sap.pm');
 
     this.db = db;
-    this._e = { TransportWorkItems, WorkItems, Milestones, Notifications, SyncLog, ActivityLog, AppConfig, ReportTemplates, WeeklyDigests };
+    this._e = { TransportWorkItems, WorkItems, Milestones, Risks, ActionItems, ProgressSnapshots, Notifications, SyncLog, ActivityLog, AppConfig, ReportTemplates, WeeklyDigests };
 
     // ── Before handlers ──
     this.before('UPDATE', 'Transports', this._checkOptimisticLock.bind(this));
@@ -574,6 +577,9 @@ class TransportService extends cds.ApplicationService {
 
     await UPDATE(WorkItems).set(updateData).where({ ID: workItemId });
 
+    // Save trend snapshot (non-blocking)
+    this._saveProgressSnapshot(workItemId).catch(() => {});
+
     return {
       success: true,
       message: `Test status updated: ${completionPct}% complete, UAT: ${uatStatus}`,
@@ -627,37 +633,49 @@ class TransportService extends cds.ApplicationService {
 
   // ─── Gather data for AI agent context (filtered by allowedApps) ───
   async _gatherAgentContext(allowedApps) {
-    const { TransportWorkItems, WorkItems, Milestones, Notifications } = this._e;
+    const { TransportWorkItems, WorkItems, Milestones, Risks, ActionItems } = this._e;
 
-    let workItems, transports, milestones;
+    let workItems, transports, milestones, risks, actionItems;
     if (allowedApps && allowedApps.length > 0) {
       workItems = await SELECT.from(WorkItems).where({ application: { in: allowedApps } });
       const wiIds = workItems.map(w => w.ID);
-      transports = wiIds.length > 0
-        ? await SELECT.from(TransportWorkItems).where({ workItem_ID: { in: wiIds } })
-        : [];
-      milestones = wiIds.length > 0
-        ? await SELECT.from(Milestones).where({ workItem_ID: { in: wiIds } })
-        : [];
+      [transports, milestones, risks, actionItems] = wiIds.length > 0 ? await Promise.all([
+        SELECT.from(TransportWorkItems).where({ workItem_ID: { in: wiIds } }),
+        SELECT.from(Milestones).where({ workItem_ID: { in: wiIds } }),
+        SELECT.from(Risks).where({ workItem_ID: { in: wiIds } }),
+        SELECT.from(ActionItems).where({ workItem_ID: { in: wiIds } }),
+      ]) : [[], [], [], []];
     } else {
-      // SuperAdmin or unrestricted — load all
-      [workItems, transports, milestones] = await Promise.all([
+      [workItems, transports, milestones, risks, actionItems] = await Promise.all([
         SELECT.from(WorkItems),
         SELECT.from(TransportWorkItems),
-        SELECT.from(Milestones)
+        SELECT.from(Milestones),
+        SELECT.from(Risks),
+        SELECT.from(ActionItems),
       ]);
     }
 
     const now = new Date();
     const lines = [];
 
-    // Split active vs done — send full details only for active items to reduce token usage
+    // Split active vs done
     const activeItems = workItems.filter(w => w.status !== 'Done');
     const doneItems   = workItems.filter(w => w.status === 'Done');
 
+    // Build risk/action lookup by workItem_ID
+    const risksByWI = {};
+    for (const r of risks) {
+      if (!risksByWI[r.workItem_ID]) risksByWI[r.workItem_ID] = [];
+      risksByWI[r.workItem_ID].push(r);
+    }
+    const actionsByWI = {};
+    for (const a of actionItems) {
+      if (!actionsByWI[a.workItem_ID]) actionsByWI[a.workItem_ID] = [];
+      actionsByWI[a.workItem_ID].push(a);
+    }
+
     lines.push(`=== WORK ITEMS (${workItems.length} total: ${activeItems.length} active, ${doneItems.length} done) ===`);
 
-    // Active items — full detail
     for (const wi of activeItems) {
       const goLiveDays = wi.goLiveDate ? Math.ceil((new Date(wi.goLiveDate) - now) / 86400000) : null;
       lines.push(`- ${wi.workItemName} [${wi.workItemType}] | Code: ${wi.projectCode} | Module: ${wi.sapModule}`);
@@ -668,32 +686,70 @@ class TransportService extends cds.ApplicationService {
       }
       lines.push(`  Business Owner: ${wi.businessOwner || 'N/A'} | System Owner: ${wi.systemOwner || 'N/A'} | Dev Lead: ${wi.leadDeveloper || 'N/A'}`);
       if (wi.goLiveDate) lines.push(`  Go-Live: ${wi.goLiveDate} (${goLiveDays > 0 ? goLiveDays + ' days away' : 'OVERDUE'})`);
+      if (wi.veevaCCNumber) lines.push(`  Veeva CC: ${wi.veevaCCNumber}`);
       if (wi.notes) lines.push(`  Notes: ${wi.notes}`);
+
+      // Open risks
+      const wiRisks = (risksByWI[wi.ID] || []).filter(r => r.status === 'Open' || r.status === 'Mitigated');
+      if (wiRisks.length > 0) {
+        lines.push(`  Open Risks (${wiRisks.length}):`);
+        for (const r of wiRisks) {
+          lines.push(`    [${r.likelihood} likelihood / ${r.impact} impact] ${r.description} | Owner: ${r.owner || 'N/A'} | Status: ${r.status}`);
+          if (r.mitigation) lines.push(`      Mitigation: ${r.mitigation}`);
+        }
+      }
+
+      // Open action items
+      const wiActions = (actionsByWI[wi.ID] || []).filter(a => a.status !== 'Done' && a.status !== 'Cancelled');
+      if (wiActions.length > 0) {
+        lines.push(`  Open Actions (${wiActions.length}):`);
+        for (const a of wiActions) {
+          const overdue = a.dueDate && new Date(a.dueDate) < now ? ' [OVERDUE]' : '';
+          lines.push(`    [${a.priority}] ${a.description} | Owner: ${a.owner || 'N/A'} | Due: ${a.dueDate || 'N/A'}${overdue}`);
+        }
+      }
     }
 
-    // Done items — summary only (one line each)
     if (doneItems.length > 0) {
       lines.push(`Done items: ${doneItems.map(w => `${w.workItemName} [${w.workItemType}]`).join('; ')}`);
     }
 
+    // Transports — include Veeva CC details
     lines.push(`\n=== TRANSPORTS (${transports.length} total) ===`);
     const bySys = { DEV: 0, QAS: 0, PRD: 0 };
-    const stuck = [];
-    const failed = [];
+    const stuck = [], failed = [];
+    const veevaTRs = [];
     for (const tr of transports) {
       bySys[tr.currentSystem] = (bySys[tr.currentSystem] || 0) + 1;
       const age = (now - new Date(tr.createdDate)) / 86400000;
-      if (tr.currentSystem !== 'PRD' && age > 5) stuck.push(tr);
+      if (tr.currentSystem !== 'PRD' && tr.trStatus !== 'Released' && age > 5) stuck.push(tr);
       if (tr.importRC >= 8) failed.push(tr);
+      if (tr.veevaCCNumber) veevaTRs.push(tr);
     }
     lines.push(`DEV: ${bySys.DEV || 0} | QAS: ${bySys.QAS || 0} | PRD: ${bySys.PRD || 0}`);
-    lines.push(`Stuck (>5 days): ${stuck.length} | Failed imports (RC>=8): ${failed.length}`);
+    lines.push(`Stuck (>5 days, modifiable): ${stuck.length} | Failed imports (RC>=8): ${failed.length}`);
     lines.push(`Unassigned: ${transports.filter(t => !t.workType).length}`);
 
     if (failed.length > 0) {
       lines.push('Failed transports:');
       for (const tr of failed.slice(0, 10)) {
         lines.push(`  - ${tr.trNumber} | ${tr.trDescription} | RC=${tr.importRC} | System: ${tr.currentSystem} | Owner: ${tr.ownerFullName || tr.trOwner}`);
+      }
+    }
+
+    // Veeva CC section — group TRs by CC number
+    if (veevaTRs.length > 0) {
+      lines.push(`\n=== VEEVA CHANGE CONTROLS (${veevaTRs.length} TRs with CC numbers) ===`);
+      const byCc = {};
+      for (const tr of veevaTRs) {
+        if (!byCc[tr.veevaCCNumber]) byCc[tr.veevaCCNumber] = [];
+        byCc[tr.veevaCCNumber].push(tr);
+      }
+      for (const [cc, ccTRs] of Object.entries(byCc)) {
+        lines.push(`${cc}: ${ccTRs.length} transport(s)`);
+        for (const tr of ccTRs) {
+          lines.push(`  - ${tr.trNumber} [${tr.workType || 'Unassigned'}] | ${tr.currentSystem} | RC=${tr.importRC ?? 'N/A'} | ${tr.trDescription?.substring(0, 80) || ''}`);
+        }
       }
     }
 
@@ -705,13 +761,51 @@ class TransportService extends cds.ApplicationService {
     }
 
     lines.push(`\n=== SUMMARY ===`);
-    const redProjects = workItems.filter(w => w.overallRAG === 'RED');
+    const redProjects   = workItems.filter(w => w.overallRAG === 'RED');
     const amberProjects = workItems.filter(w => w.overallRAG === 'AMBER');
+    const openRisksTotal  = risks.filter(r => r.status === 'Open').length;
+    const openActionsTotal = actionItems.filter(a => a.status !== 'Done' && a.status !== 'Cancelled').length;
     lines.push(`RED projects: ${redProjects.length} — ${redProjects.map(p => p.workItemName).join(', ') || 'None'}`);
     lines.push(`AMBER projects: ${amberProjects.length} — ${amberProjects.map(p => p.workItemName).join(', ') || 'None'}`);
+    lines.push(`Open risks across portfolio: ${openRisksTotal}`);
+    lines.push(`Open action items across portfolio: ${openActionsTotal}`);
     lines.push(`Today: ${now.toISOString().split('T')[0]}`);
 
     return lines.join('\n');
+  }
+
+  // ─── Auto-save progress snapshot (called after work item updates) ───
+  async _saveProgressSnapshot(workItemId) {
+    try {
+      const { WorkItems, ProgressSnapshots } = this._e;
+      const wi = await SELECT.one.from(WorkItems).where({ ID: workItemId });
+      if (!wi) return;
+
+      const today = new Date().toISOString().split('T')[0];
+      const testPassRate = wi.testTotal > 0 ? Math.round((wi.testPassed / wi.testTotal) * 100 * 100) / 100 : 0;
+
+      // Upsert: one snapshot per work item per day
+      const existing = await SELECT.one.from(ProgressSnapshots).where({ workItem_ID: workItemId, snapshotDate: today });
+      if (existing) {
+        await UPDATE(ProgressSnapshots).set({
+          deploymentPct: wi.deploymentPct || 0,
+          testPassRate,
+          ragStatus: wi.overallRAG || 'GREEN',
+          testPassed: wi.testPassed || 0,
+          testTotal: wi.testTotal || 0,
+        }).where({ ID: existing.ID });
+      } else {
+        await INSERT.into(ProgressSnapshots).entries({
+          workItem_ID: workItemId,
+          snapshotDate: today,
+          deploymentPct: wi.deploymentPct || 0,
+          testPassRate,
+          ragStatus: wi.overallRAG || 'GREEN',
+          testPassed: wi.testPassed || 0,
+          testTotal: wi.testTotal || 0,
+        });
+      }
+    } catch { /* non-critical — don't fail the parent operation */ }
   }
 
   // ─── Analyze Uploaded Document (AI-powered) ───

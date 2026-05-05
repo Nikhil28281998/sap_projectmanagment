@@ -26,6 +26,24 @@ service TransportService {
     { grant: ['CREATE', 'WRITE', 'DELETE'], to: ['Admin', 'Manager'] }
   ]) as projection on db.Milestones;
 
+  // ── Risks (per work item risk register) ──
+  entity Risks @(restrict: [
+    { grant: 'READ',   to: ['Admin', 'Manager', 'Developer', 'Executive'] },
+    { grant: ['CREATE', 'UPDATE', 'DELETE'], to: ['Admin', 'Manager'] }
+  ]) as projection on db.Risks;
+
+  // ── Action Items (per work item parking lot) ──
+  entity ActionItems @(restrict: [
+    { grant: 'READ',   to: ['Admin', 'Manager', 'Developer', 'Executive'] },
+    { grant: ['CREATE', 'UPDATE', 'DELETE'], to: ['Admin', 'Manager', 'Developer'] }
+  ]) as projection on db.ActionItems;
+
+  // ── Progress Snapshots (trend data — backend writes, frontend reads) ──
+  @readonly
+  entity ProgressSnapshots @(restrict: [
+    { grant: 'READ', to: ['Admin', 'Manager', 'Developer', 'Executive'] }
+  ]) as projection on db.ProgressSnapshots;
+
   // ── Notifications ──
   entity Notifications @(restrict: [
     { grant: '*', to: ['Admin', 'Manager', 'Developer', 'Executive'] }

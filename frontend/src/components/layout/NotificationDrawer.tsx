@@ -60,7 +60,7 @@ const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ open, onClose }
   const handleRunRiskAnalysis = async () => {
     setRiskLoading(true);
     try {
-      const appMap: Record<string, string> = { sap: 'SAP', coupa: 'Coupa', commercial: 'Commercial' };
+      const appMap: Record<string, string> = { sap: 'SAP' };
       const result = await notificationApi.analyzeRisks(appMap[activeModule] || 'ALL');
       if (result.success) {
         antMessage.success(result.message);

@@ -7,11 +7,8 @@ import {
 import {
   SearchOutlined, ReloadOutlined, EyeOutlined, FileExcelOutlined,
   ProjectOutlined, CodeOutlined, BugOutlined, AppstoreOutlined,
-  SwapOutlined, ThunderboltOutlined, CustomerServiceOutlined, SafetyOutlined,
-  ApiOutlined, ToolOutlined, DatabaseOutlined, RiseOutlined,
-  ShoppingCartOutlined, RocketOutlined, NotificationOutlined, AuditOutlined,
-  FundOutlined, TeamOutlined, FileProtectOutlined, BarChartOutlined,
-  CloudServerOutlined, PlusOutlined
+  SwapOutlined, CustomerServiceOutlined, SafetyOutlined,
+  PlusOutlined, DownloadOutlined, UserOutlined, WarningOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useWorkItems, useTransports, useCreateWorkItem } from '../../hooks/useData';
@@ -41,28 +38,6 @@ const TAB_CONFIGS: Record<ModuleKey, { key: string; label: string; icon: React.R
     { key: 'Hypercare', label: 'Hypercare', icon: <SafetyOutlined /> },
     { key: 'tr-search', label: 'TR Search', icon: <SearchOutlined /> },
   ],
-  coupa: [
-    { key: '', label: 'All', icon: <AppstoreOutlined /> },
-    { key: 'Implementation', label: 'Implementations', icon: <RocketOutlined /> },
-    { key: 'Integration', label: 'Integrations', icon: <ApiOutlined /> },
-    { key: 'Configuration', label: 'Configurations', icon: <ToolOutlined /> },
-    { key: 'Data Migration', label: 'Data Migration', icon: <DatabaseOutlined /> },
-    { key: 'Upgrade', label: 'Upgrades', icon: <SwapOutlined /> },
-    { key: 'Support', label: 'Support', icon: <CustomerServiceOutlined /> },
-    { key: 'Optimization', label: 'Optimization', icon: <RiseOutlined /> },
-    { key: 'Supplier Enablement', label: 'Suppliers', icon: <ShoppingCartOutlined /> },
-  ],
-  commercial: [
-    { key: '', label: 'All', icon: <AppstoreOutlined /> },
-    { key: 'Product Launch', label: 'Product Launches', icon: <RocketOutlined /> },
-    { key: 'Campaign', label: 'Campaigns', icon: <NotificationOutlined /> },
-    { key: 'Compliance Initiative', label: 'Compliance', icon: <AuditOutlined /> },
-    { key: 'Market Access', label: 'Market Access', icon: <FundOutlined /> },
-    { key: 'Field Force', label: 'Field Force', icon: <TeamOutlined /> },
-    { key: 'MLR Review', label: 'MLR Review', icon: <FileProtectOutlined /> },
-    { key: 'Veeva Implementation', label: 'Veeva', icon: <CloudServerOutlined /> },
-    { key: 'Analytics Project', label: 'Analytics', icon: <BarChartOutlined /> },
-  ],
 };
 
 const WorkItemList: React.FC = () => {
@@ -72,15 +47,16 @@ const WorkItemList: React.FC = () => {
   const { data: allWorkItems = [], isLoading: wiLoading, refetch } = useWorkItems();
   const { data: transports = [], isLoading: trLoading } = useTransports();
   const { activeModule } = useModule();
-  const { canWrite } = useAuth();
+  const { canWrite, user } = useAuth();
   const createMutation = useCreateWorkItem();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createForm] = Form.useForm();
+  const [myItemsOnly, setMyItemsOnly] = useState(false);
 
   // Filter work items by active application module (or show all when ?app=all)
   const appParam = searchParams.get('app');
   const showAllApps = appParam === 'all';
-  const APP_MAP: Record<string, string> = { sap: 'SAP', coupa: 'Coupa', commercial: 'Commercial' };
+  const APP_MAP: Record<string, string> = { sap: 'SAP' };
   const workItems = allWorkItems.filter((wi: WorkItem) => {
     if (showAllApps) return true; // Executive dashboard cross-app view
     if (appParam && APP_MAP[appParam]) return wi.application === APP_MAP[appParam];
@@ -115,8 +91,16 @@ const WorkItemList: React.FC = () => {
   // Treat 'Complete'/'Completed'/'Done' as synonyms so drill-downs work
   // regardless of whether data comes from RFC (Complete) or local writes (Done).
   const DONE_SYNONYMS = ['complete', 'completed', 'done'];
+
+  const isAtRisk = (item: WorkItem): boolean => {
+    if (!item.goLiveDate) return false;
+    const days = daysFromNow(new Date(item.goLiveDate));
+    return days >= 0 && days <= 14 && (item.deploymentPct || 0) < 70;
+  };
+
   const filteredItems = useMemo(() => {
     const typeKey = activeTab === 'tr-search' ? '' : activeTab;
+    const userName = user?.name?.toLowerCase() || '';
     return workItems.filter((item: WorkItem) => {
       const matchesType = !typeKey || item.workItemType === typeKey;
       const matchesStatus = !statusFilter ||
@@ -132,9 +116,41 @@ const WorkItemList: React.FC = () => {
         item.snowTicket?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.leadDeveloper?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.projectCode?.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesType && matchesStatus && matchesRag && matchesSearch;
+      const matchesMyItems = !myItemsOnly || !userName || (
+        item.leadDeveloper?.toLowerCase().includes(userName) ||
+        item.businessOwner?.toLowerCase().includes(userName) ||
+        item.systemOwner?.toLowerCase().includes(userName) ||
+        item.functionalLead?.toLowerCase().includes(userName) ||
+        item.qaLead?.toLowerCase().includes(userName)
+      );
+      return matchesType && matchesStatus && matchesRag && matchesSearch && matchesMyItems;
     });
-  }, [workItems, activeTab, statusFilter, ragParam, searchTerm]);
+  }, [workItems, activeTab, statusFilter, ragParam, searchTerm, myItemsOnly, user]);
+
+  const handleExportCSV = () => {
+    const headers = ['Name', 'Type', 'Status', 'RAG', 'Progress %', 'Go-Live', 'Business Owner', 'Lead Developer', 'SNOW', 'Priority', 'Phase'];
+    const rows = filteredItems.map((item: WorkItem) => [
+      `"${(item.workItemName || '').replace(/"/g, '""')}"`,
+      item.workItemType || '',
+      item.status || '',
+      item.overallRAG || calculateRAG(item),
+      item.deploymentPct || 0,
+      item.goLiveDate || '',
+      `"${(item.businessOwner || '').replace(/"/g, '""')}"`,
+      `"${(item.leadDeveloper || '').replace(/"/g, '""')}"`,
+      item.snowTicket || '',
+      item.priority || '',
+      item.currentPhase || '',
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `work-items-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   // ── TR search results ──
   const trResults = useMemo(() => {
@@ -171,11 +187,9 @@ const WorkItemList: React.FC = () => {
       width: 100,
       filters: [
         { text: 'SAP', value: 'SAP' },
-        { text: 'Coupa', value: 'Coupa' },
-        { text: 'Commercial', value: 'Commercial' },
       ],
       onFilter: (v: any, r: any) => r.application === v,
-      render: (app: string) => <Tag color={app === 'SAP' ? '#1677ff' : app === 'Coupa' ? '#0070d2' : '#722ed1'}>{app}</Tag>,
+      render: (app: string) => <Tag color="#1677ff">{app}</Tag>,
     }] : []),
     {
       title: 'Name',
@@ -183,9 +197,16 @@ const WorkItemList: React.FC = () => {
       key: 'name',
       sorter: (a: any, b: any) => (a.workItemName || '').localeCompare(b.workItemName || ''),
       render: (text: string, record: any) => (
-        <Button type="link" onClick={() => navigate(`/workitem/${record.ID}`)}>
-          {text}
-        </Button>
+        <Space size={4}>
+          <Button type="link" style={{ padding: 0 }} onClick={() => navigate(`/workitem/${record.ID}`)}>
+            {text}
+          </Button>
+          {isAtRisk(record) && (
+            <Tooltip title="At risk: go-live in ≤14 days but deployment < 70%">
+              <WarningOutlined style={{ color: '#faad14', fontSize: 14 }} />
+            </Tooltip>
+          )}
+        </Space>
       ),
     },
     ...(activeTab === '' ? [{
@@ -511,6 +532,16 @@ const WorkItemList: React.FC = () => {
               <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
                 Refresh
               </Button>
+              <Button
+                icon={<UserOutlined />}
+                type={myItemsOnly ? 'primary' : 'default'}
+                onClick={() => setMyItemsOnly(v => !v)}
+              >
+                My Items
+              </Button>
+              <Button icon={<DownloadOutlined />} onClick={handleExportCSV}>
+                Export CSV
+              </Button>
               {canWrite && (
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => {
                   createForm.resetFields();
@@ -548,7 +579,7 @@ const WorkItemList: React.FC = () => {
         confirmLoading={createMutation.isPending}
         onOk={() => {
           createForm.validateFields().then(values => {
-            const APP_MAP_REV: Record<string, string> = { sap: 'SAP', coupa: 'Coupa', commercial: 'Commercial' };
+            const APP_MAP_REV: Record<string, string> = { sap: 'SAP' };
             createMutation.mutate({
               ...values,
               application: APP_MAP_REV[activeModule] || 'SAP',
