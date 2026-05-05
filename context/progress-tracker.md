@@ -42,11 +42,15 @@ Post-deployment feature hardening — app is live on SAP BTP Cloud Foundry.
 
 ### Work Item Management
 - [x] AppShell with left nav, header, floating AI chat button
-- [x] Multi-application support: SAP / Coupa / Commercial (module selector in sidebar)
-- [x] WorkItemList — typed tabs per application (SAP: Projects/Enhancements/Break-fix/etc.)
+- [x] SAP-only module — Coupa and Commercial modules fully removed (2026-05)
+- [x] WorkItemList — typed tabs (Projects/Enhancements/Break-fix/Upgrades/Support/Hypercare/TR Search)
 - [x] WorkItemDetail — test progress card, milestones, linked TRs, SharePoint URL banner
+- [x] Risk Register — full CRUD table in WorkItemDetail (likelihood×impact score, owner, mitigation,
+      status, due date) backed by `Risks` entity (2026-05)
+- [x] Action Items / Parking Lot — full CRUD table in WorkItemDetail (priority, status, source,
+      due date with overdue highlight) backed by `ActionItems` entity (2026-05)
 - [x] Break-fix / Request bucket added as work item type (BRK)
-- [x] Veeva CC number (IT-CC-****) tracking per transport
+- [x] Veeva CC number (IT-CC-****) tracking per transport + per work item
 - [x] SharePoint URL per work item
 - [x] Drag-and-drop TR categorization + bulk categorize
 - [x] Auto-link: SNOW/INC/CS ticket pattern matching TRs to work items
@@ -80,6 +84,10 @@ Post-deployment feature hardening — app is live on SAP BTP Cloud Foundry.
       ticket match, ?=keyword-inferred (unverified) (2026-05)
 - [x] TR type codes (PRJ/ENH/BRK/UPG/SUP/HYP) now correctly resolve to colors in
       WORK_TYPE_MAP and WORK_TYPE_COLORS (previously showed grey for all TR types) (2026-05)
+- [x] My Items toggle — filters to work items where the logged-in user appears in any people
+      field (leadDeveloper, businessOwner, systemOwner, functionalLead, qaLead) (2026-05)
+- [x] At-risk warning badge (⚠) next to any item with go-live ≤14 days AND deployment <70% (2026-05)
+- [x] Export CSV button — downloads current filtered view as CSV file (2026-05)
 
 ### API / Hooks
 - [x] Pagination limits raised: transports 200→2000, work items 100→500 (2026-05)
@@ -93,7 +101,11 @@ Post-deployment feature hardening — app is live on SAP BTP Cloud Foundry.
 
 ### Reports & AI Features
 - [x] ReportBuilder — structured weekly email report (works without AI)
+- [x] Open in Outlook (.eml) — primary action in ReportBuilder; downloads MIME-formatted .eml
+      file that opens in Outlook ready to send, subject pre-filled. No OAuth required. (2026-05)
 - [x] AIChatDrawer — right-side drawer, context-aware using live project data
+- [x] AI agent context now includes: Veeva CC groups (TRs per change control), open risks per
+      work item, open action items per work item (2026-05)
 - [x] AI polish: report polishing, test risk analysis
 - [x] Weekly digest generation
 
@@ -101,6 +113,13 @@ Post-deployment feature hardening — app is live on SAP BTP Cloud Foundry.
 - [x] `srv/lib/tr-parser.js` — full-format prefix match (HIGH confidence), SNOW-only (MEDIUM),
       keyword-based suggestion (LOW confidence)
 - [x] `frontend/src/utils/tr-parser.ts` — client-side mirror with confidence-derivable logic
+
+### Schema — New Entities (2026-05)
+- [x] `Risks` — risk register per work item (likelihood/impact/riskScore/owner/mitigation/status/dueDate)
+- [x] `ActionItems` — parking lot per work item (description/owner/dueDate/status/priority/source)
+- [x] `ProgressSnapshots` — weekly trend data (deploymentPct/testPassRate/ragStatus/testPassed/testTotal)
+- [x] All three exposed as OData projections in transport-service.cds
+- [x] `_saveProgressSnapshot()` called after every test status update (upsert: one per WI per day)
 
 ### Seed Data
 - [x] 12+ seed work items with full test tracking data
@@ -115,9 +134,12 @@ Post-deployment feature hardening — app is live on SAP BTP Cloud Foundry.
 
 - [ ] Create `gpt-4.1` deployment in SAP AI Launchpad and update Deployment ID in Settings
       (current deployment uses `gpt-5-2025-08-07` — works but expensive due to reasoning tokens)
+- [ ] Seed CSV files for `Risks` and `ActionItems` (optional — entities work without seed data)
 
 ## Next Up
 
+- [ ] ProgressSnapshot trend sparklines in WorkItemDetail (mini line chart showing deployment %
+      and test pass rate over time — data is now being collected daily)
 - [ ] Add `workTypeConfidence` column to schema (HIGH/MEDIUM/LOW) to persist classification
       quality alongside TR records
 - [ ] Retroactive auto-matching: re-run classification on unassigned TRs when a new work
@@ -137,6 +159,8 @@ Post-deployment feature hardening — app is live on SAP BTP Cloud Foundry.
 
 - **React + Ant Design chosen over Fiori Elements** (session 9) — full UX control needed
   for complex dashboard; Fiori Elements too constrained for drag-and-drop and pipeline viz
+- **SAP-only app** (2026-05) — Coupa and Commercial modules removed entirely as speculative
+  scope; app now serves BridgeBio SAP team only
 - **AI exclusively via SAP AI Core BTP Destination** (2026-05) — removed all third-party
   AI providers (Claude/Gemini/OpenAI/OpenRouter). Enterprise-grade: no API keys in code,
   auth fully managed by BTP Destination (OAuth2ClientCredentials from AI Core service key)
@@ -150,6 +174,9 @@ Post-deployment feature hardening — app is live on SAP BTP Cloud Foundry.
   bindings (Strategy 3). All three must be preserved
 - **Context trimming** (2026-05) — active work items get full AI context detail; Done items
   get single-line summaries only. ~50% token reduction with no loss of chat quality
+- **.eml report delivery** (2026-05) — reports download as MIME-formatted .eml files that
+  open directly in Outlook ready to send. Replaces the complex mailto: / clipboard approach.
+  No OAuth or Graph API setup required on the user's side
 - **Stuck TR definition** (2026-05) — TR is stuck if: not in PRD AND not Released AND
   created > 5 days ago. Released TRs awaiting import are in the queue, not stuck
 - **Pagination raised** (2026-05) — SAP production can have thousands of TRs;
@@ -159,10 +186,16 @@ Post-deployment feature hardening — app is live on SAP BTP Cloud Foundry.
   all entity access in transport-service.js uses `this._e`
 - **RAG escalation-only** — prevents misleading status improvements that haven't been
   manually verified
+- **ProgressSnapshot upsert pattern** (2026-05) — one row per work item per day; called
+  non-blocking after every test status update. Frontend reads last 90 days for sparklines
 
 ## Session Notes
 
-- 2026-05-05: AI Core integration hardened, context trimming, token optimization,
+- 2026-05-05 (session 2): Removed Coupa & Commercial modules entirely; added Risk Register,
+  Action Items, ProgressSnapshots schema entities + OData projections; AI agent context enriched
+  with Veeva CC groups + risks + action items; My Items filter + at-risk badge + CSV export in
+  WorkItemList; .eml report download in ReportBuilder; snapshot auto-saved after test updates
+- 2026-05-05 (session 1): AI Core integration hardened, context trimming, token optimization,
   dashboard bug fixes (date filter, division-by-zero), TR confidence badges,
   test completion % column, TransportPipeline improvements (age, linked, stuck highlights),
   pagination raised, auto-link bug fixed

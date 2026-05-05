@@ -9,8 +9,8 @@ UAT, syncs project metadata from SharePoint, and generates executive-ready
 weekly status reports with optional AI polish. Built on SAP CAP (Node.js)
 backend with a React + Ant Design frontend, deployed on SAP BTP Cloud Foundry.
 
-The app supports three application domains: **SAP**, **Coupa**, and **Commercial**,
-each with their own work item types, lifecycle phases, and dashboard analytics.
+The app serves the **SAP** domain exclusively. Coupa and Commercial modules were
+removed in 2026-05 as speculative scope not used by the BridgeBio SAP team.
 
 ## Goals
 
@@ -57,15 +57,16 @@ each with their own work item types, lifecycle phases, and dashboard analytics.
 ### Work Item Management
 - **SAP work item types**: Project (PRJ), Enhancement (ENH), Break-fix (BRK),
   Upgrade (UPG), Support (SUP), Hypercare (HYP)
-- **Coupa types**: Implementation, Integration, Configuration, Data Migration,
-  Upgrade, Support, Optimization, Supplier Enablement
-- **Commercial types**: Product Launch, Campaign, Compliance Initiative, Market Access,
-  Field Force, MLR Review, Veeva Implementation, Analytics Project
 - Drag-and-drop TR categorization to work items
 - Bulk categorize action for multiple TRs at once
-- Veeva CC number (IT-CC-****) tracking per transport
+- Veeva CC number (IT-CC-****) tracking per transport and per work item
 - SharePoint URL per work item linking to project Excel tracker
 - Test completion % column in WorkItemList
+- **Risk Register** per work item — likelihood, impact, risk score, mitigation, status, due date
+- **Action Items / Parking Lot** per work item — priority, owner, due date, source, status
+- **My Items filter** — toggle to show only items where logged-in user is in a people field
+- **At-risk badge** — warning shown when go-live ≤14 days AND deployment <70%
+- **Export CSV** — download current filtered work item list as CSV
 
 ### Test & UAT Tracking
 - 10 test tracking fields per work item: total, passed, failed, blocked, TBD, skipped,
@@ -85,11 +86,14 @@ each with their own work item types, lifecycle phases, and dashboard analytics.
 ### AI Report Generation
 - Weekly status report in email format (Outlook-compatible HTML)
 - Works without AI (structured output always available)
+- **Open in Outlook (.eml)** — downloads a MIME-formatted .eml file; double-click opens
+  Outlook with subject pre-filled and body ready to send. No OAuth setup required
 - **AI exclusively via SAP AI Core BTP Destination** — no third-party API keys needed.
   SuperAdmin creates the `Ai_Core` BTP Destination with OAuth2ClientCredentials from
   the AI Core service key, then sets Deployment ID in Settings
 - AI chat agent: answers questions using live project data as context,
-  with context trimming (active items full detail, Done items single-line)
+  with context trimming (active items full detail, Done items single-line);
+  includes Veeva CC coverage analysis, open risks, and open action items
 - Recommended model: `gpt-4.1` deployed in SAP AI Launchpad (see architecture.md)
 
 ### Pipeline Visualization
@@ -111,6 +115,7 @@ each with their own work item types, lifecycle phases, and dashboard analytics.
 
 ### Out of Scope
 - Fiori Elements UI (removed in session 9 — React-only architecture)
+- Coupa and Commercial modules (removed 2026-05 — SAP-only app)
 - Actual SAP transport execution (view/track only, no TMS control)
 - ABAP development or SAP system-side customization
 - Real-time push notifications (polling only)
