@@ -135,6 +135,8 @@ Post-deployment feature hardening — app is live on SAP BTP Cloud Foundry.
 - [ ] Create `gpt-4.1` deployment in SAP AI Launchpad and update Deployment ID in Settings
       (current deployment uses `gpt-5-2025-08-07` — works but expensive due to reasoning tokens)
 - [ ] Seed CSV files for `Risks` and `ActionItems` (optional — entities work without seed data)
+- [ ] Run `mbt build && cf deploy` to deploy latest fixes to BTP (commit 11be8ee is locally committed,
+      pending git push + BTP redeploy)
 
 ## Next Up
 
@@ -146,13 +148,18 @@ Post-deployment feature hardening — app is live on SAP BTP Cloud Foundry.
       item is created with a matching SNOW ticket
 - [ ] Application isolation for TR Search tab (currently shows all SAP TRs regardless of
       work item application)
-- [ ] Switch RFC client from mock to live SAP connection when Cloud Connector is ready
+- [ ] Fix `S4HANA_RFC_DS4` BTP destination: add URL (virtual host from Cloud Connector),
+      set Type=HTTP, ProxyType=OnPremise. RFC currently failing — sync returns 0 records.
+      Same Cloud Connector setup works for CPI → confirm virtual host/port with BASIS team.
 
 ## Open Questions
 
 - Will the team adopt the PRJ-CHG0098765 | description naming convention for all new TRs?
   (High-confidence auto-classification depends on this prefix format)
-- RFC destination name in SAP Cloud Connector for on-premise S/4HANA (`S4HANA_RFC_DS4`)
+- RFC destination `S4HANA_RFC_DS4` in BTP Cockpit is currently failing: "url property not
+  set" — destination exists but has no URL configured. Needs Type=HTTP, URL=virtual host
+  from Cloud Connector, ProxyType=OnPremise. System is SAP S/4HANA Private Cloud.
+  Same Cloud Connector pattern works for SAP CPI integrations.
 - SharePoint tenant details for live MS Graph API connection
 
 ## Architecture Decisions
@@ -188,9 +195,27 @@ Post-deployment feature hardening — app is live on SAP BTP Cloud Foundry.
   manually verified
 - **ProgressSnapshot upsert pattern** (2026-05) — one row per work item per day; called
   non-blocking after every test status update. Frontend reads last 90 days for sparklines
+- **SPA routing in xs-app.json** (2026-05) — three routes: (1) `/api/**` → backend, (2) static
+  assets by extension → passthrough, (3) catch-all `^(.*)$` → `index.html`. This allows direct
+  URL navigation to `/tracker`, `/executive`, `/workitem/:id` etc. without 404
+- **RAG dot colors hardcoded** (2026-05) — use `#52c41a` / `#faad14` / `#ff4d4f` directly in JSX
+  `style` props, not CSS variables. Reason: CSS variable injection by ThemeProvider may not have
+  run yet at component paint time in production, causing invisible dots
+- **Veeva CC upload limits** (2026-05) — PDFs rejected at upload (no server-side text extraction);
+  file limit 200 KB; paste textarea limit 150k chars. Exceeded limits were causing "large content"
+  errors from the AI Core endpoint
+- **useWorkItems staleTime** (2026-05) — reduced from 5 min to 1 min so items created/edited in
+  WorkItemDetail appear in WorkItemList on the next page visit without a manual Refresh click
 
 ## Session Notes
 
+- 2026-05-05 (session 3): Live BTP browser testing — fixed 6 bugs found during testing:
+  (1) xs-app.json SPA routing (direct URL nav returned 404); (2) Executive View Application
+  filter removed, charts replaced with Phase+Health and SAP Portfolio Analysis (module/priority);
+  (3) RAG dots hardcoded to #52c41a/#faad14/#ff4d4f (CSS variable resolution was unreliable);
+  (4) NaN% in Avg Deployment — parseFloat+isNaN guard added; (5) Veeva CC upload — PDF
+  rejection + 200 KB size limit + 150k char paste limit; (6) staleTime reduced (WI: 5m→1m,
+  TR: 5m→2m) so edits appear without manual refresh. Pending: git push + mbt build + cf deploy
 - 2026-05-05 (session 2): Removed Coupa & Commercial modules entirely; added Risk Register,
   Action Items, ProgressSnapshots schema entities + OData projections; AI agent context enriched
   with Veeva CC groups + risks + action items; My Items filter + at-risk badge + CSV export in
