@@ -48,10 +48,10 @@ service TransportService {
     { grant: 'READ', to: ['Admin', 'Manager'] }
   ]) as projection on db.ActivityLog;
 
-  // ── App Config ──
+  // ── App Config ── (writes restricted to Admin / SuperAdmin)
   entity AppConfigs @(restrict: [
     { grant: 'READ',  to: ['Admin', 'Manager', 'Developer', 'Executive'] },
-    { grant: 'WRITE', to: ['Admin'] }
+    { grant: 'WRITE', to: ['Admin', 'SuperAdmin'] }
   ]) as projection on db.AppConfig;
 
   // ── Report Templates ──

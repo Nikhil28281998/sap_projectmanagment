@@ -1,11 +1,7 @@
 configKey;configValue;description
-TR_START_DATE;2026-01-01;Default start date for transport lookups
-REFRESH_INTERVAL_MINUTES;60;How often to refresh RFC data
-ENABLE_AI;false;Enable AI features (Claude or ChatGPT)
-ENABLE_NOTIFICATIONS;false;Enable notification system
-PREFIX_ENFORCED_FROM;;Date to start flagging TRs without prefix (empty = not enforced)
-DEFAULT_LOOKBACK_DAYS;90;Default transport lookback period
-AI_PROVIDER;gemini;AI provider: claude, chatgpt or gemini
-CLAUDE_API_KEY;;Anthropic API key (get from console.anthropic.com)
-OPENAI_API_KEY;;OpenAI API key (get from platform.openai.com)
-GEMINI_API_KEY;;Google Gemini API key - FREE (get from aistudio.google.com/apikey)
+RFC_DESTINATION_NAME;S4HANA_RFC_DS4;BTP Destination for all RFC calls
+RFC_FM_NAME;ZTCC_GET_TRANSPORTS;ABAP function module called by refresh
+RFC_TR_START_DATE;;YYYYMMDD — set to today after first deploy
+RFC_SYSTEMS_FILTER;;"Comma-separated system IDs; blank = all"
+RFC_SCHEDULE_ENABLED;false;Toggle for auto-refresh cron
+RFC_SCHEDULE_CRON;0 */4 * * *;"5-field cron; e.g. every 4h"

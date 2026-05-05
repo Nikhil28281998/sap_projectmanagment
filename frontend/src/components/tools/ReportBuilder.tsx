@@ -18,6 +18,7 @@ import {
   type ReportData, type ProjectData,
 } from '../../utils/report-templates';
 import { exportSingleProjectExcel, exportAllProjectsExcel } from '../../utils/excel-export';
+import type { WorkItem, Transport, Milestone, ReportTemplate } from '@/types';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -46,7 +47,7 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
       source: 'predefined' as const,
       visibility: 'public' as const,
     }));
-    const custom = (customTemplates || []).map((t: any) => ({
+    const custom = (customTemplates || []).map((t: ReportTemplate) => ({
       id: `custom-${t.ID}`,
       name: t.templateName,
       description: t.description || 'Custom template',
@@ -337,8 +338,8 @@ const ReportBuilder: React.FC<{ embedded?: boolean }> = ({ embedded = false }) =
             value={selectedProject}
             onChange={handleProjectChange}
             options={workItems
-              .filter((wi: any) => wi.status === 'Active')
-              .map((wi: any) => ({
+              .filter((wi: WorkItem) => wi.status === 'Active')
+              .map((wi: WorkItem) => ({
                 value: wi.ID,
                 label: `${wi.workItemName} — ${wi.workItemType} (${wi.overallRAG || 'N/A'})`,
               }))}

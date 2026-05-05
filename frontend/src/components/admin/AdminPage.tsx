@@ -223,26 +223,26 @@ const AdminPage: React.FC = () => {
               <Col span={6}>
                 <Card size="small">
                   <Statistic title="Status" value={healthData.status}
-                    prefix={healthData.status === 'OK' ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> : <WarningOutlined style={{ color: '#faad14' }} />}
-                    valueStyle={{ fontSize: 14, color: healthData.status === 'OK' ? '#52c41a' : '#faad14' }} />
+                    prefix={healthData.status === 'OK' ? <CheckCircleOutlined style={{ color: 'var(--color-status-risk-low)' }} /> : <WarningOutlined style={{ color: 'var(--color-status-risk-medium)' }} />}
+                    valueStyle={{ fontSize: 14, color: healthData.status === 'OK' ? 'var(--color-status-risk-low)' : 'var(--color-status-risk-medium)' }} />
                 </Card>
               </Col>
               <Col span={6}>
                 <Card size="small">
                   <Statistic title="Database" value={healthData.database}
-                    valueStyle={{ fontSize: 14, color: healthData.database === 'OK' ? '#52c41a' : '#ff4d4f' }} />
+                    valueStyle={{ fontSize: 14, color: healthData.database === 'OK' ? 'var(--color-status-risk-low)' : 'var(--color-status-risk-high)' }} />
                 </Card>
               </Col>
               <Col span={6}>
                 <Card size="small">
                   <Statistic title="RFC (SAP)" value={healthData.rfc}
-                    valueStyle={{ fontSize: 14, color: healthData.rfc === 'OK' ? '#52c41a' : '#faad14' }} />
+                    valueStyle={{ fontSize: 14, color: healthData.rfc === 'OK' ? 'var(--color-status-risk-low)' : 'var(--color-status-risk-medium)' }} />
                 </Card>
               </Col>
               <Col span={6}>
                 <Card size="small">
                   <Statistic title="SharePoint" value={healthData.sharepoint}
-                    valueStyle={{ fontSize: 14, color: healthData.sharepoint === 'OK' ? '#52c41a' : '#faad14' }} />
+                    valueStyle={{ fontSize: 14, color: healthData.sharepoint === 'OK' ? 'var(--color-status-risk-low)' : 'var(--color-status-risk-medium)' }} />
                 </Card>
               </Col>
             </Row>

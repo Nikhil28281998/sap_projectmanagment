@@ -7,6 +7,7 @@ const { parseTestStatuses, testRAGImpact, getMethodologyList } = require('./lib/
 const { AIClient } = require('./lib/ai-client');
 const { encrypt, decrypt, maskKey } = require('./lib/crypto-utils');
 const { OutlookClient } = require('./lib/outlook-client');
+const { configureRfcScheduler } = require('./lib/rfc-scheduler');
 
 class TransportService extends cds.ApplicationService {
 
@@ -20,11 +21,12 @@ class TransportService extends cds.ApplicationService {
       SyncLog,
       ActivityLog,
       AppConfig,
-      ReportTemplates
+      ReportTemplates,
+      WeeklyDigests
     } = db.entities('sap.pm');
 
     this.db = db;
-    this._e = { TransportWorkItems, WorkItems, Milestones, Notifications, SyncLog, ActivityLog, AppConfig, ReportTemplates };
+    this._e = { TransportWorkItems, WorkItems, Milestones, Notifications, SyncLog, ActivityLog, AppConfig, ReportTemplates, WeeklyDigests };
 
     // ── Before handlers ──
     this.before('UPDATE', 'Transports', this._checkOptimisticLock.bind(this));
@@ -70,6 +72,20 @@ class TransportService extends cds.ApplicationService {
     this.on('changeWorkItemStatus', this._onChangeWorkItemStatus.bind(this));
     this.on('sendReport', this._onSendReport.bind(this));
     this.on('purgeActivityLog', this._onPurgeActivityLog.bind(this));
+
+    // Reconfigure the RFC scheduler whenever AppConfig is updated so Admins
+    // can change the cron expression / enabled flag without a redeploy.
+    this.after(['CREATE', 'UPDATE'], 'AppConfigs', async (data) => {
+      const key = data?.configKey;
+      if (key === 'RFC_SCHEDULE_CRON' || key === 'RFC_SCHEDULE_ENABLED') {
+        await this._reconfigureScheduler().catch(err =>
+          cds.log('rfc-scheduler').error('reconfigure failed:', err));
+      }
+    });
+
+    // Initial scheduler configuration (reads AppConfig once boot completes).
+    await this._reconfigureScheduler().catch(err =>
+      cds.log('rfc-scheduler').warn('initial configure skipped:', err?.message || err));
 
     await super.init();
   }
@@ -249,8 +265,31 @@ class TransportService extends cds.ApplicationService {
   }
 
   // ─── Refresh Transport Data from SAP (RFC) ───
+  // ─── RFC auto-refresh scheduler ───
+  async _reconfigureScheduler() {
+    const { AppConfig } = this._e;
+    const logger = cds.log('rfc-scheduler');
+    await configureRfcScheduler({
+      readConfig: async () => {
+        const rows = await SELECT.from(AppConfig).where({
+          configKey: { in: ['RFC_SCHEDULE_CRON', 'RFC_SCHEDULE_ENABLED'] }
+        });
+        const map = Object.fromEntries((rows || []).map(r => [r.configKey, r.configValue]));
+        return {
+          enabled: map.RFC_SCHEDULE_ENABLED === 'true',
+          cron:    map.RFC_SCHEDULE_CRON || '',
+        };
+      },
+      runRefresh: async () => {
+        // Run the same refresh flow the UI button triggers, without an http req.
+        await this._onRefreshTransportData({ data: {}, headers: {}, user: { id: 'scheduler' } });
+      },
+      logger,
+    });
+  }
+
   async _onRefreshTransportData(req) {
-    const { TransportWorkItems, SyncLog } = this._e;
+    const { TransportWorkItems, SyncLog, AppConfig } = this._e;
     const startTime = Date.now();
     const syncEntry = {
       source: 'RFC',
@@ -261,7 +300,18 @@ class TransportService extends cds.ApplicationService {
     };
 
     try {
-      const rfcClient = new RFCClient();
+      // Load admin-configurable RFC settings from AppConfig (fall back to env in RFCClient).
+      const rfcCfgRows = await SELECT.from(AppConfig).where({
+        configKey: { in: ['RFC_DESTINATION_NAME','RFC_FM_NAME','RFC_TR_START_DATE','RFC_SYSTEMS_FILTER'] }
+      });
+      const rfcCfg = Object.fromEntries((rfcCfgRows || []).map(r => [r.configKey, r.configValue]));
+
+      const rfcClient = new RFCClient({
+        destinationName: rfcCfg.RFC_DESTINATION_NAME,
+        fmName:          rfcCfg.RFC_FM_NAME,
+        startDate:       rfcCfg.RFC_TR_START_DATE,
+        systemsFilter:   rfcCfg.RFC_SYSTEMS_FILTER,
+      });
       const transports = await rfcClient.getTransports();
 
       let updated = 0;
@@ -2142,8 +2192,11 @@ ${JSON.stringify(projectData, null, 2)}`;
   }
 
   async _onChangeWorkItemStatus(req) {
-    const { workItemId, status } = req.data;
+    let { workItemId, status } = req.data;
     const { WorkItems, ActivityLog } = this._e;
+
+    // Normalize legacy synonyms so old data / RFC refreshes don't reject.
+    if (status === 'Complete' || status === 'Completed') status = 'Done';
 
     const validStatuses = ['Active', 'On Hold', 'Done', 'Cancelled'];
     if (!validStatuses.includes(status)) {

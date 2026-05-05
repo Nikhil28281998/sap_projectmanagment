@@ -6,27 +6,33 @@
   "private": true,
   "dependencies": {
     "@cap-js/hana": "^1",
-    "@cap-js/sqlite": "^1",
-    "@sap-cloud-sdk/http-client": "^3",
     "@sap-cloud-sdk/connectivity": "^3",
+    "@sap-cloud-sdk/http-client": "^3",
     "@sap/cds": "^8",
     "@sap/xssec": "^4",
     "express": "^4",
     "express-rate-limit": "^7",
+    "node-cron": "^4.2.1",
     "passport": "^0.7",
     "pino": "^9",
     "pino-http": "^10"
   },
   "devDependencies": {
+    "@cap-js/sqlite": "^1",
     "@sap/cds-dk": "^8",
     "jest": "^29",
     "supertest": "^6"
+  },
+  "overrides": {
+    "better-sqlite3": "^12.9.0"
   },
   "scripts": {
     "start": "cds-serve",
     "setup": "cds deploy --to sqlite:db.sqlite",
     "dev": "cds watch",
     "build": "cds build --production",
+    "build:frontend": "cd frontend && npx vite build",
+    "deploy:local": "npm run setup && npm run build:frontend && cds-serve",
     "test": "jest --forceExit --detectOpenHandles",
     "test:unit": "jest test/unit",
     "test:integration": "jest test/integration"
@@ -52,7 +58,8 @@
           }
         },
         "auth": {
-          "kind": "mocked",
+          "kind": "dummy",
+          "_note_mocked_users": "Use 'mocked' instead of 'dummy' when testing role restrictions. Dummy grants all scopes, no auth challenge.",
           "users": {
             "admin@test.com": {
               "password": "pass",

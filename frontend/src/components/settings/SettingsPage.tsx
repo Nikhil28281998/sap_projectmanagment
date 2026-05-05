@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   Card, Form, Input, InputNumber, Switch, Button, Select, Typography,
-  Divider, Space, message, Alert, Row, Col,
+  Divider, Space, message, Alert, Row, Col, DatePicker,
 } from 'antd';
+import dayjs from 'dayjs';
 import {
   SettingOutlined, SaveOutlined, RobotOutlined, SyncOutlined,
   ClockCircleOutlined, ThunderboltOutlined, CheckCircleOutlined,
-  CloseCircleOutlined, ApiOutlined, CloudOutlined
+  CloseCircleOutlined, ApiOutlined, CloudOutlined, DeploymentUnitOutlined
 } from '@ant-design/icons';
 import { configApi, aiApi, sharePointApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -28,6 +29,17 @@ const SettingsPage: React.FC = () => {
   const [aiTesting, setAiTesting] = useState(false);
   const [aiProvider, setAiProvider] = useState<string>('openrouter');
   const { canConfigure, canWrite } = useAuth();
+
+  // SAP RFC configuration state — values must be entered by Admin/SuperAdmin,
+  // no hardcoded defaults. Loaded from AppConfig in loadConfigs().
+  const [rfcDestination, setRfcDestination] = useState('');
+  const [rfcFmName, setRfcFmName] = useState('');
+  const [rfcStartDate, setRfcStartDate] = useState<dayjs.Dayjs | null>(null);
+  const [rfcSystemsFilter, setRfcSystemsFilter] = useState('');
+  const [rfcSchedule, setRfcSchedule] = useState('');
+  const [rfcScheduleEnabled, setRfcScheduleEnabled] = useState(false);
+  const [rfcSaving, setRfcSaving] = useState(false);
+  const [rfcResult, setRfcResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // SharePoint configuration state
   const [spTenantId, setSpTenantId] = useState('');
@@ -57,6 +69,16 @@ const SettingsPage: React.FC = () => {
         if (c.configKey === 'SHAREPOINT_CLIENT_SECRET' && c.configValue) setSpClientSecret('••••••••'); // masked
         if (c.configKey === 'SHAREPOINT_SITE_URL') setSpSiteUrl(c.configValue || '');
         if (c.configKey === 'SHAREPOINT_DRIVE_ID') setSpDriveId(c.configValue || '');
+        if (c.configKey === 'RFC_DESTINATION_NAME' && c.configValue) setRfcDestination(c.configValue);
+        if (c.configKey === 'RFC_FM_NAME' && c.configValue) setRfcFmName(c.configValue);
+        if (c.configKey === 'RFC_TR_START_DATE' && c.configValue) {
+          // stored as YYYYMMDD
+          const d = dayjs(c.configValue, 'YYYYMMDD');
+          if (d.isValid()) setRfcStartDate(d);
+        }
+        if (c.configKey === 'RFC_SYSTEMS_FILTER') setRfcSystemsFilter(c.configValue || '');
+        if (c.configKey === 'RFC_SCHEDULE_CRON') setRfcSchedule(c.configValue || '');
+        if (c.configKey === 'RFC_SCHEDULE_ENABLED') setRfcScheduleEnabled(c.configValue === 'true');
         const key = c.configKey || c.key;
         if (c.valueType === 'boolean') {
           formValues[key] = c.configValue === 'true';
@@ -259,6 +281,177 @@ const SettingsPage: React.FC = () => {
             </Button>
           </Form.Item>
         </Form>
+      </Card>
+
+      {/* SAP RFC Integration Card */}
+      <Card
+        title={<Space><DeploymentUnitOutlined /> SAP RFC Integration</Space>}
+        size="small"
+        style={{ marginBottom: 16 }}
+      >
+        <Alert
+          type="info"
+          showIcon
+          icon={<DeploymentUnitOutlined />}
+          style={{ marginBottom: 16 }}
+          message="Live SAP Transport Sync"
+          description={
+            <Text style={{ fontSize: 12 }}>
+              Configure the BTP Destination, remote function module, and start date used by
+              <code> Refresh All Data</code>. Values are stored in AppConfig and read by the
+              backend on every sync — no redeploy needed. The destination must be created in
+              <strong> BTP Cockpit → Connectivity → Destinations</strong> with Basic auth and a
+              Cloud Connector mapping to your SAP system.
+            </Text>
+          }
+        />
+
+        <Row gutter={16}>
+          <Col span={12}>
+            <div className="settings-field-group">
+              <Text strong className="settings-field-label">BTP Destination Name</Text>
+              <Input
+                value={rfcDestination}
+                onChange={e => setRfcDestination(e.target.value)}
+                placeholder="S4HANA_RFC_DS4"
+                disabled={!canConfigure}
+              />
+            </div>
+          </Col>
+          <Col span={12}>
+            <div className="settings-field-group">
+              <Text strong className="settings-field-label">Function Module</Text>
+              <Input
+                value={rfcFmName}
+                onChange={e => setRfcFmName(e.target.value)}
+                placeholder="ZTCC_GET_TRANSPORTS"
+                disabled={!canConfigure}
+              />
+            </div>
+          </Col>
+        </Row>
+
+        <Row gutter={16}>
+          <Col span={12}>
+            <div className="settings-field-group">
+              <Text strong className="settings-field-label">TR Start Date</Text>
+              <DatePicker
+                value={rfcStartDate}
+                onChange={(d) => setRfcStartDate(d)}
+                format="YYYY-MM-DD"
+                className="date-picker-block"
+                disabled={!canConfigure}
+              />
+              <Text type="secondary" className="field-hint">
+                FM returns transports created on/after this date. Re-runs upsert by TR number so
+                no duplicates are created.
+              </Text>
+            </div>
+          </Col>
+          <Col span={12}>
+            <div className="settings-field-group">
+              <Text strong className="settings-field-label">Systems Filter (optional)</Text>
+              <Input
+                value={rfcSystemsFilter}
+                onChange={e => setRfcSystemsFilter(e.target.value)}
+                placeholder="DS4,QS4,PS4"
+                disabled={!canConfigure}
+              />
+              <Text type="secondary" className="field-hint">
+                Comma-separated system IDs. Empty = all.
+              </Text>
+            </div>
+          </Col>
+        </Row>
+
+        <Divider orientation="left">
+          <Space><ClockCircleOutlined /> Auto-Sync Schedule</Space>
+        </Divider>
+
+        <Row gutter={16}>
+          <Col span={8}>
+            <div className="settings-field-group">
+              <Text strong className="settings-field-label">Enable scheduled auto-refresh</Text>
+              <Switch
+                checked={rfcScheduleEnabled}
+                onChange={setRfcScheduleEnabled}
+                checkedChildren="On"
+                unCheckedChildren="Off"
+                disabled={!canConfigure}
+              />
+              <Text type="secondary" className="field-hint">
+                When off, only the header Refresh button triggers a sync.
+              </Text>
+            </div>
+          </Col>
+          <Col span={16}>
+            <div className="settings-field-group">
+              <Text strong className="settings-field-label">Cron schedule</Text>
+              <Input
+                value={rfcSchedule}
+                onChange={e => setRfcSchedule(e.target.value)}
+                placeholder="0 2 * * *   (= every day at 02:00)"
+                disabled={!canConfigure || !rfcScheduleEnabled}
+              />
+              <Text type="secondary" className="field-hint">
+                Standard 5-field cron (min&nbsp;hour&nbsp;dom&nbsp;mon&nbsp;dow). Examples:
+                <code> */30 * * * *</code> every 30&nbsp;min,
+                <code> 0 */4 * * *</code> every 4&nbsp;h,
+                <code> 0 6 * * 1-5</code> weekdays 06:00.
+                Server timezone is UTC on BTP.
+              </Text>
+            </div>
+          </Col>
+        </Row>
+
+        <Space style={{ marginTop: 8 }}>
+          <Button
+            type="primary"
+            icon={<SaveOutlined />}
+            loading={rfcSaving}
+            disabled={!canConfigure}
+            onClick={async () => {
+              setRfcSaving(true);
+              setRfcResult(null);
+              try {
+                await configApi.update('RFC_DESTINATION_NAME', rfcDestination);
+                await configApi.update('RFC_FM_NAME', rfcFmName);
+                await configApi.update(
+                  'RFC_TR_START_DATE',
+                  rfcStartDate ? rfcStartDate.format('YYYYMMDD') : ''
+                );
+                await configApi.update('RFC_SYSTEMS_FILTER', rfcSystemsFilter);
+                await configApi.update('RFC_SCHEDULE_CRON', rfcSchedule);
+                await configApi.update('RFC_SCHEDULE_ENABLED', String(rfcScheduleEnabled));
+                const msg = 'SAP RFC settings saved';
+                setRfcResult({ success: true, message: msg });
+                message.success(msg);
+              } catch (err: any) {
+                setRfcResult({ success: false, message: err?.message || 'Failed to save' });
+                message.error('Failed to save RFC settings');
+              } finally {
+                setRfcSaving(false);
+              }
+            }}
+          >
+            Save SAP RFC Config
+          </Button>
+          {!canConfigure && (
+            <Text type="secondary" className="field-hint">
+              Only Admin / SuperAdmin can change RFC settings.
+            </Text>
+          )}
+        </Space>
+
+        {rfcResult && (
+          <Alert
+            type={rfcResult.success ? 'success' : 'error'}
+            showIcon
+            style={{ marginTop: 12 }}
+            message={rfcResult.success ? 'SAP RFC Configured' : 'Configuration Error'}
+            description={rfcResult.message}
+          />
+        )}
       </Card>
 
       {/* SharePoint Live Integration Card */}

@@ -9,7 +9,7 @@ import {
   BellOutlined, ReloadOutlined, WarningOutlined,
   AppstoreOutlined, RobotOutlined, TeamOutlined,
   ShoppingCartOutlined, MedicineBoxOutlined, ApartmentOutlined,
-  FundProjectionScreenOutlined, LogoutOutlined, SwapOutlined
+  FundProjectionScreenOutlined, LogoutOutlined, SwapOutlined, MenuOutlined
 } from '@ant-design/icons';
 import { useNotifications, useRefreshTransports } from '../../hooks/useData';
 import { useAuth } from '../../contexts/AuthContext';
@@ -140,6 +140,8 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
+        breakpoint="lg"
+        collapsedWidth={window.innerWidth < 768 ? 0 : 80}
         theme="light"
         width={220}
         className="app-sider"
@@ -202,6 +204,14 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <Layout className={collapsed ? 'app-main-collapsed' : 'app-main-expanded'}>
         <Header className="app-header">
           <Space size={8}>
+            <Button
+              icon={<MenuOutlined />}
+              size="small"
+              type="text"
+              onClick={() => setCollapsed((c) => !c)}
+              aria-label="Toggle sidebar"
+              className="app-header-hamburger"
+            />
             <Text strong className="app-header-title">
               Project Command Center
             </Text>
@@ -214,13 +224,21 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <Button
                   icon={<ReloadOutlined spin={refreshMutation.isPending} />}
                   onClick={() => refreshMutation.mutate()}
-                  size="small"
+                  aria-label="Refresh all data"
+                  className="header-icon-btn"
                 />
               </Tooltip>
             )}
-            <Badge count={unreadCount} size="small">
-              <Button icon={<BellOutlined />} size="small" onClick={() => setNotifOpen(true)} />
-            </Badge>
+            <Tooltip title="Notifications">
+              <Badge count={unreadCount} size="small">
+                <Button
+                  icon={<BellOutlined />}
+                  onClick={() => setNotifOpen(true)}
+                  aria-label={`Notifications${unreadCount ? ` (${unreadCount} unread)` : ''}`}
+                  className="header-icon-btn"
+                />
+              </Badge>
+            </Tooltip>
             <Dropdown menu={{ items: userMenuItems, onClick: ({ key }) => { if (key === 'settings') navigate('/settings'); if (key === 'logout') { window.location.href = '/api/v1/transport/logout'; } } }} trigger={['click']}>
               <Button size="small" className="user-menu-btn">
                 <Avatar size={20} className="user-avatar" style={{ backgroundColor: roleBadge.color }}>

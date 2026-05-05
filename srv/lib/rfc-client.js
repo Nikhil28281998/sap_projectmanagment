@@ -58,10 +58,23 @@ class CircuitBreaker {
 }
 
 class RFCClient {
-  constructor() {
+  /**
+   * @param {object} [opts] Runtime overrides sourced from AppConfig at call time.
+   * @param {string} [opts.destinationName] BTP destination name (default: env/RFC_DEST_NAME or S4HANA_RFC_DS4)
+   * @param {string} [opts.fmName]          FM name (default: env/RFC_FM_NAME or ZTCC_GET_TRANSPORTS)
+   * @param {string} [opts.startDate]       YYYYMMDD string
+   * @param {string} [opts.systemsFilter]   Comma-separated system IDs (e.g. 'DS4,QS4,PS4')
+   */
+  constructor(opts = {}) {
     this.circuitBreaker = new CircuitBreaker();
     this.maxRetries = 3;
     this.useMock = process.env.NODE_ENV !== 'production' || process.env.USE_MOCK_RFC === 'true';
+    // No hardcoded fallbacks — Admin/SuperAdmin must configure these in Settings.
+    // (Environment variables are still honoured for local/dev overrides.)
+    this.destinationName = opts.destinationName || process.env.RFC_DEST_NAME   || '';
+    this.fmName          = opts.fmName          || process.env.RFC_FM_NAME     || '';
+    this.startDate       = opts.startDate       || process.env.TR_START_DATE   || '';
+    this.systemsFilter   = opts.systemsFilter   ?? process.env.SAP_SYSTEMS     ?? '';
   }
 
   /**
@@ -80,10 +93,29 @@ class RFCClient {
       return this._getMockTransports();
     }
 
-    const raw = await this._callWithRetry('Z_TCC_GET_TRANSPORTS', {
-      IV_FROM_DATE: startDate || process.env.TR_START_DATE || '20260101',
-      IV_SYSTEMS: process.env.SAP_SYSTEMS || '',
-      IV_MAX_ROWS: 5000,
+    // FM + systems filter + start date come from AppConfig (via constructor) or env fallback.
+    if (!this.fmName) {
+      throw new Error(
+        'RFC function module is not configured. ' +
+        'Admin/SuperAdmin must set it under Settings → SAP RFC Integration (RFC_FM_NAME).'
+      );
+    }
+    if (!this.destinationName) {
+      throw new Error(
+        'BTP Destination is not configured. ' +
+        'Admin/SuperAdmin must set it under Settings → SAP RFC Integration (RFC_DESTINATION_NAME).'
+      );
+    }
+    if (!this.startDate) {
+      throw new Error(
+        'TR start date is not configured. ' +
+        'Admin/SuperAdmin must set it under Settings → SAP RFC Integration (RFC_TR_START_DATE).'
+      );
+    }
+    const raw = await this._callWithRetry(this.fmName, {
+      IV_FROM_DATE: startDate || this.startDate,
+      IV_SYSTEMS:   this.systemsFilter,
+      IV_MAX_ROWS:  5000,
     });
 
     // Parse the JSON response from SAP
@@ -279,7 +311,7 @@ class RFCClient {
       );
     }
 
-    const destName = process.env.RFC_DEST_NAME || 'S4HANA_RFC';
+    const destName = this.destinationName;
     const icfPath = `/sap/bc/srt/rfc/sap/${functionName.toLowerCase()}`;
 
     const response = await executeHttpRequest(

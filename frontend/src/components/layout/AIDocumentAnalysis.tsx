@@ -294,7 +294,7 @@ const AIDocumentAnalysis: React.FC<Props> = ({ open, defaultApp, onClose, onCrea
               <Divider style={{ margin: '8px 0' }}>
                 <Space>
                   <Text strong>Proposed Work Items</Text>
-                  <Badge count={selectedCount} style={{ backgroundColor: '#52c41a' }} />
+                  <Badge count={selectedCount} style={{ backgroundColor: 'var(--color-status-risk-low)' }} />
                   <Text type="secondary" style={{ fontSize: 11 }}>/ {proposals.length} total</Text>
                 </Space>
               </Divider>
@@ -328,7 +328,7 @@ const AIDocumentAnalysis: React.FC<Props> = ({ open, defaultApp, onClose, onCrea
 
               <Button type="primary" icon={<CheckCircleOutlined />} onClick={handleCreateSelected}
                 loading={creating} block size="large" disabled={selectedCount === 0}
-                style={{ background: '#52c41a', borderColor: '#52c41a' }}>
+                style={{ background: 'var(--color-status-risk-low)', borderColor: 'var(--color-status-risk-low)' }}>
                 Create {selectedCount} Selected Work Item(s)
               </Button>
 
@@ -382,7 +382,7 @@ const AIDocumentAnalysis: React.FC<Props> = ({ open, defaultApp, onClose, onCrea
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Space>
                         {isFolder
-                          ? <FolderOpenOutlined style={{ color: '#faad14', fontSize: 18 }} />
+                          ? <FolderOpenOutlined style={{ color: 'var(--color-status-risk-medium)', fontSize: 18 }} />
                           : <FileTextOutlined style={{ color: '#1677ff', fontSize: 18 }} />}
                         <div>
                           <Text strong style={{ fontSize: 13 }}>{doc.name}</Text>

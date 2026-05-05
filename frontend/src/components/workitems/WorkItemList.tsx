@@ -18,6 +18,7 @@ import { useWorkItems, useTransports, useCreateWorkItem } from '../../hooks/useD
 import { useAuth } from '../../contexts/AuthContext';
 import { useModule, ModuleKey } from '../../contexts/ModuleContext';
 import { calculateRAG, daysFromNow, WORK_TYPE_MAP, WORK_TYPE_COLORS } from '../../utils/tr-parser';
+import type { WorkItem, Transport, Milestone } from '@/types';
 
 const { Title, Text } = Typography;
 
@@ -34,7 +35,7 @@ const TAB_CONFIGS: Record<ModuleKey, { key: string; label: string; icon: React.R
     { key: '', label: 'All', icon: <AppstoreOutlined /> },
     { key: 'Project', label: 'Projects', icon: <ProjectOutlined /> },
     { key: 'Enhancement', label: 'Enhancements', icon: <CodeOutlined /> },
-    { key: 'Break-fix', label: 'Break-Fixes', icon: <BugOutlined /> },
+    { key: 'Break-fix', label: 'Break Fix / Request', icon: <BugOutlined /> },
     { key: 'Upgrade', label: 'Upgrades', icon: <SwapOutlined /> },
     { key: 'Support', label: 'Support', icon: <CustomerServiceOutlined /> },
     { key: 'Hypercare', label: 'Hypercare', icon: <SafetyOutlined /> },
@@ -80,7 +81,7 @@ const WorkItemList: React.FC = () => {
   const appParam = searchParams.get('app');
   const showAllApps = appParam === 'all';
   const APP_MAP: Record<string, string> = { sap: 'SAP', coupa: 'Coupa', commercial: 'Commercial' };
-  const workItems = allWorkItems.filter((wi: any) => {
+  const workItems = allWorkItems.filter((wi: WorkItem) => {
     if (showAllApps) return true; // Executive dashboard cross-app view
     if (appParam && APP_MAP[appParam]) return wi.application === APP_MAP[appParam];
     const appKey = APP_MAP[activeModule] || 'SAP';
@@ -88,7 +89,8 @@ const WorkItemList: React.FC = () => {
   });
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
+  const ragParam = searchParams.get('rag') || '';
 
   // TR Search state
   const [trSearchTerm, setTrSearchTerm] = useState(searchParams.get('q') || '');
@@ -110,11 +112,19 @@ const WorkItemList: React.FC = () => {
   };
 
   // ── Work Items table ──
+  // Treat 'Complete'/'Completed'/'Done' as synonyms so drill-downs work
+  // regardless of whether data comes from RFC (Complete) or local writes (Done).
+  const DONE_SYNONYMS = ['complete', 'completed', 'done'];
   const filteredItems = useMemo(() => {
     const typeKey = activeTab === 'tr-search' ? '' : activeTab;
-    return workItems.filter((item: any) => {
+    return workItems.filter((item: WorkItem) => {
       const matchesType = !typeKey || item.workItemType === typeKey;
-      const matchesStatus = !statusFilter || item.status === statusFilter;
+      const matchesStatus = !statusFilter ||
+        (DONE_SYNONYMS.includes(statusFilter.toLowerCase())
+          ? DONE_SYNONYMS.includes((item.status || '').toLowerCase())
+          : item.status === statusFilter);
+      const matchesRag = !ragParam ||
+        (item.overallRAG || calculateRAG(item)) === ragParam.toUpperCase();
       const matchesSearch =
         !searchTerm ||
         item.workItemName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -122,15 +132,15 @@ const WorkItemList: React.FC = () => {
         item.snowTicket?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.leadDeveloper?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.projectCode?.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesType && matchesStatus && matchesSearch;
+      return matchesType && matchesStatus && matchesRag && matchesSearch;
     });
-  }, [workItems, activeTab, statusFilter, searchTerm]);
+  }, [workItems, activeTab, statusFilter, ragParam, searchTerm]);
 
   // ── TR search results ──
   const trResults = useMemo(() => {
     if (!trSearchTerm && !trSystemFilter && !trStatusFilter) return [];
     const term = trSearchTerm.toLowerCase();
-    return transports.filter((t: any) => {
+    return transports.filter((t: Transport) => {
       const matchesSearch =
         !term ||
         t.trNumber?.toLowerCase().includes(term) ||
@@ -194,7 +204,7 @@ const WorkItemList: React.FC = () => {
       width: 60,
       render: (_: any, record: any) => {
         const rag = record.overallRAG || calculateRAG(record);
-        const colors: Record<string, string> = { RED: '#ff4d4f', AMBER: '#faad14', GREEN: '#52c41a' };
+        const colors: Record<string, string> = { RED: 'var(--color-status-risk-high)', AMBER: 'var(--color-status-risk-medium)', GREEN: 'var(--color-status-risk-low)' };
         return (
           <Tooltip title={`RAG: ${rag}`}>
             <div
@@ -211,9 +221,11 @@ const WorkItemList: React.FC = () => {
       key: 'status',
       render: (status: string) => {
         const colorMap: Record<string, string> = {
-          Active: 'processing', 'On Hold': 'warning', Done: 'success', Cancelled: 'default',
+          Active: 'processing', 'On Hold': 'warning',
+          Done: 'success', Complete: 'success', Completed: 'success',
+          Cancelled: 'default',
         };
-        return <Tag color={colorMap[status] || 'default'}>{status}</Tag>;
+        return <Tag color={colorMap[status] || 'default'}>{status || '—'}</Tag>;
       },
     },
     {

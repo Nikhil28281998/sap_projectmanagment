@@ -53,6 +53,56 @@ test.describe('Dashboard', () => {
     expect(criticalErrors.length).toBeLessThanOrEqual(2);
   });
 
+  test('executive dashboard shows all KPI tiles with consistent layout', async ({ page }) => {
+    await page.goto('/executive');
+    await waitForPageLoad(page);
+    await page.waitForSelector('.analytics-dashboard, .ant-card', { timeout: 15_000 }).catch(() => {});
+
+    const kpiLabels = [
+      'Active Projects',
+      'Completed',
+      'Avg Progress',
+      'Portfolio Health',
+      'Test Pass Rate',
+      'Critical',
+      'At Risk',
+      'Risk Score',
+      'Transports',
+      'Go-Lives',
+    ];
+
+    for (const label of kpiLabels) {
+      const tile = page.getByText(new RegExp(`^${label}`, 'i')).first();
+      await expect(tile, `KPI "${label}" should be visible on Executive Dashboard`).toBeVisible({ timeout: 10_000 });
+    }
+  });
+
+  test('KPI tiles drill down to tracker with filter params', async ({ page }) => {
+    await page.goto('/executive');
+    await waitForPageLoad(page);
+    await page.waitForSelector('.analytics-dashboard, .ant-card', { timeout: 15_000 }).catch(() => {});
+
+    const critical = page.getByRole('button', { name: /Critical/i }).first();
+    if (await critical.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await critical.click();
+      await page.waitForURL(/\/tracker\?.*rag=RED/i, { timeout: 10_000 });
+      expect(page.url()).toMatch(/rag=RED/);
+    }
+  });
+
+  test('progress bars in dashboard tables render a visible percent label', async ({ page }) => {
+    await page.goto('/');
+    await waitForPageLoad(page);
+
+    const progress = page.locator('.ant-progress').first();
+    if (await progress.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      const text = page.locator('.ant-progress-text').first();
+      await expect(text).toBeVisible();
+      const rendered = (await text.textContent() || '').trim();
+      expect(rendered).toMatch(/\d+\s*%/);
+    }
+  });
+
   test('dashboard toggle between Classic and Analytics', async ({ page }) => {
     await page.goto('/');
     await waitForPageLoad(page);

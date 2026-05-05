@@ -13,6 +13,8 @@
 'use strict';
 
 const cds = require('@sap/cds');
+const path = require('path');
+const express = require('express');
 
 // ── Logging setup ──────────────────────────────────────────────────────────────
 let pinoHttp;
@@ -152,6 +154,21 @@ cds.on('bootstrap', (app) => {
         return mutationLimiter(req, res, next);
       }
       next();
+    });
+  }
+
+  // 3. Serve built frontend (SPA) from approuter/webapp — local deploy only.
+  //    On BTP/Cloud Foundry, VCAP_APPLICATION is set and the real App Router
+  //    handles routing + XSUAA auth, so we skip static serving there.
+  const isCloudFoundry = !!process.env.VCAP_APPLICATION;
+  const serveStatic = process.env.SERVE_STATIC === 'true'
+    || (process.env.SERVE_STATIC !== 'false' && !isCloudFoundry);
+  if (serveStatic) {
+    const webappDir = path.join(__dirname, 'approuter', 'webapp');
+    app.use(express.static(webappDir, { index: 'index.html' }));
+    app.get(/^\/(?!api\b).*/, (req, res, next) => {
+      if (req.method !== 'GET' || req.path.includes('.')) return next();
+      res.sendFile(path.join(webappDir, 'index.html'));
     });
   }
 });

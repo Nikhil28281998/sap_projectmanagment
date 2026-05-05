@@ -7,6 +7,7 @@ import {
 } from '@ant-design/icons';
 import { useTransports, useCategorizeTransport, useBulkCategorize } from '../../hooks/useData';
 import { parseTRDescription, WORK_TYPE_MAP, WORK_TYPE_COLORS } from '../../utils/tr-parser';
+import type { WorkItem, Transport, Milestone } from '@/types';
 
 const { Title, Text } = Typography;
 
@@ -29,7 +30,7 @@ const UnassignedTRs: React.FC = () => {
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [bulkWorkItemId, setBulkWorkItemId] = useState<string>('');
 
-  const unassigned = transports.filter((t: any) => !t.workType || !t.workItem_ID);
+  const unassigned = transports.filter((t: Transport) => !t.workType || !t.workItem_ID);
 
   const handleCategorize = async (trNumber: string, workType: string) => {
     try {

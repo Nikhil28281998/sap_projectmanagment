@@ -70,7 +70,7 @@ const MethodologyPage: React.FC = () => {
           </Col>
           <Col span={8}>
             <Statistic title="Test Phases" value={testPhases(phases)} prefix={<ExperimentOutlined />}
-              valueStyle={{ fontSize: 18, color: testPhases(phases) > 0 ? '#52c41a' : '#999' }} />
+              valueStyle={{ fontSize: 18, color: testPhases(phases) > 0 ? 'var(--color-status-risk-low)' : '#999' }} />
           </Col>
           <Col span={8}>
             <Statistic title="~Duration" value={totalDays(phases)} suffix="days"

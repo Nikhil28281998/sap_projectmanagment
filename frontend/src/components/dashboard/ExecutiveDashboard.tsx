@@ -1,31 +1,34 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Row, Col, Select, Typography, Tooltip, Space, Segmented,
-  DatePicker, Button, Empty, Table, Tag, Progress
+  Row, Col, Select, Typography, Tooltip, Space,
+  DatePicker, Button, Table, Tag, Progress
 } from 'antd';
 import {
-  FilterOutlined, CaretUpOutlined, CaretDownOutlined, InfoCircleOutlined,
-  BarChartOutlined, AppstoreOutlined,
   ApartmentOutlined, ShoppingCartOutlined, MedicineBoxOutlined,
-  CheckCircleOutlined, TrophyOutlined, WarningOutlined
+  CheckCircleOutlined, TrophyOutlined, WarningOutlined,
+  BugOutlined, DeploymentUnitOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { Column, Pie, Bar } from '@ant-design/charts';
-import { useWorkItems } from '../../hooks/useData';
+import { useWorkItems, useTransports } from '../../hooks/useData';
 import { useAuth } from '../../contexts/AuthContext';
 import { calculateRAG, daysFromNow } from '../../utils/tr-parser';
 import dayjs from 'dayjs';
-import ExecutiveDashboardClassic from './ExecutiveDashboardClassic';
 import '../../styles/dashboard-analytics.css';
+import type { WorkItem, Transport } from '@/types';
+import { StatCard, EmptyState, ChartFrame } from '../../design/components';
+import { tokenAxisConfig, tokenChartInteraction, tokenChartLabel } from '../../design/chart-theme';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const C = {
-  bg: '#f0f2f5', card: '#ffffff', border: '#e8e8e8',
-  text: 'rgba(0,0,0,0.88)', textSec: 'rgba(0,0,0,0.45)',
-  accent: '#1677ff', green: '#52c41a', red: '#ff4d4f', amber: '#faad14',
-  orange: '#fa8c16', purple: '#722ed1', cyan: '#13c2c2', pink: '#eb2f96',
+  accent: '#1677ff',
+  green: 'var(--color-status-risk-low)',
+  amber: 'var(--color-status-risk-medium)',
+  red: 'var(--color-status-risk-high)',
+  orange: '#fa8c16',
+  purple: '#722ed1',
 };
 
 const APP_COLORS: Record<string, string> = { SAP: C.accent, Coupa: C.orange, Commercial: C.purple };
@@ -33,7 +36,7 @@ const APP_ICONS: Record<string, React.ReactNode> = {
   SAP: <ApartmentOutlined />, Coupa: <ShoppingCartOutlined />, Commercial: <MedicineBoxOutlined />,
 };
 
-function getRAG(wi: any): string {
+function getRAG(wi: WorkItem): string {
   return wi.overallRAG || calculateRAG({
     goLiveDate: wi.goLiveDate, deploymentPct: wi.deploymentPct || 0,
     status: wi.status, overallRAG: wi.overallRAG,
@@ -41,25 +44,28 @@ function getRAG(wi: any): string {
 }
 
 const RAG_LABELS: Record<string, string> = { GREEN: 'On Track', AMBER: 'At Risk', RED: 'Critical' };
-const RAG_COLORS: Record<string, string> = { GREEN: C.green, AMBER: C.amber, RED: C.red };
-
-const VIEW_KEY = 'exec_dashboard_view';
-const getStoredView = () => (localStorage.getItem(VIEW_KEY) as 'analytics' | 'classic') || 'analytics';
 
 const ExecutiveDashboard: React.FC = () => {
-  const [viewMode, setViewMode] = useState<'analytics' | 'classic'>(getStoredView);
   const navigate = useNavigate();
-  const { user, allowedApps } = useAuth();
+  const { allowedApps } = useAuth();
   const { data: allWorkItems = [], isLoading } = useWorkItems();
+  const { data: transports = [] } = useTransports();
+
+  const pipeline = useMemo(() => ({
+    dev: transports.filter((t: Transport) => t.currentSystem === 'DEV').length,
+    qas: transports.filter((t: Transport) => t.currentSystem === 'QAS').length,
+    prd: transports.filter((t: Transport) => t.currentSystem === 'PRD').length,
+    total: transports.length,
+  }), [transports]);
 
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
   const [filterApp, setFilterApp] = useState<string | undefined>();
 
   const workItems = useMemo(() => {
-    let items = allWorkItems.filter((wi: any) => !wi.application || allowedApps.includes(wi.application));
-    if (filterApp) items = items.filter((wi: any) => wi.application === filterApp);
+    let items = allWorkItems.filter((wi: WorkItem) => !wi.application || allowedApps.includes(wi.application));
+    if (filterApp) items = items.filter((wi: WorkItem) => wi.application === filterApp);
     if (dateRange) {
-      items = items.filter((wi: any) => {
+      items = items.filter((wi: WorkItem) => {
         if (!wi.goLiveDate) return true;
         const d = dayjs(wi.goLiveDate);
         return d.isAfter(dateRange[0]) && d.isBefore(dateRange[1]);
@@ -68,8 +74,8 @@ const ExecutiveDashboard: React.FC = () => {
     return items;
   }, [allWorkItems, allowedApps, filterApp, dateRange]);
 
-  const activeProjects = workItems.filter((wi: any) => wi.status === 'Active');
-  const completedCount = workItems.filter((wi: any) => ['Complete', 'Completed', 'Done'].includes(wi.status)).length;
+  const activeProjects = workItems.filter((wi: WorkItem) => wi.status === 'Active');
+  const completedCount = workItems.filter((wi: WorkItem) => ['Complete', 'Completed', 'Done'].includes(wi.status)).length;
 
   const ragDist = useMemo(() => {
     const d = { GREEN: 0, AMBER: 0, RED: 0 };
@@ -96,7 +102,7 @@ const ExecutiveDashboard: React.FC = () => {
   // Upcoming Go-Lives
   const upcomingGoLives = useMemo(() =>
     activeProjects
-      .filter((wi: any) => wi.goLiveDate && daysFromNow(wi.goLiveDate) >= 0 && daysFromNow(wi.goLiveDate) <= 90)
+      .filter((wi: WorkItem) => wi.goLiveDate && daysFromNow(wi.goLiveDate) >= 0 && daysFromNow(wi.goLiveDate) <= 90)
       .sort((a: any, b: any) => dayjs(a.goLiveDate).diff(dayjs(b.goLiveDate)))
       .slice(0, 5),
     [activeProjects]);
@@ -106,9 +112,9 @@ const ExecutiveDashboard: React.FC = () => {
     const apps = ['SAP', 'Coupa', 'Commercial'];
     const data: { app: string; count: number; status: string }[] = [];
     for (const app of apps) {
-      const appItems = activeProjects.filter((wi: any) => wi.application === app);
+      const appItems = activeProjects.filter((wi: WorkItem) => wi.application === app);
       for (const [ragKey, label] of [['GREEN', 'On Track'], ['AMBER', 'At Risk'], ['RED', 'Critical']] as const) {
-        const count = appItems.filter((wi: any) => getRAG(wi) === ragKey).length;
+        const count = appItems.filter((wi: WorkItem) => getRAG(wi) === ragKey).length;
         if (count > 0) data.push({ app, count, status: label });
       }
     }
@@ -127,7 +133,7 @@ const ExecutiveDashboard: React.FC = () => {
   // Bar: Progress by App
   const appProgressData = useMemo(() => {
     return ['SAP', 'Coupa', 'Commercial'].map(app => {
-      const items = activeProjects.filter((wi: any) => wi.application === app);
+      const items = activeProjects.filter((wi: WorkItem) => wi.application === app);
       const avg = items.length > 0 ? Math.round(items.reduce((s: number, w: any) => s + (w.deploymentPct || 0), 0) / items.length) : 0;
       return { app, progress: avg };
     }).filter(d => d.progress > 0);
@@ -136,7 +142,7 @@ const ExecutiveDashboard: React.FC = () => {
   // Bar: Risk by App
   const appRiskData = useMemo(() => {
     return ['SAP', 'Coupa', 'Commercial'].map(app => {
-      const items = activeProjects.filter((wi: any) => wi.application === app);
+      const items = activeProjects.filter((wi: WorkItem) => wi.application === app);
       const avg = items.length > 0 ? Math.round(items.reduce((s: number, w: any) => s + (w.riskScore || 0), 0) / items.length) : 0;
       return { app, riskScore: avg };
     }).filter(d => d.riskScore > 0);
@@ -145,8 +151,8 @@ const ExecutiveDashboard: React.FC = () => {
   // Per-app counts
   const appBreakdown = useMemo(() => {
     return ['SAP', 'Coupa', 'Commercial'].map(app => {
-      const items = activeProjects.filter((wi: any) => wi.application === app);
-      const completed = workItems.filter((wi: any) => wi.application === app && ['Complete', 'Completed', 'Done'].includes(wi.status)).length;
+      const items = activeProjects.filter((wi: WorkItem) => wi.application === app);
+      const completed = workItems.filter((wi: WorkItem) => wi.application === app && ['Complete', 'Completed', 'Done'].includes(wi.status)).length;
       return { app, active: items.length, completed, total: items.length + completed };
     });
   }, [activeProjects, workItems]);
@@ -186,35 +192,25 @@ const ExecutiveDashboard: React.FC = () => {
       render: (d: string) => d ? <Text type="secondary" className="fs-12">{d} ({daysFromNow(d)}d)</Text> : <Text type="secondary">—</Text>,
     },
     {
-      title: 'Progress', dataIndex: 'deploymentPct', key: 'pct', width: 120,
-      render: (pct: number) => <Progress percent={pct || 0} size="small" />,
+      title: 'Progress', dataIndex: 'deploymentPct', key: 'pct', width: 140,
+      render: (pct: number) => {
+        const v = pct || 0;
+        const stroke =
+          v >= 80 ? 'var(--color-status-risk-low)' :
+          v >= 40 ? 'var(--color-status-risk-medium)' :
+                    'var(--color-status-risk-high)';
+        return (
+          <Progress
+            percent={v}
+            size="small"
+            strokeColor={stroke}
+            trailColor="transparent"
+            format={(p) => <span style={{ fontWeight: 600 }}>{p}%</span>}
+          />
+        );
+      },
     },
   ];
-
-  const handleViewChange = (val: string | number) => {
-    const v = val as 'analytics' | 'classic';
-    setViewMode(v);
-    localStorage.setItem(VIEW_KEY, v);
-  };
-
-  if (viewMode === 'classic') {
-    return (
-      <div>
-        <div className="dashboard-view-toggle dashboard-toggle-classic">
-          <Title level={4} className="m-0"><TrophyOutlined /> Executive Overview</Title>
-          <Segmented
-            options={[
-              { label: <span><AppstoreOutlined /> Classic</span>, value: 'classic' },
-              { label: <span><BarChartOutlined /> Analytics</span>, value: 'analytics' },
-            ]}
-            value={viewMode}
-            onChange={handleViewChange}
-          />
-        </div>
-        <ExecutiveDashboardClassic />
-      </div>
-    );
-  }
 
   return (
     <div className="analytics-dashboard">
@@ -224,102 +220,116 @@ const ExecutiveDashboard: React.FC = () => {
             SAP PM Command Center / <Text strong className="dashboard-breadcrumb-active">Executive Portfolio Analytics</Text>
           </Text>
         </div>
-        <Segmented
-          options={[
-            { label: <span><AppstoreOutlined /> Classic</span>, value: 'classic' },
-            { label: <span><BarChartOutlined /> Analytics</span>, value: 'analytics' },
-          ]}
-          value={viewMode}
-          onChange={handleViewChange}
-        />
       </div>
 
       <div className="analytics-filter-bar">
         <RangePicker size="middle" onChange={(dates) => setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)} />
         <Select placeholder="Application" allowClear value={filterApp} onChange={setFilterApp}
           className="filter-select-lg" options={availableApps.map(a => ({ value: a, label: a }))} />
-        <Button icon={<FilterOutlined />}>Filters</Button>
       </div>
 
-      {/* KPI Cards */}
-      <Row gutter={16} className="mb-20">
-        <Col xs={12} lg={6}>
-          <div className="analytics-kpi analytics-kpi-clickable" onClick={() => navigate('/tracker?app=all')}>
-            <div className="kpi-label"><TrophyOutlined /> Active Projects</div>
-            <div className="kpi-value">{activeProjects.length}</div>
-            <div className="kpi-delta positive"><CaretUpOutlined /> {ragDist.GREEN} on track</div>
-          </div>
-        </Col>
-        <Col xs={12} lg={6}>
-          <div className="analytics-kpi">
-            <div className="kpi-label"><CheckCircleOutlined /> Completed</div>
-            <div className="kpi-value text-green">{completedCount}</div>
-            <div className="kpi-delta neutral">Across all applications</div>
-          </div>
-        </Col>
-        <Col xs={12} lg={6}>
-          <div className="analytics-kpi">
-            <div className="kpi-label">Avg Progress</div>
-            <div className="kpi-value">{avgDeployment}<span className="kpi-pct-suffix">%</span></div>
-            <div className="kpi-delta neutral">Test pass: {testSummary.rate}%</div>
-          </div>
-        </Col>
-        <Col xs={12} lg={6}>
-          <div className="analytics-kpi">
-            <div className="kpi-label">Portfolio Health</div>
-            <div className="kpi-value">{activeProjects.length}</div>
-            <div className="rag-bar">
-              {ragDist.GREEN > 0 && <Tooltip title={`On Track: ${ragDist.GREEN}`}><div className="bg-green" style={{ flex: ragDist.GREEN }} /></Tooltip>}
-              {ragDist.AMBER > 0 && <Tooltip title={`At Risk: ${ragDist.AMBER}`}><div className="bg-amber" style={{ flex: ragDist.AMBER }} /></Tooltip>}
-              {ragDist.RED > 0 && <Tooltip title={`Critical: ${ragDist.RED}`}><div className="bg-red" style={{ flex: ragDist.RED }} /></Tooltip>}
-            </div>
-            <div className="rag-bar-legend">
-              <span><span className="text-green">●</span> On Track</span>
-              <span><span className="text-amber">●</span> At Risk</span>
-              <span><span className="text-red">●</span> Critical</span>
-            </div>
-          </div>
-        </Col>
-      </Row>
-
-      {/* Mini Stats: Per-App Breakdown */}
-      <Row gutter={16} className="mb-20">
-        {appBreakdown.map(({ app, active, completed, total }) => (
-          <Col xs={8} lg={8} key={app}>
-            <div className="analytics-kpi app-breakdown-card">
-              <div className="app-breakdown-icon" style={{ color: APP_COLORS[app] }}>{APP_ICONS[app]}</div>
-              <div className="flex-1">
-                <Text strong className="fs-14">{app}</Text>
-                <div className="app-breakdown-stats">
-                  <Text type="secondary" className="fs-12">Active: <Text strong>{active}</Text></Text>
-                  <Text type="secondary" className="fs-12">Done: <Text strong className="text-green">{completed}</Text></Text>
-                </div>
-              </div>
-            </div>
-          </Col>
+      {/* KPI Cards — uniform grid, all tiles the same size */}
+      <div className="kpi-grid">
+        <StatCard
+          loading={isLoading}
+          icon={<TrophyOutlined />}
+          label="Active Projects"
+          value={activeProjects.length}
+          delta={{ direction: 'up', text: `${ragDist.GREEN} on track` }}
+          tone="info"
+          onClick={() => navigate('/tracker?app=all')}
+        />
+        <StatCard
+          loading={isLoading}
+          icon={<CheckCircleOutlined />}
+          label="Completed"
+          value={completedCount}
+          caption="Across all applications"
+          tone="success"
+          onClick={() => navigate('/tracker?app=all&status=Done')}
+        />
+        <StatCard
+          loading={isLoading}
+          label="Avg Progress"
+          value={avgDeployment}
+          unit="%"
+          caption={`Test pass: ${testSummary.rate}%`}
+          tone="info"
+          onClick={() => navigate('/tracker?app=all&status=Active')}
+        />
+        <StatCard
+          loading={isLoading}
+          label="Portfolio Health"
+          value={activeProjects.length}
+          caption={`${ragDist.GREEN} · ${ragDist.AMBER} · ${ragDist.RED}`}
+          tone={ragDist.RED > 0 ? 'danger' : ragDist.AMBER > 0 ? 'warning' : 'success'}
+          onClick={() => navigate('/tracker?app=all&status=Active')}
+        />
+        {appBreakdown.map(({ app, active, completed }) => (
+          <StatCard
+            key={app}
+            loading={isLoading}
+            icon={APP_ICONS[app]}
+            label={app}
+            value={active}
+            caption={`Active: ${active} · Done: ${completed}`}
+            tone="info"
+            onClick={() => navigate(`/tracker?app=${app.toLowerCase()}`)}
+          />
         ))}
-        <Col xs={8} lg={4}>
-          <div className="analytics-kpi analytics-kpi-mini">
-            <div className="kpi-label"><WarningOutlined /> Critical</div>
-            <div className="kpi-value text-red">{ragDist.RED}</div>
-            <Text type="secondary" className="fs-11">need attention</Text>
-          </div>
-        </Col>
-        <Col xs={8} lg={4}>
-          <div className="analytics-kpi analytics-kpi-mini">
-            <div className="kpi-label">Risk Score</div>
-            <div className="kpi-value">{totalRiskScore}</div>
-            <Text type="secondary" className="fs-11">aggregate</Text>
-          </div>
-        </Col>
-        <Col xs={8} lg={4}>
-          <div className="analytics-kpi analytics-kpi-mini">
-            <div className="kpi-label">Go-Lives ≤90d</div>
-            <div className="kpi-value">{upcomingGoLives.length}</div>
-            <Text type="secondary" className="fs-11">upcoming</Text>
-          </div>
-        </Col>
-      </Row>
+        <StatCard
+          loading={isLoading}
+          icon={<BugOutlined />}
+          label="Test Pass Rate"
+          value={testSummary.rate}
+          unit="%"
+          caption={`${testSummary.passed}/${testSummary.total} passed`}
+          tone={testSummary.rate >= 80 ? 'success' : testSummary.rate >= 50 ? 'warning' : 'danger'}
+          onClick={() => navigate('/tracker?app=all&status=Active')}
+        />
+        <StatCard
+          loading={isLoading}
+          icon={<WarningOutlined />}
+          label="Critical"
+          value={ragDist.RED}
+          caption="need attention"
+          tone="danger"
+          onClick={() => navigate('/tracker?app=all&status=Active&rag=RED')}
+        />
+        <StatCard
+          loading={isLoading}
+          label="At Risk"
+          value={ragDist.AMBER}
+          caption="being monitored"
+          tone="warning"
+          onClick={() => navigate('/tracker?app=all&status=Active&rag=AMBER')}
+        />
+        <StatCard
+          loading={isLoading}
+          label="Risk Score"
+          value={totalRiskScore}
+          caption="aggregate"
+          tone={totalRiskScore > 200 ? 'danger' : 'warning'}
+          onClick={() => navigate('/tracker?app=all&status=Active')}
+        />
+        <StatCard
+          loading={isLoading}
+          icon={<DeploymentUnitOutlined />}
+          label="Transports"
+          value={pipeline.total}
+          caption={`${pipeline.prd} in PRD`}
+          tone="info"
+          onClick={() => navigate('/pipeline')}
+        />
+        <StatCard
+          loading={isLoading}
+          label="Go-Lives ≤90d"
+          value={upcomingGoLives.length}
+          caption="upcoming"
+          tone="info"
+          onClick={() => navigate('/tracker?app=all&status=Active')}
+        />
+      </div>
 
       {/* Portfolio Overview */}
       <div className="analytics-chart-card chart-card-mb">
@@ -338,30 +348,42 @@ const ExecutiveDashboard: React.FC = () => {
                 </Space>
               ))}
             </Space>
-            {appChartData.length > 0 ? (
-              <Column data={appChartData} xField="app" yField="count" colorField="status"
-                stack={true} height={280} theme="classic"
-                scale={{ color: { domain: ['On Track', 'At Risk', 'Critical'], range: [C.green, C.amber, C.red] } }}
-                style={{ maxWidth: 60, radiusTopLeft: 4, radiusTopRight: 4 }}
-                axis={{ x: { title: false, line: null, tick: null }, y: { title: false, gridStroke: '#f0f0f0', gridLineDash: [3, 3] } }}
-                legend={false} />
-            ) : (
-              <div className="chart-empty-placeholder">
-                <Empty description="No data" />
-              </div>
-            )}
+            <ChartFrame
+              loading={isLoading}
+              height={280}
+              summary={`Projects by application and health. ${ragDist.GREEN} on track, ${ragDist.AMBER} at risk, ${ragDist.RED} critical across ${activeProjects.length} active projects.`}
+            >
+              {appChartData.length > 0 ? (
+                <Column data={appChartData} xField="app" yField="count" colorField="status"
+                  stack={true} height={280} theme="classic"
+                  scale={{ color: { domain: ['On Track', 'At Risk', 'Critical'], range: [C.green, C.amber, C.red] } }}
+                  style={{ maxWidth: 60, radiusTopLeft: 4, radiusTopRight: 4 }}
+                  axis={tokenAxisConfig()}
+                  interaction={tokenChartInteraction}
+                  legend={false} />
+              ) : (
+                <div className="chart-empty-placeholder">
+                  <EmptyState title="No data" />
+                </div>
+              )}
+            </ChartFrame>
           </Col>
           <Col xs={24} lg={10}>
             <div className="chart-section-header">
               <Text strong className="fs-14">Health Distribution</Text>
               <br /><Text type="secondary" className="fs-12">RAG status across all projects</Text>
             </div>
+            <ChartFrame
+              loading={isLoading}
+              height={280}
+              summary={`Health distribution donut. ${ragDist.GREEN} on track, ${ragDist.AMBER} at risk, ${ragDist.RED} critical.`}
+            >
             {ragDonutData.length > 0 ? (
               <div className="donut-chart-wrapper">
                 <Pie data={ragDonutData} angleField="value" colorField="status"
                   innerRadius={0.65} height={280} theme="classic"
                   scale={{ color: { domain: ['On Track', 'At Risk', 'Critical'], range: [C.green, C.amber, C.red] } }}
-                  label={false} legend={false} />
+                  label={false} legend={false} interaction={tokenChartInteraction} />
                 <div className="donut-center-label">
                   <div className="donut-value">{activeProjects.length}</div>
                   <div className="donut-sub">Active</div>
@@ -379,9 +401,10 @@ const ExecutiveDashboard: React.FC = () => {
               </div>
             ) : (
               <div className="chart-empty-placeholder">
-                <Empty description="No data" />
+                <EmptyState title="No data" />
               </div>
             )}
+            </ChartFrame>
           </Col>
         </Row>
       </div>
@@ -395,39 +418,48 @@ const ExecutiveDashboard: React.FC = () => {
               <Text strong className="fs-14">Progress by Application</Text>
               <br /><Text type="secondary" className="fs-12">Average deployment % per platform</Text>
             </div>
-            {appProgressData.length > 0 ? (
-              <Bar data={appProgressData} xField="app" yField="progress"
-                height={Math.max(180, appProgressData.length * 56)} theme="classic"
-                style={{ fill: C.accent, radiusTopRight: 4, radiusBottomRight: 4 }}
-                axis={{ x: { title: false }, y: { title: false, gridStroke: '#f0f0f0', gridLineDash: [3, 3] } }}
-                label={{ text: (d: any) => `${d.progress}%`, fontSize: 11 }} legend={false} />
-            ) : <Empty description="No data" />}
+            <ChartFrame loading={isLoading} height={200} summary={`Average deployment progress per application across ${appProgressData.length} platforms.`}>
+              {appProgressData.length > 0 ? (
+                <Bar data={appProgressData} xField="app" yField="progress"
+                  height={Math.max(180, appProgressData.length * 56)} theme="classic"
+                  style={{ fill: C.accent, radiusTopRight: 4, radiusBottomRight: 4 }}
+                  axis={tokenAxisConfig()}
+                  interaction={tokenChartInteraction}
+                  label={tokenChartLabel({ text: (d: any) => `${d.progress}%` })} legend={false} />
+              ) : <EmptyState title="No data" />}
+            </ChartFrame>
           </Col>
           <Col xs={24} lg={8}>
             <div className="chart-section-header">
               <Text strong className="fs-14">Risk by Application</Text>
               <br /><Text type="secondary" className="fs-12">Average risk per platform</Text>
             </div>
-            {appRiskData.length > 0 ? (
-              <Bar data={appRiskData} xField="app" yField="riskScore"
-                height={Math.max(180, appRiskData.length * 56)} theme="classic"
-                style={{ fill: C.red, radiusTopRight: 4, radiusBottomRight: 4 }}
-                axis={{ x: { title: false }, y: { title: false, gridStroke: '#f0f0f0', gridLineDash: [3, 3] } }}
-                label={{ text: 'riskScore', fontSize: 11 }} legend={false} />
-            ) : <Empty description="No data" />}
+            <ChartFrame loading={isLoading} height={200} summary={`Average risk score per application across ${appRiskData.length} platforms.`}>
+              {appRiskData.length > 0 ? (
+                <Bar data={appRiskData} xField="app" yField="riskScore"
+                  height={Math.max(180, appRiskData.length * 56)} theme="classic"
+                  style={{ fill: C.red, radiusTopRight: 4, radiusBottomRight: 4 }}
+                  axis={tokenAxisConfig()}
+                  interaction={tokenChartInteraction}
+                  label={tokenChartLabel({ text: 'riskScore' })} legend={false} />
+              ) : <EmptyState title="No data" />}
+            </ChartFrame>
           </Col>
           <Col xs={24} lg={8}>
             <div className="chart-section-header">
               <Text strong className="fs-14">Priority Distribution</Text>
               <br /><Text type="secondary" className="fs-12">All active projects by priority</Text>
             </div>
-            {priorityData.length > 0 ? (
-              <Bar data={priorityData} xField="priority" yField="count"
-                height={Math.max(180, priorityData.length * 48)} theme="classic"
-                style={{ fill: C.purple, radiusTopRight: 4, radiusBottomRight: 4 }}
-                axis={{ x: { title: false }, y: { title: false, gridStroke: '#f0f0f0', gridLineDash: [3, 3] } }}
-                label={{ text: 'count', fontSize: 11 }} legend={false} />
-            ) : <Empty description="No data" />}
+            <ChartFrame loading={isLoading} height={200} summary={`Priority distribution across ${priorityData.length} categories of active projects.`}>
+              {priorityData.length > 0 ? (
+                <Bar data={priorityData} xField="priority" yField="count"
+                  height={Math.max(180, priorityData.length * 48)} theme="classic"
+                  style={{ fill: C.purple, radiusTopRight: 4, radiusBottomRight: 4 }}
+                  axis={tokenAxisConfig()}
+                  interaction={tokenChartInteraction}
+                  label={tokenChartLabel({ text: 'count' })} legend={false} />
+              ) : <EmptyState title="No data" />}
+            </ChartFrame>
           </Col>
         </Row>
       </div>
@@ -448,7 +480,7 @@ const ExecutiveDashboard: React.FC = () => {
           pagination={{ pageSize: 8, size: 'small' }}
           scroll={{ x: 700 }}
           loading={isLoading}
-          locale={{ emptyText: <Empty description="No active projects" /> }}
+          locale={{ emptyText: <EmptyState title="No active projects" /> }}
         />
       </div>
     </div>

@@ -217,7 +217,7 @@ const AITemplateBuilder: React.FC<Props> = ({ open, onClose, onSaved }) => {
             </div>
 
             <Button type="primary" icon={<SaveOutlined />} onClick={handleSaveTemplate}
-              block size="large" style={{ background: '#52c41a', borderColor: '#52c41a' }}>
+              block size="large" style={{ background: 'var(--color-status-risk-low)', borderColor: 'var(--color-status-risk-low)' }}>
               Save Template ({templateVisibility === 'public' ? 'Public' : 'Private'})
             </Button>
           </>
