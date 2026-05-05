@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  Layout, Menu, Button, Badge, Space, Typography, Tooltip, Avatar, Dropdown, Tag
+  Layout, Menu, Button, Badge, Space, Typography, Tooltip, Avatar, Dropdown, Tag, message as antMessage
 } from 'antd';
 import {
   HomeOutlined, DashboardOutlined, ProjectOutlined,
@@ -170,7 +170,16 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               <Tooltip title="Refresh All Data">
                 <Button
                   icon={<ReloadOutlined spin={refreshMutation.isPending} />}
-                  onClick={() => refreshMutation.mutate()}
+                  onClick={() => refreshMutation.mutate(undefined, {
+                    onSuccess: (res: any) => {
+                      if (res?.success === false) {
+                        antMessage.error(`Sync failed: ${res.message}`);
+                      } else {
+                        antMessage.success(res?.message || 'Data refreshed');
+                      }
+                    },
+                    onError: (err: any) => antMessage.error(`Sync error: ${err?.message || 'Unknown error'}`),
+                  })}
                   aria-label="Refresh all data"
                   className="header-icon-btn"
                 />
