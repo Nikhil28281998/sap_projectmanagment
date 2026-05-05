@@ -1053,6 +1053,10 @@
 .wi-icon-sp-none { color: #d9d9d9; font-size: 16px; }
 .wi-methodology-select { width: 180px; }
 
+/* Transport Pipeline */
+.tr-row-stuck td { background-color: rgba(250, 173, 20, 0.06) !important; }
+.tr-row-stuck:hover td { background-color: rgba(250, 173, 20, 0.12) !important; }
+
 /* Milestone styles */
 .ms-name-done { text-decoration: line-through; opacity: 0.55; }
 .ms-auto-tag { margin-left: 4px; font-size: 10px; }

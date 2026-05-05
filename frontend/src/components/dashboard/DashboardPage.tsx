@@ -173,7 +173,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
       items = items.filter((wi: WorkItem) => {
         if (!wi.goLiveDate) return true;
         const d = dayjs(wi.goLiveDate);
-        return d.isAfter(dateRange[0]) && d.isBefore(dateRange[1]);
+        return !d.isBefore(dateRange[0]) && !d.isAfter(dateRange[1]);
       });
     }
     return items;
@@ -201,12 +201,21 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
   }, [activeItems]);
 
   // SAP-specific: transport pipeline
-  const pipeline = useMemo(() => ({
-    dev: transports.filter((t: Transport) => t.currentSystem === 'DEV').length,
-    qas: transports.filter((t: Transport) => t.currentSystem === 'QAS').length,
-    prd: transports.filter((t: Transport) => t.currentSystem === 'PRD').length,
-    total: transports.length,
-  }), [transports]);
+  const pipeline = useMemo(() => {
+    const now = Date.now();
+    return {
+      dev: transports.filter((t: Transport) => t.currentSystem === 'DEV').length,
+      qas: transports.filter((t: Transport) => t.currentSystem === 'QAS').length,
+      prd: transports.filter((t: Transport) => t.currentSystem === 'PRD').length,
+      total: transports.length,
+      unassigned: transports.filter((t: Transport) => !(t as any).workItem_ID).length,
+      stuck: transports.filter((t: Transport) => {
+        if (t.currentSystem === 'PRD') return false;
+        if ((t as any).trStatus === 'Released') return false;
+        return t.createdDate ? (now - new Date(t.createdDate).getTime()) / 86400000 > 5 : false;
+      }).length,
+    };
+  }, [transports]);
 
   const testSummary = useMemo(() => {
     let passed = 0, total = 0;
@@ -267,7 +276,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
       mods[m].count++;
     }
     return Object.entries(mods)
-      .map(([module, { total, count }]) => ({ module, riskScore: Math.round(total / count) }))
+      .map(([module, { total, count }]) => ({ module, riskScore: count > 0 ? Math.round(total / count) : 0 }))
       .sort((a, b) => b.riskScore - a.riskScore);
   }, [activeItems, application]);
 
@@ -470,8 +479,12 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ application }) => {
             loading={isLoading}
             label="Transports"
             value={pipeline.total}
-            caption={`${pipeline.prd} in PRD`}
-            tone="info"
+            caption={
+              pipeline.stuck > 0
+                ? `${pipeline.stuck} stuck · ${pipeline.unassigned} unassigned`
+                : `${pipeline.prd} in PRD · ${pipeline.unassigned} unassigned`
+            }
+            tone={pipeline.stuck > 0 ? 'warning' : 'info'}
             onClick={() => navigate('/pipeline')}
           />
         )}

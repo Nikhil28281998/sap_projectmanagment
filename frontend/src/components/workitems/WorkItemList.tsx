@@ -231,8 +231,27 @@ const WorkItemList: React.FC = () => {
     {
       title: 'Progress',
       key: 'progress',
-      width: 140,
+      width: 130,
       render: (_: any, record: any) => <Progress percent={Math.round(record.deploymentPct || 0)} size="small" />,
+    },
+    {
+      title: 'Tests',
+      key: 'tests',
+      width: 90,
+      render: (_: any, record: any) => {
+        const total = record.testTotal || 0;
+        if (total === 0) return <Text type="secondary" style={{ fontSize: 12 }}>—</Text>;
+        const pct = Math.round(record.testCompletionPct || 0);
+        return (
+          <Tooltip title={`${record.testPassed || 0} passed / ${record.testFailed || 0} failed / ${total} total`}>
+            <Progress
+              percent={pct}
+              size="small"
+              strokeColor={pct >= 80 ? '#52c41a' : pct >= 50 ? '#fa8c16' : '#ff4d4f'}
+            />
+          </Tooltip>
+        );
+      },
     },
     {
       title: 'Owner',
@@ -312,8 +331,29 @@ const WorkItemList: React.FC = () => {
       title: 'Type',
       dataIndex: 'workType',
       key: 'workType',
-      render: (type: string) =>
-        type ? <Tag color={WORK_TYPE_COLORS[type] || 'default'}>{WORK_TYPE_MAP[type] || type}</Tag> : <Tag>Unassigned</Tag>,
+      render: (type: string, record: any) => {
+        if (!type) return <Tag color="default">Unassigned</Tag>;
+        const isManual = record.assignedBy && record.assignedBy !== 'auto-link' && record.assignedBy !== 'scheduler';
+        const isAutoLinked = record.assignedBy === 'auto-link';
+        const hasPrefixMatch = /^(PRJ|ENH|BRK|UPG|SUP|HYP)-(INC|CHG)\d{7}\s*\|/.test(record.trDescription || '');
+        return (
+          <Space size={2}>
+            <Tag color={WORK_TYPE_COLORS[type] || 'default'}>{WORK_TYPE_MAP[type] || type}</Tag>
+            {isManual && (
+              <Tooltip title="Manually categorized">
+                <Tag style={{ fontSize: 10, padding: '0 4px', lineHeight: '16px' }} color="blue">M</Tag>
+              </Tooltip>
+            )}
+            {!isManual && !hasPrefixMatch && (
+              <Tooltip title={isAutoLinked ? 'Auto-linked via ticket match' : 'Keyword-based suggestion — verify'}>
+                <Tag style={{ fontSize: 10, padding: '0 4px', lineHeight: '16px' }} color={isAutoLinked ? 'cyan' : 'orange'}>
+                  {isAutoLinked ? 'A' : '?'}
+                </Tag>
+              </Tooltip>
+            )}
+          </Space>
+        );
+      },
     },
     {
       title: 'System',

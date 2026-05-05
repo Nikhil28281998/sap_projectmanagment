@@ -1281,6 +1281,7 @@ Scope: ${scope || 'single'} (${scope === 'multi' ? 'all projects summary' : scop
 
     const stuckTRs = allTRs.filter(tr => {
       if (tr.currentSystem === 'PRD') return false;
+      if (tr.trStatus === 'Released') return false; // Released TRs awaiting import are not stuck
       const created = new Date(tr.createdDate);
       return (now - created) / (1000 * 60 * 60 * 24) > 5;
     });
@@ -1396,6 +1397,9 @@ Scope: ${scope || 'single'} (${scope === 'multi' ? 'all projects summary' : scop
       }
     }
 
+    // Pre-build sorted list of WI tickets for partial matching (longest first avoids false prefix hits)
+    const wiTicketEntries = Object.entries(ticketToWI).sort((a, b) => b[0].length - a[0].length);
+
     let linked = 0;
     for (const tr of allTRs) {
       if (tr.workItem_ID) continue; // Already assigned
@@ -1403,9 +1407,12 @@ Scope: ${scope || 'single'} (${scope === 'multi' ? 'all projects summary' : scop
       const matches = desc.match(ticketPattern);
       if (!matches) continue;
 
+      let matched = false;
       for (const ticket of matches) {
+        if (matched) break;
         const upper = ticket.toUpperCase();
-        // Check direct match to work item snowTicket
+
+        // Direct match
         if (ticketToWI[upper]) {
           await UPDATE(TransportWorkItems).set({
             workItem_ID: ticketToWI[upper],
@@ -1414,18 +1421,21 @@ Scope: ${scope || 'single'} (${scope === 'multi' ? 'all projects summary' : scop
             assignedDate: new Date().toISOString(),
           }).where({ ID: tr.ID });
           linked++;
+          matched = true;
           break;
         }
-        // Also check partial match (e.g., INC12345 matches WI with snowTicket INC12345)
-        for (const wi of allWIs) {
-          if (wi.snowTicket && upper.includes(wi.snowTicket.toUpperCase())) {
+
+        // Partial match: check if any WI ticket is a substring of the extracted ticket
+        for (const [wiTicket, wiId] of wiTicketEntries) {
+          if (upper.includes(wiTicket)) {
             await UPDATE(TransportWorkItems).set({
-              workItem_ID: wi.ID,
+              workItem_ID: wiId,
               snowTicket: upper,
               assignedBy: 'auto-link',
               assignedDate: new Date().toISOString(),
             }).where({ ID: tr.ID });
             linked++;
+            matched = true;
             break;
           }
         }

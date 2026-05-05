@@ -31,7 +31,12 @@ export function useTransports() {
     queryKey: ['transports'],
     queryFn: async () => {
       const res = await transportApi.getAll();
-      return res.value || [];
+      const items = res.value || [];
+      const total = res['@odata.count'];
+      if (total != null && total > items.length) {
+        console.warn(`[useTransports] Truncated: loaded ${items.length} of ${total} TRs. Increase $top if needed.`);
+      }
+      return items;
     },
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
@@ -44,7 +49,12 @@ export function useWorkItems() {
     queryKey: ['workItems'],
     queryFn: async () => {
       const res = await workItemApi.getAll();
-      return res.value || [];
+      const items = res.value || [];
+      const total = res['@odata.count'];
+      if (total != null && total > items.length) {
+        console.warn(`[useWorkItems] Truncated: loaded ${items.length} of ${total} work items. Increase $top if needed.`);
+      }
+      return items;
     },
     staleTime: 5 * 60 * 1000,
   });

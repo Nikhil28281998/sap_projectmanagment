@@ -74,7 +74,7 @@ export const userApi = {
 // ─── Transports ───
 export const transportApi = {
   getAll: (params?: { top?: number; skip?: number; filter?: string }) => {
-    const qs = buildODataQuery({ top: params?.top ?? 200, skip: params?.skip, filter: params?.filter, count: true });
+    const qs = buildODataQuery({ top: params?.top ?? 2000, skip: params?.skip, filter: params?.filter, count: true });
     return request<ODataResponse<Transport> & { '@odata.count'?: number }>(`/Transports${qs}`);
   },
   getById: (id: string) => request<Transport>(`/Transports(${id})`),
@@ -100,7 +100,7 @@ export const transportApi = {
 // ─── Work Items ───
 export const workItemApi = {
   getAll: (params?: { top?: number; skip?: number; filter?: string }) => {
-    const qs = buildODataQuery({ top: params?.top ?? 100, skip: params?.skip, filter: params?.filter, count: true });
+    const qs = buildODataQuery({ top: params?.top ?? 500, skip: params?.skip, filter: params?.filter, count: true });
     return request<ODataResponse<WorkItem> & { '@odata.count'?: number }>(`/WorkItems${qs}`);
   },
   getById: (id: string) => request<WorkItem>(`/WorkItems(${id})?$expand=transports,milestones`),

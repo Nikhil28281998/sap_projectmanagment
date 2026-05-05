@@ -7,21 +7,37 @@ const TR_REGEX = /^(PRJ|ENH|BRK|UPG|SUP|HYP)-(INC|CHG)(\d{7})\s*\|\s*(.+)$/;
 const SNOW_REGEX = /(INC|CHG|RITM)(\d{7,})/;
 
 export const WORK_TYPE_MAP: Record<string, string> = {
+  // WorkItem full names
   Project: 'Project',
   Enhancement: 'Enhancement',
   'Break-fix': 'Break/Fix',
   Support: 'Support',
   Hypercare: 'Hypercare',
   Upgrade: 'Upgrade',
+  // TR code abbreviations (from TransportWorkItems.workType)
+  PRJ: 'Project',
+  ENH: 'Enhancement',
+  BRK: 'Break/Fix',
+  UPG: 'Upgrade',
+  SUP: 'Support',
+  HYP: 'Hypercare',
 };
 
 export const WORK_TYPE_COLORS: Record<string, string> = {
+  // WorkItem full names
   Project: '#1890ff',
   Enhancement: '#52c41a',
   'Break-fix': '#ff4d4f',
   Support: '#722ed1',
   Hypercare: '#fa8c16',
   Upgrade: '#13c2c2',
+  // TR code abbreviations
+  PRJ: '#1890ff',
+  ENH: '#52c41a',
+  BRK: '#ff4d4f',
+  UPG: '#13c2c2',
+  SUP: '#722ed1',
+  HYP: '#fa8c16',
 };
 
 /** Keyword rules for suggesting a work type from TR description */

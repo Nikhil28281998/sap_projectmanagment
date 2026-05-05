@@ -1,14 +1,22 @@
-import React from 'react';
-import { Card, Row, Col, Tag, Table, Statistic, Typography, Space, Empty, Skeleton } from 'antd';
+import React, { useMemo } from 'react';
+import { Card, Row, Col, Tag, Table, Statistic, Typography, Space, Empty, Skeleton, Tooltip } from 'antd';
 import {
   CheckCircleOutlined, ExclamationCircleOutlined, CloseCircleOutlined,
-  ClockCircleOutlined
+  ClockCircleOutlined, WarningOutlined, LinkOutlined, DisconnectOutlined
 } from '@ant-design/icons';
 import { useTransports, usePipelineSummary } from '../../hooks/useData';
 import { WORK_TYPE_MAP, WORK_TYPE_COLORS } from '../../utils/tr-parser';
-import type { WorkItem, Transport, Milestone } from '@/types';
+import type { Transport } from '@/types';
 
 const { Title, Text } = Typography;
+
+const ageDays = (date: string | null | undefined): number => {
+  if (!date) return 0;
+  return Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
+};
+
+const isStuck = (t: Transport): boolean =>
+  t.currentSystem !== 'PRD' && t.trStatus !== 'Released' && ageDays(t.createdDate) > 5;
 
 const TransportPipeline: React.FC = () => {
   const { data: transports = [], isLoading } = useTransports();
@@ -17,6 +25,7 @@ const TransportPipeline: React.FC = () => {
   const devTRs = transports.filter((t: Transport) => t.currentSystem === 'DEV');
   const qasTRs = transports.filter((t: Transport) => t.currentSystem === 'QAS');
   const prdTRs = transports.filter((t: Transport) => t.currentSystem === 'PRD');
+  const unassignedCount = useMemo(() => transports.filter((t: Transport) => !t.workItem_ID).length, [transports]);
 
   const columns = [
     {
@@ -30,7 +39,7 @@ const TransportPipeline: React.FC = () => {
       dataIndex: 'trDescription',
       key: 'trDescription',
       ellipsis: true,
-      width: 300,
+      width: 280,
     },
     {
       title: 'Owner',
@@ -48,7 +57,19 @@ const TransportPipeline: React.FC = () => {
             {WORK_TYPE_MAP[type] || type}
           </Tag>
         ) : (
-          <Tag>Unassigned</Tag>
+          <Tag color="default">Unassigned</Tag>
+        ),
+    },
+    {
+      title: 'Linked',
+      dataIndex: 'workItem_ID',
+      key: 'linked',
+      width: 70,
+      render: (wiId: string | null) =>
+        wiId ? (
+          <Tooltip title="Linked to work item"><LinkOutlined style={{ color: '#52c41a' }} /></Tooltip>
+        ) : (
+          <Tooltip title="Not linked — needs categorization"><DisconnectOutlined style={{ color: '#d9d9d9' }} /></Tooltip>
         ),
     },
     {
@@ -71,40 +92,59 @@ const TransportPipeline: React.FC = () => {
       },
     },
     {
-      title: 'Created',
+      title: 'Age',
       dataIndex: 'createdDate',
-      key: 'createdDate',
-      render: (date: string) => date ? new Date(date).toLocaleDateString() : '—',
+      key: 'age',
+      sorter: (a: any, b: any) => ageDays(b.createdDate) - ageDays(a.createdDate),
+      render: (date: string, record: Transport) => {
+        const days = ageDays(date);
+        const stuck = isStuck(record);
+        return (
+          <Tooltip title={date ? new Date(date).toLocaleDateString() : '—'}>
+            <Text style={{ color: stuck ? 'var(--color-status-risk-medium)' : undefined }}>
+              {stuck && <WarningOutlined style={{ marginRight: 4 }} />}
+              {days}d
+            </Text>
+          </Tooltip>
+        );
+      },
     },
   ];
 
-  const renderSystemCard = (title: string, trs: any[], color: string, icon: React.ReactNode) => (
-    <Card
-      title={
-        <Space>
-          {icon}
-          <span>{title} ({trs.length})</span>
-        </Space>
-      }
-      size="small"
-      style={{ height: '100%' }}
-    >
-      {isLoading ? (
-        <Skeleton active />
-      ) : trs.length === 0 ? (
-        <Empty description={`No TRs in ${title}`} image={Empty.PRESENTED_IMAGE_SIMPLE} />
-      ) : (
-        <Table
-          dataSource={trs}
-          columns={columns}
-          size="small"
-          pagination={{ pageSize: 10, showSizeChanger: true }}
-          rowKey="trNumber"
-          scroll={{ x: 800 }}
-        />
-      )}
-    </Card>
-  );
+  const renderSystemCard = (title: string, trs: any[], color: string, icon: React.ReactNode) => {
+    const stuckCount = trs.filter(isStuck).length;
+    return (
+      <Card
+        title={
+          <Space>
+            {icon}
+            <span>{title} ({trs.length})</span>
+            {stuckCount > 0 && (
+              <Tag color="warning" style={{ marginLeft: 4 }}>{stuckCount} stuck</Tag>
+            )}
+          </Space>
+        }
+        size="small"
+        style={{ height: '100%' }}
+      >
+        {isLoading ? (
+          <Skeleton active />
+        ) : trs.length === 0 ? (
+          <Empty description={`No TRs in ${title}`} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        ) : (
+          <Table
+            dataSource={trs}
+            columns={columns}
+            size="small"
+            pagination={{ pageSize: 10, showSizeChanger: true }}
+            rowKey="trNumber"
+            scroll={{ x: 860 }}
+            rowClassName={(record: Transport) => isStuck(record) ? 'tr-row-stuck' : ''}
+          />
+        )}
+      </Card>
+    );
+  };
 
   return (
     <div>
@@ -156,6 +196,16 @@ const TransportPipeline: React.FC = () => {
               value={pipeline?.failedCount ?? 0}
               valueStyle={{ color: 'var(--color-status-risk-high)' }}
               prefix={<CloseCircleOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={8} lg={4}>
+          <Card size="small">
+            <Statistic
+              title="Unassigned"
+              value={unassignedCount}
+              valueStyle={{ color: unassignedCount > 0 ? 'var(--color-status-risk-medium)' : undefined }}
+              prefix={<DisconnectOutlined />}
             />
           </Card>
         </Col>

@@ -68,7 +68,7 @@ const ExecutiveDashboard: React.FC = () => {
       items = items.filter((wi: WorkItem) => {
         if (!wi.goLiveDate) return true;
         const d = dayjs(wi.goLiveDate);
-        return d.isAfter(dateRange[0]) && d.isBefore(dateRange[1]);
+        return !d.isBefore(dateRange[0]) && !d.isAfter(dateRange[1]);
       });
     }
     return items;
