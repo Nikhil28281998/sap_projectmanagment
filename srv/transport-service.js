@@ -353,11 +353,40 @@ class TransportService extends cds.ApplicationService {
         updated++;
       }
 
-      // Auto-link newly inserted TRs against existing work items
-      let autoLinked = 0;
-      if (newTRNumbers.length > 0) {
-        autoLinked = await this._runAutoLink(newTRNumbers);
+      // ── Phase 2: auto-unlink TRs whose ticket was removed from description ──
+      // Only unlinks TRs that were assigned by the auto-link engine (not manual).
+      const { WorkItems } = this._e;
+      const allAutoLinked = await SELECT.from(TransportWorkItems).where({ assignedBy: 'auto-link' });
+      const allWIs = await SELECT.from(WorkItems);
+      const wiById = Object.fromEntries(allWIs.map(w => [w.ID, w]));
+
+      const allCfgs = await SELECT.from(AppConfig).where({
+        configKey: { in: ['SNOW_TASK_PREFIX', 'INCIDENT_PREFIX', 'VENDOR_TICKET_PREFIX'] }
+      });
+      const getCfg = (k, d) => allCfgs.find(c => c.configKey === k)?.configValue || d;
+      const ticketRe = new RegExp(
+        `(${getCfg('SNOW_TASK_PREFIX','SNOW')}\\d+|${getCfg('INCIDENT_PREFIX','INC')}\\d+|${getCfg('VENDOR_TICKET_PREFIX','CS')}\\d+)`,
+        'gi'
+      );
+
+      let unlinkedCount = 0;
+      for (const tr of allAutoLinked) {
+        const wi = wiById[tr.workItem_ID];
+        if (!wi?.snowTicket) continue;
+        const descMatches = (tr.trDescription || '').match(ticketRe) || [];
+        const ticketStillPresent = descMatches.some(m => m.toUpperCase().includes(wi.snowTicket.toUpperCase()));
+        if (!ticketStillPresent) {
+          await UPDATE(TransportWorkItems)
+            .set({ workItem_ID: null, assignedBy: null, assignedDate: null })
+            .where({ ID: tr.ID });
+          unlinkedCount++;
+        }
       }
+
+      // ── Phase 3: auto-link ALL currently unlinked TRs ──
+      // Covers: new TRs, TRs just unlinked above, and existing TRs whose description
+      // was updated in S/4HANA to now include a matching ticket number.
+      const autoLinked = await this._runAutoLink();
 
       const duration = Date.now() - startTime;
       syncEntry.completedAt = new Date().toISOString();
@@ -367,8 +396,10 @@ class TransportService extends cds.ApplicationService {
       syncEntry.durationMs = duration;
       await INSERT.into(SyncLog).entries(syncEntry);
 
-      const autoMsg = autoLinked > 0 ? `, auto-linked ${autoLinked} new TR(s)` : '';
-      return { success: true, recordsFetched: transports.length, message: `Synced ${transports.length} transports in ${duration}ms${autoMsg}` };
+      const parts = [`Synced ${transports.length} transports in ${duration}ms`];
+      if (autoLinked > 0) parts.push(`auto-linked ${autoLinked}`);
+      if (unlinkedCount > 0) parts.push(`auto-unlinked ${unlinkedCount}`);
+      return { success: true, recordsFetched: transports.length, message: parts.join(', ') };
     } catch (err) {
       syncEntry.completedAt = new Date().toISOString();
       syncEntry.status = 'FAILED';
