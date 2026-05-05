@@ -282,6 +282,12 @@ service TransportService {
   @requires: ['Admin', 'Manager']
   action autoLinkTickets() returns { success: Boolean; linked: Integer; message: String };
 
+  // AI-powered suggestions for unassigned TRs — returns link/create/unknown per TR
+  @requires: ['Admin', 'Manager']
+  action suggestWorkItemsForTRs(
+    trIds: array of String
+  ) returns { success: Boolean; suggestions: LargeString; message: String; provider: String };
+
   // ─── AI Refine Proposals (Discuss with AI to tweak proposals before creation) ───
   @requires: ['Admin', 'Manager']
   action refineProposals(

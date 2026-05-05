@@ -75,6 +75,7 @@ class TransportService extends cds.ApplicationService {
     this.on('changeWorkItemStatus', this._onChangeWorkItemStatus.bind(this));
     this.on('sendReport', this._onSendReport.bind(this));
     this.on('purgeActivityLog', this._onPurgeActivityLog.bind(this));
+    this.on('suggestWorkItemsForTRs', this._onSuggestWorkItemsForTRs.bind(this));
 
     // Reconfigure the RFC scheduler whenever AppConfig is updated so Admins
     // can change the cron expression / enabled flag without a redeploy.
@@ -318,6 +319,7 @@ class TransportService extends cds.ApplicationService {
       const transports = await rfcClient.getTransports();
 
       let updated = 0;
+      const newTRNumbers = [];
       for (const tr of transports) {
         const parsed = parseTRDescription(tr.description || '');
         const existing = await SELECT.one.from(TransportWorkItems).where({ trNumber: tr.trNumber });
@@ -346,8 +348,15 @@ class TransportService extends cds.ApplicationService {
           await UPDATE(TransportWorkItems).set(data).where({ trNumber: tr.trNumber });
         } else {
           await INSERT.into(TransportWorkItems).entries(data);
+          newTRNumbers.push(tr.trNumber);
         }
         updated++;
+      }
+
+      // Auto-link newly inserted TRs against existing work items
+      let autoLinked = 0;
+      if (newTRNumbers.length > 0) {
+        autoLinked = await this._runAutoLink(newTRNumbers);
       }
 
       const duration = Date.now() - startTime;
@@ -358,7 +367,8 @@ class TransportService extends cds.ApplicationService {
       syncEntry.durationMs = duration;
       await INSERT.into(SyncLog).entries(syncEntry);
 
-      return { success: true, recordsFetched: transports.length, message: `Synced ${transports.length} transports in ${duration}ms` };
+      const autoMsg = autoLinked > 0 ? `, auto-linked ${autoLinked} new TR(s)` : '';
+      return { success: true, recordsFetched: transports.length, message: `Synced ${transports.length} transports in ${duration}ms${autoMsg}` };
     } catch (err) {
       syncEntry.completedAt = new Date().toISOString();
       syncEntry.status = 'FAILED';
@@ -1461,42 +1471,42 @@ Scope: ${scope || 'single'} (${scope === 'multi' ? 'all projects summary' : scop
 
   // ─── Auto-Link SNOW/INC/CS Tickets from TR Descriptions ───
   async _onAutoLinkTickets(req) {
+    const linked = await this._runAutoLink();
+    const { AppConfig } = this._e;
+    const configs = await SELECT.from(AppConfig);
+    const get = (k, d) => configs.find(c => c.configKey === k)?.configValue || d;
+    return { success: true, linked, message: `Auto-linked ${linked} transport(s) based on ticket patterns (${get('SNOW_TASK_PREFIX','SNOW')}*, ${get('INCIDENT_PREFIX','INC')}*, ${get('VENDOR_TICKET_PREFIX','CS')}*)` };
+  }
+
+  // Shared auto-link engine — links unassigned TRs to work items by SNOW/INC/CS ticket patterns.
+  // Pass trNumbers to restrict to specific TRs (e.g. newly inserted); omit to scan all unassigned.
+  async _runAutoLink(trNumbers) {
     const { TransportWorkItems, WorkItems, AppConfig } = this._e;
 
-    // Read configurable prefixes (or use defaults)
     const configs = await SELECT.from(AppConfig);
-    const getConfig = (key, defaultVal) => {
-      const c = configs.find(c => c.configKey === key);
-      return c?.configValue || defaultVal;
-    };
+    const get = (k, d) => configs.find(c => c.configKey === k)?.configValue || d;
+    const snowPrefix  = get('SNOW_TASK_PREFIX', 'SNOW');
+    const incPrefix   = get('INCIDENT_PREFIX', 'INC');
+    const vendorPrefix = get('VENDOR_TICKET_PREFIX', 'CS');
 
-    const snowPrefix = getConfig('SNOW_TASK_PREFIX', 'SNOW');
-    const incPrefix = getConfig('INCIDENT_PREFIX', 'INC');
-    const vendorPrefix = getConfig('VENDOR_TICKET_PREFIX', 'CS');
+    const ticketPattern = new RegExp(`(${snowPrefix}\\d+|${incPrefix}\\d+|${vendorPrefix}\\d+)`, 'gi');
 
-    // Build regex to find ticket references in TR descriptions
-    const ticketPattern = new RegExp(
-      `(${snowPrefix}\\d+|${incPrefix}\\d+|${vendorPrefix}\\d+)`,
-      'gi'
-    );
+    const trsQuery = SELECT.from(TransportWorkItems).where({ workItem_ID: null });
+    const allTRs = trNumbers?.length
+      ? await SELECT.from(TransportWorkItems).where({ trNumber: { in: trNumbers }, workItem_ID: null })
+      : await trsQuery;
 
-    const allTRs = await SELECT.from(TransportWorkItems);
     const allWIs = await SELECT.from(WorkItems);
 
-    // Build lookup: snowTicket → work item ID
     const ticketToWI = {};
     for (const wi of allWIs) {
-      if (wi.snowTicket) {
-        ticketToWI[wi.snowTicket.toUpperCase()] = wi.ID;
-      }
+      if (wi.snowTicket) ticketToWI[wi.snowTicket.toUpperCase()] = wi.ID;
     }
-
-    // Pre-build sorted list of WI tickets for partial matching (longest first avoids false prefix hits)
     const wiTicketEntries = Object.entries(ticketToWI).sort((a, b) => b[0].length - a[0].length);
 
     let linked = 0;
     for (const tr of allTRs) {
-      if (tr.workItem_ID) continue; // Already assigned
+      if (tr.workItem_ID) continue;
       const desc = tr.trDescription || '';
       const matches = desc.match(ticketPattern);
       if (!matches) continue;
@@ -1505,38 +1515,111 @@ Scope: ${scope || 'single'} (${scope === 'multi' ? 'all projects summary' : scop
       for (const ticket of matches) {
         if (matched) break;
         const upper = ticket.toUpperCase();
-
-        // Direct match
         if (ticketToWI[upper]) {
-          await UPDATE(TransportWorkItems).set({
-            workItem_ID: ticketToWI[upper],
-            snowTicket: upper,
-            assignedBy: 'auto-link',
-            assignedDate: new Date().toISOString(),
-          }).where({ ID: tr.ID });
-          linked++;
-          matched = true;
-          break;
+          await UPDATE(TransportWorkItems).set({ workItem_ID: ticketToWI[upper], snowTicket: upper, assignedBy: 'auto-link', assignedDate: new Date().toISOString() }).where({ ID: tr.ID });
+          linked++; matched = true; break;
         }
-
-        // Partial match: check if any WI ticket is a substring of the extracted ticket
         for (const [wiTicket, wiId] of wiTicketEntries) {
           if (upper.includes(wiTicket)) {
-            await UPDATE(TransportWorkItems).set({
-              workItem_ID: wiId,
-              snowTicket: upper,
-              assignedBy: 'auto-link',
-              assignedDate: new Date().toISOString(),
-            }).where({ ID: tr.ID });
-            linked++;
-            matched = true;
-            break;
+            await UPDATE(TransportWorkItems).set({ workItem_ID: wiId, snowTicket: upper, assignedBy: 'auto-link', assignedDate: new Date().toISOString() }).where({ ID: tr.ID });
+            linked++; matched = true; break;
           }
         }
       }
     }
+    return linked;
+  }
 
-    return { success: true, linked, message: `Auto-linked ${linked} transport(s) based on ticket patterns (${snowPrefix}*, ${incPrefix}*, ${vendorPrefix}*)` };
+  // ════════════════════════════════════════════════════════
+  //  AI SUGGEST WORK ITEMS FOR UNASSIGNED TRs
+  // ════════════════════════════════════════════════════════
+
+  async _onSuggestWorkItemsForTRs(req) {
+    const { trIds } = req.data;
+    const { TransportWorkItems, WorkItems } = this._e;
+
+    try {
+      const ai = await AIClient.create(this.db, this._e);
+      if (!ai.enabled) {
+        return { success: false, suggestions: '[]', message: 'AI is not configured. Go to Settings → AI Integration.', provider: '' };
+      }
+
+      // Fetch TRs to analyse
+      let trs;
+      if (trIds && trIds.length > 0) {
+        trs = await SELECT.from(TransportWorkItems).where({ ID: { in: trIds } });
+      } else {
+        trs = await SELECT.from(TransportWorkItems).where({ workItem_ID: null });
+      }
+      trs = trs.filter(t => !t.workItem_ID);
+
+      if (trs.length === 0) {
+        return { success: true, suggestions: '[]', message: 'No unassigned transports to analyse.', provider: ai.provider };
+      }
+
+      // Limit to 30 TRs per call to stay within token budget
+      const batch = trs.slice(0, 30);
+
+      const allWIs = await SELECT.from(WorkItems).where({ status: { '!=': 'Done' } });
+
+      const wiSummary = allWIs.map(wi =>
+        `ID:${wi.ID} | "${wi.workItemName}" | Type:${wi.workItemType} | Phase:${wi.currentPhase} | Ticket:${wi.snowTicket || 'none'} | Module:${wi.sapModule || 'unknown'}`
+      ).join('\n');
+
+      const trList = batch.map(tr =>
+        `ID:${tr.ID} | TR:${tr.trNumber} | Owner:${tr.trOwner} | Desc:"${tr.trDescription || '(no description)'}"`
+      ).join('\n');
+
+      const prompt = `You are an SAP project manager assistant. Analyse these unassigned SAP Transport Requests (TRs) and suggest how to handle each one.
+
+EXISTING ACTIVE WORK ITEMS:
+${wiSummary || '(none yet)'}
+
+UNASSIGNED TRs TO ANALYSE:
+${trList}
+
+For each TR return a JSON object with these exact fields:
+- trId: the TR's ID field (copy exactly from input)
+- trNumber: the TR number (e.g. DEVK912345)
+- suggestion: one of "link" | "create" | "unknown"
+  - "link" = this TR clearly belongs to an existing work item above
+  - "create" = this TR represents new work; a new work item should be created
+  - "unknown" = insufficient info; admin needs to clarify
+- workItemId: (only for "link") the ID of the matching existing work item
+- workItemName: (only for "link") the name of the matching work item
+- suggestedName: (only for "create") a concise name for the new work item
+- suggestedType: (only for "create") one of: project | enhancement | break-fix | support | upgrade | hypercare
+- suggestedModule: (only for "create") SAP module abbreviation e.g. FI, MM, SD, HR, Basis, Security
+- suggestedPriority: (only for "create") one of: P1 | P2 | P3
+- confidence: HIGH | MEDIUM | LOW
+- reason: one sentence explaining the suggestion
+- questions: array of strings — clarifying questions for admin (1-2 max, only if confidence < HIGH or suggestion = "unknown")
+
+Return ONLY a valid JSON array. No markdown, no explanation outside the JSON.`;
+
+      const messages = [{ role: 'user', content: prompt }];
+      const raw = await ai.chat(messages, { max_tokens: 3000 });
+
+      // Strip any markdown fencing
+      const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+
+      let parsed;
+      try {
+        parsed = JSON.parse(cleaned);
+        if (!Array.isArray(parsed)) throw new Error('Expected array');
+      } catch {
+        return { success: false, suggestions: '[]', message: `AI returned unparseable response: ${cleaned.slice(0, 200)}`, provider: ai.provider };
+      }
+
+      const skipped = trs.length - batch.length;
+      const msg = skipped > 0
+        ? `Analysed ${batch.length} TRs (${skipped} skipped — analyse in batches)`
+        : `Analysed ${batch.length} TR(s)`;
+
+      return { success: true, suggestions: JSON.stringify(parsed), message: msg, provider: ai.provider };
+    } catch (err) {
+      return { success: false, suggestions: '[]', message: `AI analysis failed: ${err.message}`, provider: '' };
+    }
   }
 
   // ════════════════════════════════════════════════════════

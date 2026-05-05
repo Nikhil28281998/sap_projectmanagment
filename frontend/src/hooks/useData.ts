@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { transportApi, dashboardApi, workItemApi, syncApi, reportApi, notificationApi, templateApi, aiApi, userApi, methodologyApi } from '../services/api';
+import { transportApi, dashboardApi, workItemApi, syncApi, reportApi, notificationApi, templateApi, aiApi, userApi, methodologyApi, autoApi } from '../services/api';
 
 // ─── Current User (Auth) ───
 export function useCurrentUser() {
@@ -244,5 +244,21 @@ export function useGenerateTemplateFromEmail() {
     mutationFn: ({ emailContent, templateName, scope }: {
       emailContent: string; templateName: string; scope: string;
     }) => aiApi.generateTemplate(emailContent, templateName, scope),
+  });
+}
+
+export function useSuggestWorkItemsForTRs() {
+  return useMutation({
+    mutationFn: (trIds: string[]) => aiApi.suggestWorkItemsForTRs(trIds),
+  });
+}
+
+export function useAutoLinkTickets() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => autoApi.linkTickets(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transports'] });
+    },
   });
 }

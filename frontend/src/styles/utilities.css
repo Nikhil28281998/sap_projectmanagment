@@ -1529,3 +1529,8 @@
 .analytics-chart-card {
   will-change: border-color, box-shadow;
 }
+
+/* ─── UnassignedTRs AI suggestions panel ─── */
+.unassigned-ai-questions { margin-bottom: 12px; }
+.unassigned-ai-question-row { margin-top: 6px; }
+.unassigned-bulk-tag-list { max-height: 120px; overflow-y: auto; }

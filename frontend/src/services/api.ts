@@ -247,6 +247,11 @@ export const aiApi = {
       method: 'POST',
       body: JSON.stringify({ proposals, instruction, application }),
     }),
+  suggestWorkItemsForTRs: (trIds: string[]) =>
+    request<{ success: boolean; suggestions: string; message: string; provider: string }>('/suggestWorkItemsForTRs', {
+      method: 'POST',
+      body: JSON.stringify({ trIds }),
+    }),
 };
 
 // ─── Methodologies ───
